@@ -33,7 +33,7 @@ flowchart LR
 VoxTrail
 ├── travel-app-fe/              React + Vite + Material UI frontend
 ├── travel-app-be/              Express API + Firebase Admin backend
-├── travel-app-be/functions/    Firebase Functions entry points
+├── travel-app-be/functions/    Archived Functions codebase (not deployed)
 └── scripts/                    Deployment and release helpers
 ```
 
@@ -43,7 +43,7 @@ VoxTrail
 | --- | --- |
 | Frontend | React 18, Vite, React Router, Redux Toolkit, Material UI, MapLibre |
 | Backend | Node.js, Express, Firebase Admin, Firestore, Zod |
-| Services | Firebase Auth, Google Places, OpenRouter, Xenova Transformers |
+| Services | Firebase Auth, Google Places, OpenRouter, Hugging Face Transformers.js |
 | Delivery | Firebase Hosting, Firebase Functions, GitHub Actions |
 
 ## Run locally
@@ -51,8 +51,7 @@ VoxTrail
 ### 1. Install dependencies
 
 ```bash
-cd travel-app-fe && npm ci
-cd ../travel-app-be && npm ci
+npm run install:all
 ```
 
 ### 2. Configure environment
@@ -62,15 +61,17 @@ cp travel-app-fe/.env.example travel-app-fe/.env
 cp travel-app-be/.env.example travel-app-be/.env
 ```
 
-Configure the Firebase values, `VITE_API_URL`, backend `FB_ADMIN_CREDENTIALS`, `REQUEST_SIGNING_SECRET`, and provider keys for Google Places and OpenRouter. Never commit `.env` files, API keys, service-account JSON, or other secrets.
+Configure the Firebase values, `VITE_API_URL`, `REQUEST_SIGNING_SECRET`, and provider keys for Google Places and OpenRouter. Local backend development also needs either `FB_ADMIN_CREDENTIALS` or `GOOGLE_APPLICATION_CREDENTIALS`; managed Firebase Functions use Application Default Credentials. Never commit `.env` files, API keys, service-account JSON, or other secrets.
 
 ### 3. Start both apps with one command
 
 From the repository root on macOS/Linux:
 
 ```bash
-(cd travel-app-be && npm run dev) & (cd travel-app-fe && npm run dev) & wait
+npm run dev
 ```
+
+The root script manages both child processes and shuts them down together with `Ctrl-C`.
 
 Open the frontend at [http://localhost:5173](http://localhost:5173). The API runs at [http://localhost:8000](http://localhost:8000).
 
@@ -139,9 +140,12 @@ You need the Firebase CLI, an authenticated Firebase account, configured product
 
 GitHub Actions workflows are available in `.github/workflows/`:
 
-- `ci.yml` runs frontend tests/build, backend tests, Functions lint, and dependency audits.
-- `deploy.yml` deploys from `main` when every required Firebase repository secret is configured;
-  otherwise its preflight reports a clean skip instead of claiming a deployment occurred.
+- `ci.yml` runs clean installs, frontend/backend tests, dependency audits, the production build, and Firebase Emulator integration smoke tests.
+- `deploy.yml` deploys the Firebase stack only after successful `main` CI, or by a protected manual run from `main`, when every required Firebase repository secret is configured. Otherwise, its preflight reports a clean skip.
+
+The active Firebase topology uses the `backend` Functions codebase in
+`travel-app-be/`. The historical `travel-app-be/functions/` directory is
+archived and is not deployed.
 
 ## Security
 
@@ -151,7 +155,7 @@ Review [ENVIRONMENT_VARIABLES.md](ENVIRONMENT_VARIABLES.md) and [travel-app-be/f
 
 ## Production status
 
-The project is actively hardening toward production. The current readiness assessment is **conditional NO-GO for unrestricted public launch** while the full frontend suite, backend CI execution, dependency audit, provider quotas, staging observability, and legal-policy verification are completed.
+The repository is a **staging-ready release candidate**: clean installs, unit tests, production builds, full dependency audits, Firebase Emulator integration checks, and real local translation inference pass. Unrestricted public launch remains conditional on staging observability, provider quota/spend validation, legal review, and rollback/backup drills.
 
 Read the full assessment in [PRODUCTION_READINESS_REPORT.md](PRODUCTION_READINESS_REPORT.md).
 

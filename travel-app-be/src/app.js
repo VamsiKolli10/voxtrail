@@ -56,6 +56,7 @@ const rateLimitWindowMs = env.RATE_LIMIT_WINDOW_MS ?? 60_000;
 const rateLimitMax = env.RATE_LIMIT_MAX ?? 60;
 const requestBodyLimit = env.REQUEST_BODY_LIMIT || "256kb";
 const signingSecret = env.REQUEST_SIGNING_SECRET;
+const readinessTimeoutMs = env.READINESS_TIMEOUT_MS ?? 3_000;
 
 if (!signingSecret) {
   throw new Error(
@@ -117,6 +118,7 @@ const methodLimits = {
 
 function createApp() {
   const app = express();
+  let readinessCache = { checkedAt: 0, ready: false };
   app.disable("x-powered-by");
   app.set("trust proxy", 1);
   app.use(requestContext);
@@ -162,11 +164,41 @@ function createApp() {
   app.use(express.json({ limit: requestBodyLimit }));
   app.use(express.urlencoded({ extended: true, limit: requestBodyLimit }));
 
-  app.get("/healthz", (_req, res) => res.status(200).json({ status: "ok" }));
-  app.get("/readyz", (_req, res) => {
-    const ready = Boolean(process.env.REQUEST_SIGNING_SECRET);
-    res.status(ready ? 200 : 503).json({ status: ready ? "ready" : "not_ready" });
-  });
+  const healthResponse = (_req, res) => res.status(200).json({ status: "ok" });
+  const readinessResponse = async (_req, res) => {
+    const now = Date.now();
+    if (now - readinessCache.checkedAt > 10_000) {
+      let timer;
+      try {
+        await new Promise((resolve, reject) => {
+          timer = setTimeout(
+            () => reject(new Error("Firestore readiness check timed out")),
+            readinessTimeoutMs
+          );
+          Promise.resolve(
+            db.collection("_health").doc("readiness").get()
+          ).then(resolve, reject);
+        });
+        readinessCache = { checkedAt: now, ready: true };
+      } catch (error) {
+        readinessCache = { checkedAt: now, ready: false };
+        logError(error, { message: "Readiness dependency check failed" });
+      } finally {
+        clearTimeout(timer);
+      }
+    }
+
+    res.status(readinessCache.ready ? 200 : 503).json({
+      status: readinessCache.ready ? "ready" : "not_ready",
+      checks: { firestore: readinessCache.ready },
+    });
+  };
+  // Keep root checks for direct/local API usage and expose /api checks for the
+  // Firebase Hosting rewrite, which forwards the original request path.
+  app.get("/healthz", healthResponse);
+  app.get("/readyz", readinessResponse);
+  app.get("/api/healthz", healthResponse);
+  app.get("/api/readyz", readinessResponse);
 
   // Hydrate user context (if any) before applying role-based rate limits
   app.use(attachUserContext);

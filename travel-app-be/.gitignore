@@ -11,3 +11,4 @@ serviceAccountKey.json
 public/
 public.*/
 .firebase/
+.firebase-emulator.generated.json

@@ -1,4 +1,4 @@
-const admin = require("firebase-admin");
+const { db } = require("../config/firebaseAdmin");
 const { chatComplete } = require("../lib/openrouterClient");
 const {
   createErrorResponse,
@@ -38,7 +38,6 @@ function buildBriefCacheKey(destination, culture, language) {
 
 async function getBriefFromCache(cacheKey, { includeStale = false } = {}) {
   try {
-    const db = admin.firestore();
     const doc = await db.collection(BRIEF_CACHE_COLLECTION).doc(cacheKey).get();
     if (!doc.exists) return null;
 
@@ -76,7 +75,6 @@ async function getBriefFromCache(cacheKey, { includeStale = false } = {}) {
 
 async function saveBriefToCache(cacheKey, payload) {
   try {
-    const db = admin.firestore();
     await db.collection(BRIEF_CACHE_COLLECTION).doc(cacheKey).set({
       value: payload,
       timestamp: Date.now(),

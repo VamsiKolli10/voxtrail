@@ -1,4 +1,4 @@
-const admin = require("firebase-admin");
+const { db, FieldValue } = require("../config/firebaseAdmin");
 const {
   sanitizeString,
   validateLangCode,
@@ -10,7 +10,7 @@ const {
   logError,
 } = require("../utils/errorHandler");
 
-const fdb = () => admin.firestore();
+const fdb = () => db;
 const SAVED_PHRASE_LIMIT = Number(process.env.SAVED_PHRASE_LIMIT || 200);
 
 const detail = (e) =>
@@ -151,7 +151,7 @@ exports.addSaved = async (req, res) => {
       .collection("saved_phrases")
       .add({
         ...payload.value,
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        createdAt: FieldValue.serverTimestamp(),
       });
     res.status(201).json({ id: docRef.id });
   } catch (e) {

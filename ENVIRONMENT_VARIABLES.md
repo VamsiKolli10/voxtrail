@@ -29,7 +29,7 @@ Environment variables are crucial for configuring the VoxTrail application. They
 | `TRANSLATION_MODEL_TIMEOUT_MS` | Model download/load timeout (ms)                       | `90000`                 | No       |
 | `TRANSLATION_INFERENCE_TIMEOUT_MS` | Inference timeout before triggering fallback (ms)  | `20000`                 | No       |
 | `TRANSLATION_FALLBACK_ENABLED` | Allow OpenRouter fallback when local model fails       | `true`                  | No       |
-| `TRANSFORMERS_CACHE`     | Persistent cache path for Transformers.js models             | `./.cache/transformers` | No       |
+| `TRANSFORMERS_CACHE`     | Persistent cache path for `@huggingface/transformers` models | `./.cache/transformers` | No       |
 
 > Translation fallback relies on `OPENROUTER_API_KEY`. Set `TRANSLATION_FALLBACK_ENABLED=false` to opt out if you want strictly on-device translations.
 

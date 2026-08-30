@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Builds the React frontend, syncs it into the Firebase Hosting directory, and
-# deploys both hosting + backend functions via the Firebase CLI.
+# deploys Hosting plus the single active backend Functions codebase.
 
 set -euo pipefail
 
@@ -152,7 +152,7 @@ check_command() {
   if ! command -v "$1" >/dev/null 2>&1; then
     log_error "$1 is required but was not found in PATH."
     if [[ "$1" == "firebase" ]]; then
-      log_error "Install via: npm install -g firebase-tools"
+      log_error "Install via: npm install -g firebase-tools@15.28.2"
     fi
     exit 1
   fi
@@ -162,12 +162,12 @@ check_command npm
 check_command node
 check_command firebase
 
-# Check Firebase CLI version (recommend 12+)
+# Check Firebase CLI version (require the pinned production major)
 FIREBASE_VERSION=$(firebase --version 2>/dev/null | head -1 || echo "unknown")
 if [[ "${FIREBASE_VERSION}" != "unknown" ]]; then
-  FIREBASE_MAJOR=$(echo "${FIREBASE_VERSION}" | cut -d'.' -f1)
-  if [[ ${FIREBASE_MAJOR} -lt 12 ]] && [[ ${VERBOSE} -eq 1 ]]; then
-    log_warn "Firebase CLI version ${FIREBASE_VERSION} detected. Recommended: 12.0.0 or higher."
+  if [[ "${FIREBASE_VERSION}" != "15.28.2" ]]; then
+    log_error "Firebase CLI ${FIREBASE_VERSION} detected; install firebase-tools@15.28.2."
+    exit 1
   fi
   if [[ ${VERBOSE} -eq 1 ]]; then
     log_info "Firebase CLI version: ${FIREBASE_VERSION}"
@@ -248,8 +248,9 @@ if [[ ${SKIP_CHECKS} -eq 0 ]]; then
   # Check Node.js version
   NODE_VERSION=$(node --version | cut -d'v' -f2 | cut -d'.' -f1)
   NODE_FULL=$(node --version)
-  if [[ ${NODE_VERSION} -lt 18 ]]; then
-    log_warn "Node.js version is ${NODE_FULL}. Recommended: 18 or higher."
+  if [[ ${NODE_VERSION} -ne 22 ]]; then
+    log_error "Node.js version is ${NODE_FULL}. VoxTrail deployments require Node.js 22."
+    exit 1
   else
     log_success "Node.js version: ${NODE_FULL}"
   fi
@@ -289,7 +290,7 @@ if [[ ${SKIP_DEPS} -eq 0 ]]; then
   # Check frontend dependencies
   if [[ ! -d "${FRONTEND_DIR}/node_modules" ]]; then
     log_warn "Frontend node_modules not found. Installing dependencies..."
-    if ! (cd "${FRONTEND_DIR}" && npm install); then
+    if ! (cd "${FRONTEND_DIR}" && npm ci); then
       log_error "Failed to install frontend dependencies."
       exit 1
     fi
@@ -301,7 +302,7 @@ if [[ ${SKIP_DEPS} -eq 0 ]]; then
   # Check backend dependencies
   if [[ ! -d "${BACKEND_DIR}/node_modules" ]]; then
     log_warn "Backend node_modules not found. Installing dependencies..."
-    if ! (cd "${BACKEND_DIR}" && npm install); then
+    if ! (cd "${BACKEND_DIR}" && npm ci); then
       log_error "Failed to install backend dependencies."
       exit 1
     fi
@@ -544,13 +545,13 @@ if [[ ${DRY_RUN} -eq 0 ]]; then
     
     # Method 1: HTTP status check
     if command -v curl >/dev/null 2>&1; then
-      HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 15 "${DEPLOYED_URL}" 2>/dev/null || echo "000")
+      HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 15 "${DEPLOYED_URL}/api/healthz" 2>/dev/null || echo "000")
       if [[ "${HTTP_CODE}" == "200" ]] || [[ "${HTTP_CODE}" == "301" ]] || [[ "${HTTP_CODE}" == "302" ]]; then
         log_success "Deployment verified: ${DEPLOYED_URL} (HTTP ${HTTP_CODE})"
         VERIFICATION_PASSED=1
       else
         # Try alternate URL
-        HTTP_CODE_ALT=$(curl -s -o /dev/null -w "%{http_code}" --max-time 15 "${DEPLOYED_URL_ALT}" 2>/dev/null || echo "000")
+        HTTP_CODE_ALT=$(curl -s -o /dev/null -w "%{http_code}" --max-time 15 "${DEPLOYED_URL_ALT}/api/healthz" 2>/dev/null || echo "000")
         if [[ "${HTTP_CODE_ALT}" == "200" ]] || [[ "${HTTP_CODE_ALT}" == "301" ]] || [[ "${HTTP_CODE_ALT}" == "302" ]]; then
           log_success "Deployment verified: ${DEPLOYED_URL_ALT} (HTTP ${HTTP_CODE_ALT})"
           VERIFICATION_PASSED=1
@@ -563,6 +564,31 @@ if [[ ${DRY_RUN} -eq 0 ]]; then
       log_info "Primary URL: ${DEPLOYED_URL}"
       log_info "Alternate URL: ${DEPLOYED_URL_ALT}"
       log_info "Deployment may take a few minutes to propagate. Check Firebase Console for status."
+    fi
+
+    # A successful Hosting response is not enough: require the API to reach
+    # Firestore before considering the deployment healthy.
+    READINESS_PASSED=0
+    if command -v curl >/dev/null 2>&1; then
+      for attempt in 1 2 3 4 5 6; do
+        for candidate in "${DEPLOYED_URL}" "${DEPLOYED_URL_ALT}"; do
+          READY_CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 "${candidate}/api/readyz" 2>/dev/null || echo "000")
+          if [[ "${READY_CODE}" == "200" ]]; then
+            log_success "API readiness verified: ${candidate}/api/readyz"
+            READINESS_PASSED=1
+            break 2
+          fi
+        done
+        if [[ ${attempt} -lt 6 ]]; then
+          log_info "API is not ready yet (attempt ${attempt}/6); retrying in 5 seconds..."
+          sleep 5
+        fi
+      done
+    fi
+
+    if [[ ${READINESS_PASSED} -eq 0 ]]; then
+      log_error "Deployment completed, but /api/readyz did not confirm Firestore readiness."
+      exit 1
     fi
     
     # Display deployment info

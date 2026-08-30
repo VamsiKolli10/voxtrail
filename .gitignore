@@ -4,3 +4,10 @@
 .env.*
 !**/.env.example
 serviceAccountKey.json
+coverage/
+**/coverage/
+dist/
+**/dist/
+firebase-debug.log
+firebase-debug.*.log
+gha-creds-*.json

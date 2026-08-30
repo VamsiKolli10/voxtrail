@@ -9,7 +9,7 @@ import {
   PURGE,
   REGISTER,
 } from "redux-persist";
-import storage from "redux-persist/lib/storage";
+import storage from "redux-persist/es/storage";
 import app from "./slices/appSlice";
 import translation from "./slices/translationSlice";
 import phrasebook from "./slices/phrasebookSlice";

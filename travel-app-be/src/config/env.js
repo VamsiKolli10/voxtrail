@@ -15,6 +15,11 @@ const envSchema = z
     CORS_ALLOWED_ORIGINS: z.string().optional(),
     FB_ADMIN_CREDENTIALS: z.string().optional(),
     FIREBASE_ADMIN_CREDENTIALS: z.string().optional(),
+    GOOGLE_APPLICATION_CREDENTIALS: z.string().optional(),
+    GCLOUD_PROJECT: z.string().optional(),
+    GCP_PROJECT: z.string().optional(),
+    K_SERVICE: z.string().optional(),
+    FUNCTION_TARGET: z.string().optional(),
     OPENROUTER_API_KEY: z.string().optional(),
     OPENROUTER_MODEL: z.string().optional(),
     OPENROUTER_MODEL_CHAIN: z.string().optional(),
@@ -24,14 +29,25 @@ const envSchema = z
     RATE_LIMIT_MAX: z
       .preprocess(toNumber, z.number().int().positive().optional()),
     REQUEST_BODY_LIMIT: z.string().optional(),
+    READINESS_TIMEOUT_MS: z
+      .preprocess(toNumber, z.number().int().positive().max(10_000).optional()),
     MAX_TRANSLATION_CHARS: z
       .preprocess(toNumber, z.number().int().positive().optional()),
   })
   .refine(
     (value) =>
-      Boolean(value.FB_ADMIN_CREDENTIALS || value.FIREBASE_ADMIN_CREDENTIALS),
+      Boolean(
+        value.FB_ADMIN_CREDENTIALS ||
+          value.FIREBASE_ADMIN_CREDENTIALS ||
+          value.GOOGLE_APPLICATION_CREDENTIALS ||
+          value.K_SERVICE ||
+          value.FUNCTION_TARGET ||
+          value.GCLOUD_PROJECT ||
+          value.GCP_PROJECT
+      ),
     {
-      message: "FB_ADMIN_CREDENTIALS (or FIREBASE_ADMIN_CREDENTIALS) is required",
+      message:
+        "Firebase Admin credentials or a managed Google Cloud runtime are required",
       path: ["FB_ADMIN_CREDENTIALS"],
     }
   );

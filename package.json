@@ -1,0 +1,20 @@
+{
+  "name": "voxtrail",
+  "private": true,
+  "version": "1.0.0",
+  "description": "VoxTrail full-stack travel companion",
+  "engines": {
+    "node": ">=22 <23",
+    "npm": ">=10"
+  },
+  "scripts": {
+    "install:all": "npm ci --prefix travel-app-fe && npm ci --prefix travel-app-be",
+    "dev": "bash scripts/dev.sh",
+    "test": "npm run test:frontend && npm run test:backend",
+    "test:frontend": "npm test --prefix travel-app-fe",
+    "test:backend": "npm test --prefix travel-app-be",
+    "test:emulators": "npm run emulators:test --prefix travel-app-be",
+    "build": "npm run build --prefix travel-app-fe",
+    "ci": "npm run test && npm run build"
+  }
+}

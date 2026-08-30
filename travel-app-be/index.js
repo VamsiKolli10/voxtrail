@@ -2,7 +2,9 @@ const functions = require("firebase-functions/v1");
 const { createApp } = require("./src/app");
 
 const app = createApp();
-const region = process.env.FUNCTION_REGION || "us-central1";
+// Keep this synchronized with the Firebase Hosting rewrite in firebase.json.
+// A fixed region prevents Hosting from routing to a different deployment.
+const region = "us-central1";
 // Increased memory for translation model loading (models can be 100-200MB each)
 const memory = process.env.FUNCTION_MEMORY || "2GB";
 // Increased timeout to 120s to allow model loading (model timeout is 90s)

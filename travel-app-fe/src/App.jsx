@@ -1,4 +1,6 @@
+import { lazy, Suspense } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
+import { Box, CircularProgress, Typography } from "@mui/material";
 import { AuthProvider } from "./contexts/AuthContext.jsx";
 import ProtectedRoute from "./components/common/ProtectedRoute";
 import PublicRoute from "./components/common/PublicRoute";
@@ -8,29 +10,44 @@ import { FeatureFlagsProvider } from "./contexts/FeatureFlagsContext.jsx";
 import { AnalyticsProvider } from "./contexts/AnalyticsContext.jsx";
 import FeatureGate from "./components/common/FeatureGate.jsx";
 
-// Public pages
-import Landing from "./components/pages/Landing";
-import Login from "./components/pages/Login";
-import Register from "./components/pages/Register";
-import ForgotPassword from "./components/pages/ForgotPassword";
-import ResetPassword from "./components/pages/ResetPassword";
-import AuthAction from "./components/pages/AuthAction";
-import VerifyEmail from "./components/pages/VerifyEmail";
-import LegalPage from "./components/pages/LegalPage";
+const Landing = lazy(() => import("./components/pages/Landing"));
+const Login = lazy(() => import("./components/pages/Login"));
+const Register = lazy(() => import("./components/pages/Register"));
+const ForgotPassword = lazy(() => import("./components/pages/ForgotPassword"));
+const ResetPassword = lazy(() => import("./components/pages/ResetPassword"));
+const AuthAction = lazy(() => import("./components/pages/AuthAction"));
+const VerifyEmail = lazy(() => import("./components/pages/VerifyEmail"));
+const LegalPage = lazy(() => import("./components/pages/LegalPage"));
+const Home = lazy(() => import("./components/pages/Home.jsx"));
+const Translation = lazy(() => import("./components/pages/Translation"));
+const Phrasebook = lazy(() => import("./components/pages/Phrasebook"));
+const Emergency = lazy(() => import("./components/pages/Emergency"));
+const CulturalGuide = lazy(() => import("./components/pages/CulturalGuide"));
+const StaysSearchPage = lazy(() => import("./components/pages/StaysSearchPage"));
+const StayDetailsPage = lazy(() => import("./components/pages/StayDetailsPage"));
+const DiscoverPage = lazy(() => import("./components/pages/DiscoverPage"));
+const DestinationDetailsPage = lazy(() =>
+  import("./components/pages/DestinationDetailsPage")
+);
 
-// Protected pages
-import Home from "./components/pages/Home.jsx";
-import Translation from "./components/pages/Translation";
-import Phrasebook from "./components/pages/Phrasebook";
-import Emergency from "./components/pages/Emergency";
-import CulturalGuide from "./components/pages/CulturalGuide";
-// import Destinations from "./components/pages/Destinations";
-
-// ✅ Stays pages
-import StaysSearchPage from "./components/pages/StaysSearchPage";
-import StayDetailsPage from "./components/pages/StayDetailsPage"; // <-- added import
-import DiscoverPage from "./components/pages/DiscoverPage";
-import DestinationDetailsPage from "./components/pages/DestinationDetailsPage";
+function RouteFallback() {
+  return (
+    <Box
+      role="status"
+      aria-live="polite"
+      sx={{
+        minHeight: "50vh",
+        display: "grid",
+        placeItems: "center",
+        alignContent: "center",
+        gap: 2,
+      }}
+    >
+      <CircularProgress size={34} />
+      <Typography color="text.secondary">Loading VoxTrail…</Typography>
+    </Box>
+  );
+}
 
 export default function App() {
   return (
@@ -38,7 +55,8 @@ export default function App() {
       <AppearanceProvider>
         <FeatureFlagsProvider>
           <AnalyticsProvider>
-            <Routes>
+            <Suspense fallback={<RouteFallback />}>
+              <Routes>
               {/* 🌐 Public routes */}
               <Route element={<PublicRoute />}>
                 <Route path="/" element={<Landing />} />
@@ -125,7 +143,8 @@ export default function App() {
 
               {/* 🌍 Global fallback for unauth routes */}
               <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
+              </Routes>
+            </Suspense>
           </AnalyticsProvider>
         </FeatureFlagsProvider>
       </AppearanceProvider>

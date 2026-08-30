@@ -41,7 +41,7 @@ VoxTrail is a full-stack web application providing:
 
 ### System Requirements
 
-- Node.js 18+
+- Node.js 22 (required by the repository runtime policy)
 - npm or yarn
 - 2GB+ RAM for production
 - 1GB+ storage
@@ -58,8 +58,9 @@ APP_PORT=8000
 NODE_ENV=production
 FIRESTORE_PREFER_REST=true
 
-# Firebase Configuration
-FB_ADMIN_CREDENTIALS=<your-firebase-admin-credentials-json>
+# Firebase Configuration (local/non-Google environments only; choose one)
+FB_ADMIN_CREDENTIALS=<base64-encoded-firebase-admin-credentials-json>
+GOOGLE_APPLICATION_CREDENTIALS=/absolute/path/to/service-account.json
 FBAPP_API_KEY=<your-firebase-web-api-key>
 FBAPP_AUTH_DOMAIN=<your-project>.firebaseapp.com
 FBAPP_PROJECT_ID=<your-project-id>
@@ -91,7 +92,7 @@ REQUEST_BODY_LIMIT=256kb
 MAX_TRANSLATION_CHARS=500
 ```
 
-> **Credential handling:** generate a Firebase service-account JSON and base64-encode it (`cat serviceAccount.json | base64`) before assigning it to `FB_ADMIN_CREDENTIALS` (formerly `FIREBASE_ADMIN_CREDENTIALS`). The backend no longer reads credential files from disk, which prevents accidental leaks in containers and repos.
+> **Credential handling:** Firebase Functions and Cloud Run use Application Default Credentials, so do not deploy a second service-account key there. For local or non-Google environments, use either a base64-encoded `FB_ADMIN_CREDENTIALS` value or point `GOOGLE_APPLICATION_CREDENTIALS` at a readable file. Never commit the file or encoded value.
 
 ### Frontend Environment Variables
 
@@ -215,11 +216,11 @@ const allowedOrigins = ["https://yourdomain.com", "https://www.yourdomain.com"];
 
 ### Backend Deployment
 
-#### Option 1: Firebase Functions
+#### Firebase Functions (canonical deployment)
 
 ```bash
 # Install Firebase CLI
-npm install -g firebase-tools
+npm install -g firebase-tools@15.28.2
 
 # Login to Firebase
 firebase login
@@ -228,8 +229,22 @@ firebase login
 firebase init
 
 # Deploy functions
-firebase deploy --only functions
+firebase deploy --only functions:backend
 ```
+
+The repository deploys the Express API from the `backend` Functions codebase
+(`travel-app-be/`) using Node.js 22. The historical `functions/` directory is
+archived and is not part of the production deployment.
+
+Before staging or production deployment, exercise the configured Hosting,
+Functions, Firestore, and Auth topology locally:
+
+```bash
+cd travel-app-be
+npm run emulators:test
+```
+
+The pinned Firebase CLI requires Java 21 or newer for the Firestore emulator.
 
 #### Option 2: Traditional Server
 
@@ -247,7 +262,7 @@ pm2 start ecosystem.config.js
 #### Option 3: Docker
 
 ```dockerfile
-FROM node:18-alpine
+FROM node:22-alpine
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci --only=production
@@ -299,7 +314,7 @@ The script expects `firebase-tools` to be installed and authenticated, reuses `.
 
 ### CI/CD (GitHub Actions)
 
-- **Workflows** live in `.github/workflows/ci.yml` (PR/main tests + build) and `.github/workflows/deploy.yml` (deploy on `main` or manual dispatch). The deploy workflow calls `scripts/firebase-deploy.sh`.
+- **Workflows** live in `.github/workflows/ci.yml` (PR/main tests, audits, and build) and `.github/workflows/deploy.yml`. Production deployment runs only after a successful `CI` push run on `main`, or by manual dispatch from `main`, and calls `scripts/firebase-deploy.sh`.
 - **Required GitHub secrets for deploy**:
   - `FIREBASE_SERVICE_ACCOUNT`: full JSON for a service account that can deploy Hosting and the `backend` Functions codebase. Grant the minimal Firebase Hosting/Functions roles.
   - `FIREBASE_PROJECT_ID`

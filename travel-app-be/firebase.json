@@ -7,27 +7,19 @@
   },
   "functions": [
     {
-      "codebase": "default",
+      "source": ".",
+      "codebase": "backend",
       "runtime": "nodejs22",
       "ignore": [
         "node_modules",
         ".git",
         "firebase-debug.log",
         "firebase-debug.*.log",
-        "*.local"
-      ],
-      "predeploy": ["npm --prefix \"$RESOURCE_DIR\" run lint"],
-      "source": "functions"
-    },
-    {
-      "source": ".",
-      "codebase": "backend",
-      "runtime": "nodejs20",
-      "ignore": [
-        "node_modules",
-        ".git",
-        "firebase-debug.log",
-        "firebase-debug.*.log",
+        "coverage/**",
+        "functions/**",
+        "public/**",
+        "tests/**",
+        "firestore.emulator.rules",
         "*.local"
       ]
     }
@@ -40,7 +32,8 @@
         "source": "/api/{,**}",
         "function": {
           "functionId": "api",
-          "codebase": "backend"
+          "codebase": "backend",
+          "region": "us-central1"
         }
       },
       {
@@ -48,5 +41,13 @@
         "destination": "/index.html"
       }
     ]
+  },
+  "emulators": {
+    "auth": { "host": "127.0.0.1", "port": 5909 },
+    "firestore": { "host": "127.0.0.1", "port": 5808 },
+    "functions": { "host": "127.0.0.1", "port": 5501 },
+    "hosting": { "host": "127.0.0.1", "port": 5500 },
+    "ui": { "enabled": false },
+    "singleProjectMode": true
   }
 }

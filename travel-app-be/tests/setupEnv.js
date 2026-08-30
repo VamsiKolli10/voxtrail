@@ -106,7 +106,15 @@ const mockUsersCollection = {
 };
 
 const mockFirestore = jest.fn(() => ({
+  listCollections: jest.fn().mockResolvedValue([]),
   collection: jest.fn((name) => {
+    if (name === "_health") {
+      return {
+        doc: jest.fn(() => ({
+          get: jest.fn().mockResolvedValue({ exists: false }),
+        })),
+      };
+    }
     if (name === "users") return mockUsersCollection;
     if (name === "saved_phrases") return mockSavedPhrasesCollection;
     if (name === "cultureIntelligenceBriefs")

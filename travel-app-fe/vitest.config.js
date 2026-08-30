@@ -13,12 +13,10 @@ export default defineConfig({
     testTimeout: 10000,
     hookTimeout: 10000,
     teardownTimeout: 5000,
-    // Run tests in a single worker to prevent EMFILE errors on Windows when many icon files are opened at once.
-    poolOptions: {
-      threads: {
-        singleThread: true,
-      },
-    },
+    // Run test files serially to prevent EMFILE errors on Windows when many
+    // icon modules are opened at once.
+    fileParallelism: false,
+    maxWorkers: 1,
     coverage: {
       provider: "v8",
       reporter: ["text", "json", "html"],
