@@ -162,9 +162,12 @@ Read the full assessment in [PRODUCTION_READINESS_REPORT.md](PRODUCTION_READINES
 ## Documentation
 
 - [API documentation](API_Documentation.md)
+- [MVP plan](MVP_PLAN.md)
 - [Environment variables](ENVIRONMENT_VARIABLES.md)
 - [Production deployment guide](travel-app-be/PRODUCTION_DEPLOYMENT.md)
 - [Monitoring and logging guide](MONITORING_LOGGING.md)
+- [Contributing](CONTRIBUTING.md)
+- [Security policy](SECURITY.md)
 
 ## Contributing
 
