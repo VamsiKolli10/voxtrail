@@ -10,6 +10,12 @@ if [[ ! -f "${BUILD_DIR}/index.html" ]]; then
   exit 1
 fi
 
+# Vite content-hashes filenames, so a plain overlay copy never removes the
+# previous deploy's chunks -- they accumulate in travel-app-be/public forever
+# and Firebase Hosting ends up serving every historical build's JS/CSS.
+# public/ is fully build-generated (see travel-app-be/.gitignore), so it is
+# safe to clear before copying the fresh build in.
+rm -rf "${HOSTING_DIR}"
 mkdir -p "${HOSTING_DIR}"
 cp -R "${BUILD_DIR}/." "${HOSTING_DIR}/"
 echo "Prepared Firebase Hosting assets from travel-app-fe/dist."

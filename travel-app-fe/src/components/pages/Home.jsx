@@ -36,7 +36,13 @@ export default function Dashboard() {
   );
 
   useEffect(() => {
-    fetchProfile().then((resp) => dispatch(setUser(resp)));
+    fetchProfile()
+      .then((resp) => dispatch(setUser(resp)))
+      .catch((err) => {
+        // Non-fatal: the user is already authenticated via AuthContext, this
+        // just enriches the profile. Log rather than fail silently.
+        console.error("Failed to refresh profile:", err);
+      });
   }, [dispatch]);
 
   useEffect(() => {

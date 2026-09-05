@@ -20,6 +20,7 @@ const { getCached, setCached } = require("../utils/cache");
 const { requireAuth } = require("../middleware/authenticate");
 const { createCustomLimiter } = require("../utils/rateLimiter");
 const { enforceQuota } = require("../utils/quota");
+const { durableWindowedQuota } = require("../middleware/durableQuota");
 const { trackExternalCall } = require("../utils/monitoring");
 const { validateQuery, validateParams } = require("../middleware/validate");
 const { staysSearchSchema } = require("../utils/schemas");
@@ -48,6 +49,25 @@ const searchCacheTtl = Number(
 const detailCacheTtl = Number(
   process.env.STAY_DETAIL_CACHE_TTL_MS || 15 * 60 * 1000
 );
+
+// The in-process quota above is per-instance only, so it does not hold under
+// multiple Functions instances. These durable, Firestore-backed quotas
+// enforce the real per-user cap on the paid Google Places/Hotels calls.
+const isProduction = !["test", "development"].includes(process.env.NODE_ENV);
+const staysSearchQuota = isProduction
+  ? durableWindowedQuota({
+      name: "stays-search",
+      userLimit: userQuotaLimit,
+      windowMs: userQuotaWindow,
+    })
+  : (_req, _res, next) => next();
+const staysDetailQuota = isProduction
+  ? durableWindowedQuota({
+      name: "stays-detail",
+      userLimit: Math.max(20, Math.floor(userQuotaLimit / 2)),
+      windowMs: userQuotaWindow,
+    })
+  : (_req, _res, next) => next();
 
 const encodePlacePath = (name) =>
   String(name)
@@ -135,6 +155,7 @@ router.get(
   requireAuth({ allowRoles: ["user", "admin"] }),
   validateQuery(staysSearchSchema),
   searchLimiter,
+  staysSearchQuota,
   asyncHandler(async (req, res) => {
     try {
     const {
@@ -340,6 +361,7 @@ router.get(
     })
   ),
   detailLimiter,
+  staysDetailQuota,
   asyncHandler(async (req, res) => {
     try {
       const quotaResult = enforceQuota({

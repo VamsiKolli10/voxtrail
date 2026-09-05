@@ -78,12 +78,19 @@ Environment variables are crucial for configuring the VoxTrail application. They
 
 | Variable                           | Description                                             | Default |
 | ---------------------------------- | ------------------------------------------------------- | ------- |
-| `STAYS_PER_USER_PER_HOUR`          | Per-user stay search operations per hour                | `60`    |
+| `STAYS_PER_USER_PER_HOUR`          | Per-user stay search operations per hour. In production this is enforced durably (Firestore-backed, shared across all server instances) in addition to the fast in-process check | `60`    |
+| `STAYS_PER_USER_WINDOW_MS`         | Window length in ms for the stays per-user quota above (both in-process and durable) | `3600000` |
 | `STAYS_SEARCH_MAX_PER_IP`          | Stay search requests per minute per IP                  | `15`    |
-| `POI_PER_USER_PER_HOUR`            | Per-user POI search quota                               | `120`   |
-| `PHRASEBOOK_MAX_REQUESTS_PER_HOUR` | Phrasebook generations per user per hour                | `25`    |
-| `ITINERARY_MAX_REQUESTS_PER_HOUR`  | Itinerary generations per user per hour                 | `20`    |
+| `POI_PER_USER_PER_HOUR`            | Per-user POI search quota. In production this is enforced durably (Firestore-backed, shared across all server instances) in addition to the fast in-process check | `120`   |
+| `POI_PER_USER_WINDOW_MS`           | Window length in ms for the POI per-user quota above (both in-process and durable) | `3600000` |
+| `PHRASEBOOK_MAX_REQUESTS_PER_HOUR` | Phrasebook generations per user per hour (in-process check) | `25`    |
+| `PHRASEBOOK_DAILY_QUOTA`           | Phrasebook generations per user per day, durably enforced in production (Firestore-backed) | `20`    |
+| `ITINERARY_MAX_REQUESTS_PER_HOUR`  | Itinerary generations per user per hour (in-process check) | `20`    |
+| `ITINERARY_DAILY_QUOTA`            | Itinerary generations per user per day, durably enforced in production (Firestore-backed) | `25`    |
+| `CULTURE_DAILY_QUOTA`              | Culture brief/Q&A/contextual-tips generations per user per day, durably enforced in production (Firestore-backed) | `30`    |
 | `USAGE_ALERT_FALLBACK`             | Default threshold before emitting external usage alerts | `500`   |
+
+Durable quotas write one Firestore document per user per window under the `usageQuotas` collection (`middleware/durableQuota.js`) and are only active when `NODE_ENV` is neither `test` nor `development`. They exist because the plain in-process quotas (`utils/quota.js`) live in memory per server instance: under multiple Firebase Functions instances, an in-process-only cap on a paid-API route (POI, Stays) can be bypassed simply by landing on a different warm instance.
 
 ### Advanced Configuration
 
