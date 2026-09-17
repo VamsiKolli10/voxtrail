@@ -43,7 +43,7 @@ VoxTrail
 | --- | --- |
 | Frontend | React 18, Vite, React Router, Redux Toolkit, Material UI, MapLibre |
 | Backend | Node.js, Express, Firebase Admin, Firestore, Zod |
-| Services | Firebase Auth, Google Places, OpenRouter, Hugging Face Transformers.js |
+| Services | Firebase Auth, Google Places, OpenRouter |
 | Delivery | Firebase Hosting, Firebase Functions, GitHub Actions |
 
 ## Run locally

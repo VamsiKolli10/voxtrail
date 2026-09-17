@@ -24,14 +24,10 @@ Environment variables are crucial for configuring the VoxTrail application. They
 | `FIRESTORE_PREFER_REST`  | Use REST API over gRPC                                       | `true`                  | No       |
 | `REQUEST_BODY_LIMIT`     | Maximum request body size                                    | `256kb`                 | No       |
 | `MAX_TRANSLATION_CHARS`  | Maximum text length for translation                          | `500`                   | No       |
-| `TRANSLATION_WARM_PAIRS` | Comma-separated lang pairs to pre-warm (e.g., `en-es,es-en`) | _none_                  | No       |
 | `TRANSLATION_CACHE_TTL_MS` | Cache TTL for translation responses (ms)                   | `600000` (10 minutes)   | No       |
-| `TRANSLATION_MODEL_TIMEOUT_MS` | Model download/load timeout (ms)                       | `90000`                 | No       |
-| `TRANSLATION_INFERENCE_TIMEOUT_MS` | Inference timeout before triggering fallback (ms)  | `20000`                 | No       |
-| `TRANSLATION_FALLBACK_ENABLED` | Allow OpenRouter fallback when local model fails       | `true`                  | No       |
-| `TRANSFORMERS_CACHE`     | Persistent cache path for `@huggingface/transformers` models | `./.cache/transformers` | No       |
+| `TRANSLATION_INFERENCE_TIMEOUT_MS` | Timeout waiting on the OpenRouter translation call before failing (ms) | `20000`  | No       |
 
-> Translation fallback relies on `OPENROUTER_API_KEY`. Set `TRANSLATION_FALLBACK_ENABLED=false` to opt out if you want strictly on-device translations.
+> Translation runs entirely through OpenRouter (`OPENROUTER_API_KEY` is required). A local on-device translation model was previously used here but was removed in favor of this lightweight proxy call -- see ADR-EVAL-1 for the cost/complexity reasoning.
 
 ### Firebase Configuration
 
@@ -310,9 +306,8 @@ FUNCTION_TIMEOUT=120
 FUNCTION_MIN_INSTANCES=1
 FUNCTION_MAX_INSTANCES=10
 
-# Translation Model Configuration (optional)
-TRANSLATION_MODEL_TIMEOUT_MS=90000
-TRANSLATION_WARM_PAIRS=en-es,en-fr
+# Translation Configuration (optional; requires OPENROUTER_API_KEY)
+TRANSLATION_INFERENCE_TIMEOUT_MS=20000
 TRANSLATION_CACHE_TTL_MS=600000
 ```
 

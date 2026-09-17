@@ -6,8 +6,7 @@ jest.mock("../src/controllers/translationController", () => {
       error: { code: "EXTERNAL_SERVICE_ERROR" },
     })
   );
-  const warmup = jest.fn((req, res) => res.json({ warmed: [] }));
-  return { translateText, warmup };
+  return { translateText };
 });
 
 describe("Translation error path", () => {

@@ -420,6 +420,24 @@ function enhancedAuthorization(options = {}) {
       }
     }
 
+    // Authenticated requests skip the heuristic checks below (unusual user
+    // agent, etc.) -- those exist to slow down anonymous scraping/bot
+    // traffic, not to reject clients (curl, scripts, mobile HTTP libraries,
+    // health checks) that happen not to send a browser-like User-Agent once
+    // they've already proven their identity with a bearer token. This bypass
+    // must run before the suspicious-user-agent check below, not after --
+    // otherwise a legitimate authenticated request gets blocked with a 403
+    // before we ever get here.
+    if (hasAuth) {
+      // Log authenticated traffic after header validation
+      console.log(
+        `[${new Date().toISOString()}] ${req.method} ${
+          req.originalUrl
+        } auth:${hasAuth}`
+      );
+      return next();
+    }
+
     // Check for unusual user agent patterns
     const userAgent = req.headers["user-agent"] || "";
     const isSuspiciousUserAgent =
@@ -446,16 +464,6 @@ function enhancedAuthorization(options = {}) {
             "Suspicious user agent"
           )
         );
-    }
-
-    if (hasAuth) {
-      // Log authenticated traffic after header validation
-      console.log(
-        `[${new Date().toISOString()}] ${req.method} ${
-          req.originalUrl
-        } auth:${hasAuth}`
-      );
-      return next();
     }
 
     // Check for IP-based restrictions if needed

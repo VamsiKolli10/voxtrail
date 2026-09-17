@@ -9,8 +9,7 @@ jest.mock("../src/controllers/translationController", () => {
     }
     return res.json({ translation: `translated:${req.body.text}` });
   });
-  const warmup = jest.fn((req, res) => res.json({ warmed: ["fr-en"] }));
-  return { translateText, warmup, __translateText: translateText };
+  return { translateText, __translateText: translateText };
 });
 
 const {
@@ -82,23 +81,6 @@ describe("Translation routes", () => {
     expect(res.body.translation).toBe("translated:hello");
   });
 
-  test("requires admin role for warmup and only warms supported pairs", async () => {
-    const userAttempt = await request(app)
-      .get("/api/translate/warmup?pairs=en-es")
-      .set("user-agent", "jest")
-      .set("Authorization", "Bearer valid-user-token");
-    expect(userAttempt.statusCode).toBe(403);
-    expect(userAttempt.body.error.code).toBe("FORBIDDEN");
-
-    const res = await request(app)
-      .get("/api/translate/warmup?pairs=fr-en,it-it")
-      .set("user-agent", "jest")
-      .set("Authorization", "Bearer valid-admin-token");
-
-    expect(res.statusCode).toBe(200);
-    expect(res.body.warmed).toEqual(["fr-en"]);
-  });
-
   test("handles translator exceptions", async () => {
     translateTextMock.mockImplementationOnce(() => {
       throw new Error("Translation service unavailable");
@@ -136,26 +118,5 @@ describe("Translation routes", () => {
 
     // Should either reject or require user-agent based on security middleware
     expect([400, 401, 403]).toContain(res.statusCode);
-  });
-
-  test("returns 500 when warmup fails", async () => {
-    const { warmup } = require("../src/controllers/translationController");
-    const spy = jest.spyOn(
-      require("../src/controllers/translationController"),
-      "warmup"
-    );
-    spy.mockImplementationOnce((_req, res) =>
-      res.status(500).json({
-        error: { code: "EXTERNAL_SERVICE_ERROR", message: "Warmup failed" },
-      })
-    );
-
-    const res = await request(app)
-      .get("/api/translate/warmup?pairs=en-es")
-      .set("user-agent", "jest")
-      .set("Authorization", "Bearer valid-admin-token");
-
-    expect(res.statusCode).toBe(500);
-    spy.mockRestore();
   });
 });

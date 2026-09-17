@@ -98,4 +98,3 @@ The codebase is a staging-ready release candidate: frontend/backend tests, build
 - Review costs and error dashboards weekly.
 - Tag every deploy and write down the rollback command before changing production.
 - Revisit deferred scope only after real usage supports it.
-
