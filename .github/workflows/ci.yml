@@ -19,7 +19,7 @@ jobs:
       CI: true
       NODE_ENV: test
       REQUEST_SIGNING_SECRET: test-signing-secret
-      CORS_ALLOWED_ORIGINS: http://localhost
+      CORS_ALLOWED_ORIGINS: http://localhost,http://localhost:5173
       FB_ADMIN_CREDENTIALS: eyJwcm9qZWN0X2lkIjoiZGVtby1wcm9qZWN0In0=
       GOOGLE_PLACES_API_KEY: dummy-key
       OPENROUTER_API_KEY: dummy-key
