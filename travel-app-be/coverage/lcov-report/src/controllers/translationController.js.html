@@ -328,7 +328,7 @@ async function <span class="fstat-no" title="function not covered" >getTranslato
   }
 <span class="cstat-no" title="statement not covered" >  if (!translatorCache.has(langPair)) {</span>
     const loader = <span class="cstat-no" title="statement not covered" >(<span class="fstat-no" title="function not covered" >as</span>ync () =&gt; {</span>
-      const { pipeline } = <span class="cstat-no" title="statement not covered" >await import("@xenova/transformers");</span>
+      const { pipeline } = <span class="cstat-no" title="statement not covered" >await import("@huggingface/transformers");</span>
 <span class="cstat-no" title="statement not covered" >      return pipeline("translation", `Xenova/opus-mt-${langPair}`);</span>
     })();
 <span class="cstat-no" title="statement not covered" >    translatorCache.set(langPair, loader);</span>
@@ -433,4 +433,3 @@ exports.warmup = <span class="fstat-no" title="function not covered" >as</span>y
         <script src="../../block-navigation.js"></script>
     </body>
 </html>
-    

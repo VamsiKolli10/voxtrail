@@ -131,7 +131,7 @@ async function getTranslator(langPair) {
 
       try {
         console.log(`🔄 Loading translation model for ${langPair}...`);
-        const { pipeline } = await import("@xenova/transformers");
+        const { pipeline } = await import("@huggingface/transformers");
 
         // Create model loading promise
         modelPromise = pipeline("translation", `Xenova/opus-mt-${langPair}`);

@@ -90,7 +90,7 @@ travel-app-fe/
 - **Node.js & Express**: Web server framework
 - **Firebase**: Authentication, Firestore database, Cloud Functions
 - **OpenRouter**: AI text generation for phrasebooks (supports `OPENROUTER_MODEL_CHAIN` comma list for automatic fallbacks)
-- **@xenova/transformers**: Text translation
+- **@huggingface/transformers**: Text translation
 - **Helmet**: Security headers
 - **CORS**: Cross-Origin Resource Sharing
 - **express-rate-limit**: Rate limiting
@@ -140,7 +140,7 @@ travel-app-fe/
 
 1. User enters text to translate
 2. Frontend sends request to `/api/translate`
-3. Backend uses @xenova/transformers to translate text
+3. Backend uses @huggingface/transformers to translate text
 4. Result is sent back to frontend
 5. Frontend displays translated text
 
