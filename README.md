@@ -140,7 +140,8 @@ You need the Firebase CLI, an authenticated Firebase account, configured product
 GitHub Actions workflows are available in `.github/workflows/`:
 
 - `ci.yml` runs frontend tests/build, backend tests, Functions lint, and dependency audits.
-- `deploy.yml` deploys the Firebase stack from `main`.
+- `deploy.yml` deploys from `main` when every required Firebase repository secret is configured;
+  otherwise its preflight reports a clean skip instead of claiming a deployment occurred.
 
 ## Security
 
