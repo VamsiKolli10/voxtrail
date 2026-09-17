@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Box, CircularProgress, Typography, useTheme } from "@mui/material";
-import maplibregl from "maplibre-gl";
+import * as maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 
 const MAP_STYLE_URL =

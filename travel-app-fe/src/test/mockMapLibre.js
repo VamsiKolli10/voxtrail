@@ -283,6 +283,12 @@ if (typeof HTMLCanvasElement !== "undefined") {
 
 export default mockMapLibreGL;
 export {
+  MockMap as Map,
+  MockMarker as Marker,
+  MockPopup as Popup,
+  MockLngLat as LngLat,
+  MockLngLatBounds as LngLatBounds,
+  MockNavigationControl as NavigationControl,
   MockMap,
   MockMarker,
   MockPopup,
