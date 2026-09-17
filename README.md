@@ -18,6 +18,17 @@ VoxTrail brings the tools travelers usually spread across several apps into one 
 
 ## Architecture
 
+```mermaid
+flowchart LR
+    traveler[Traveler] --> web[React + Redux web app]
+    web -->|Firebase ID token| api[Express API on Firebase Functions]
+    web --> auth[Firebase Authentication]
+    api -->|verified user data| firestore[(Firestore)]
+    api --> places[Google Places]
+    api --> openrouter[OpenRouter AI]
+    web --> map[MapLibre maps]
+```
+
 ```text
 VoxTrail
 ├── travel-app-fe/              React + Vite + Material UI frontend
