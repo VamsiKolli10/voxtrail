@@ -17,6 +17,8 @@
 | Global CSS (font load, focus ring, reduced motion) | `src/styles/global.css` |
 | Primary navigation items (desktop + mobile) | `src/components/layout/navItems.js` |
 | App-wide toasts | `src/contexts/NotificationContext.jsx` → `useNotify()` |
+| Transition strings from motion tokens | `transitionFor()` exported from `src/theme.js` |
+| Empty / zero-result states | `src/components/common/EmptyState.jsx` |
 
 Mode: `useAppearance()` returns `{ mode, setMode, toggleMode }`. Preference persists in `localStorage["stc:appearance"]`, falling back to `prefers-color-scheme`. **In components, branch on `theme.palette.mode` only** — the `html.dark` class and `html[data-theme]` attribute exist for plain CSS (`global.css`, `Landing.css`) and shouldn't be used from JS.
 
@@ -48,9 +50,19 @@ Use palette paths in `sx` (`color: "text.secondary"`, `borderColor: "border.subt
 | `success.main` | `#2E7D4F` | `#5CC98A` | Confirmation (distinct from brand teal) |
 | `info.main` | `#626C71` | `#A9B6BB` | Neutral notice |
 | `rating.main` | `#F5B301` | same | Star ratings |
-| `marketing.*` | 6 values | 6 values | Landing page surfaces only |
+| `marketing.*` | see below | see below | Landing page only |
 
-All text-role pairs above meet WCAG AA (≥ 4.5:1) on their mode's `background.default`/`paper`. Exception: `primary.main` text on a **tinted** light surface is ~4.1–4.4:1 — use `primary.dark` there.
+All text-role pairs above meet WCAG AA (≥ 4.5:1) on their mode's `background.default`/`paper`. Exception: `primary.main` text on a **tinted** light surface is ~4.1–4.4:1 — use `primary.dark` there. Outlined primary `Chip`s do this automatically (theme override).
+
+### Color — marketing (Landing page)
+
+| Token | Use |
+|-------|-----|
+| `marketing.background` / `backgroundSoft` / `surface` | Section bands |
+| `marketing.backdropTop` / `Mid` / `Bottom`, `glowStrong`, `glowSoft` | Page backdrop. Exposed to `Landing.css` as `--landing-*` CSS variables on `.landing-root` |
+| `marketing.heroGradient`, `onHero`, `onHeroMuted`, `heroBorder` | The fixed dark-teal hero card (light text in both modes; ≥ 4.9:1) |
+| `marketing.ctaGradient` | Closing call-to-action panel |
+| `marketing.accent`, `textPrimary`, `textSecondary` | Legacy; prefer `primary.main` / `text.*` |
 
 ### Color — categorical accents
 
@@ -123,6 +135,8 @@ Usage: `boxShadow: (t) => t.customShadows.overlay`.
 | `duration.slow` | 400ms — large movement |
 | `easing.standard` | `cubic-bezier(0.16, 1, 0.3, 1)` |
 
+In code: `transition: transitionFor("all")` or `transitionFor(["transform", "box-shadow"], "fast")` (import from `src/theme.js`). Don't write duration strings by hand.
+
 Reduced motion is honored globally: CSS transitions via `global.css`, framer-motion via `<MotionConfig reducedMotion="user">` in `App.jsx`. Don't add infinite decorative animations to content the user is reading.
 
 ## Components
@@ -135,8 +149,10 @@ Reduced motion is honored globally: CSS transitions via `global.css`, framer-mot
 | `eyebrow` | node | — | Small outlined primary `Chip` above the title |
 | `title` | node | — | Rendered as `<h1>` with `h4` styling |
 | `subtitle` | node | — | `body1`, `text.secondary` |
+| `meta` | node | — | Extra header content under the subtitle (chips, location line) |
 | `actions` | node | — | Right-aligned (stacks on mobile) |
-| `maxWidth` | breakpoint | `"lg"` | Container width |
+| `variant` | `"default"` \| `"fullBleed"` | `"default"` | `fullBleed`: xl width, tighter padding, no background glow, `overflow: visible` (sticky sidebars, maps) |
+| `maxWidth` | breakpoint | `lg` / `xl` (fullBleed) | Container width override |
 | `gap` | number | `3` | Gap between header and children |
 
 ```jsx
@@ -146,7 +162,7 @@ Reduced motion is honored globally: CSS transitions via `global.css`, framer-mot
 </PageContainer>
 ```
 
-Used by Home, Translation, Phrasebook, Emergency, Cultural Guide, Legal. Stays, Explore, and the two detail pages render their own `<h1>` instead (full-bleed layouts).
+Default variant: Home, Translation, Phrasebook, Emergency, Cultural Guide, Legal. `fullBleed`: Stays (title + `meta` chips), Explore, Stay details and Destination details (no `title` — their `<h1>` lives in the hero). Only Landing and the auth pages (`AuthShell`) sit outside it.
 
 ### AuthShell
 `layout/AuthShell.jsx` — centered card for login, register, password, and verification flows. Includes its own theme toggle.
@@ -192,6 +208,28 @@ Sizes: `small` / `medium` / `large`. Loading: use the `loading` prop rather than
 
 **Feedback rule:** Snackbar for transient confirmation ("Phrase saved", "Logged out"). Inline `Alert` for errors tied to a form or section, or anything the user must read before continuing.
 
+### EmptyState
+`common/EmptyState.jsx` — zero results, nothing saved yet, not found.
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `icon` | node | — | 40px, `text.secondary`, hidden from screen readers |
+| `title` | node | — | One line, `subtitle1` weight 600 |
+| `titleComponent` | string | `"h2"` | Heading level; use `"h1"` when it replaces the whole page (e.g. "Stay not found") |
+| `description` | node | — | What to try next |
+| `action` | node | — | At most one button |
+| `variant` | `"tint"` \| `"plain"` | `"tint"` | `tint` = `surface.tint` panel |
+
+Renders with `role="status"` so a search that returns nothing is announced. Used in Stays results, Explore, saved phrases, and Stay details (not found).
+
+```jsx
+<EmptyState
+  icon={<HotelIcon />}
+  title="No stays found"
+  description="Try another destination, a wider distance, or fewer filters."
+/>
+```
+
 ### Loading
 - Route-level / auth gate: `FullScreenLoader` (`role="status"`, `aria-live="polite"`).
 - Content lists and cards: `Skeleton` shaped like the content (see `ResultsList`).
@@ -226,7 +264,7 @@ To add a section: add one entry to `NAV_ITEMS`. Keep `mobile: "tab"` to 4 items.
 | Glass panel | `bgcolor: "surface.glass", backdropFilter: "blur(12px)"` |
 | Chips | `size="small"`; `variant="outlined"` for filters, filled for selected |
 | Forms | `TextField` (12px radius, 2px primary focus from theme). Don't re-override `fieldset` colors per page |
-| Empty state | Icon + one-line explanation + one action (no shared component yet) |
+| Empty state | `EmptyState` — icon, one-line title, what to try next, at most one action |
 
 ## Contributor checklist
 
@@ -234,7 +272,7 @@ To add a section: add one entry to `NAV_ITEMS`. Keep `mobile: "tab"` to 4 items.
 - [ ] Checked in light **and** dark mode
 - [ ] One `<h1>` per page (`PageContainer`, or `component="h1"`)
 - [ ] Every `IconButton` has an accessible name
-- [ ] Radii from the scale; shadows from `customShadows`; durations from `motion`
+- [ ] Radii from the scale; shadows from `customShadows`; transitions via `transitionFor()`
 - [ ] Typography via `variant`; no inline `fontSize`
 - [ ] New nav destinations added in `navItems.js` only
 - [ ] Toasts via `useNotify()`
@@ -245,16 +283,16 @@ To add a section: add one entry to `NAV_ITEMS`. Keep `mobile: "tab"` to 4 items.
 
 ## Score
 
-| Area | Weight | 2026-10-01 audit | After `design-system-fixes` |
-|------|-------:|------:|------:|
-| Token definition | 25 | 14 | 22 |
-| Token adoption | 25 | 10 | 16 |
-| Component library | 25 | 13 | 19 |
-| Accessibility | 15 | 8 | 13 |
-| Documentation | 10 | 1 | 9 |
-| **Total** | 100 | **46** | **79** |
+| Area | Weight | 2026-10-01 audit | First pass | Second pass |
+|------|-------:|------:|------:|------:|
+| Token definition | 25 | 14 | 22 | 24 |
+| Token adoption | 25 | 10 | 16 | 22 |
+| Component library | 25 | 13 | 19 | 22 |
+| Accessibility | 15 | 8 | 13 | 14 |
+| Documentation | 10 | 1 | 9 | 9 |
+| **Total** | 100 | **46** | **79** | **91** |
 
-Hardcoded color literals in components: **192 → 82**. Outside the Landing page: **111 → 12** (the remainder are white shimmer highlights and the Cultural Guide's fixed-color hero).
+Hardcoded color literals in components: **192 → 82 → 8** (3 white shimmer highlights, and the Cultural Guide's fixed blue hero). Hand-written transition durations: **~45 → 0**.
 
 ## Fixed on `design-system-fixes`
 
@@ -298,14 +336,23 @@ Hardcoded color literals in components: **192 → 82**. Outside the Landing page
 
 **Correction to the original audit:** it reported 10 of 20 icon buttons unlabeled. The scan was wrong (it cut off at `=>` inside handlers). The real count was 4: two carousel arrows and two Translation buttons, all now fixed.
 
+## Second pass (same branch)
+
+- **Bug:** successful email verification crashed (`url` undefined in `AuthContext`), leaving the "Email verified! Redirecting…" loader stuck. Fixed, with a regression test.
+- **Motion:** `transitionFor()` helper; 39 hand-written transition strings replaced.
+- **Typography:** 24 redundant `fontWeight: 600` overrides on `h6` removed.
+- **Contrast:** outlined primary chips use `primary.dark` in light mode (eyebrow chips on tinted backgrounds were 4.4:1).
+- **Landing:** every hardcoded color moved to `marketing.*` tokens; `Landing.css` reads CSS variables and has no per-mode selectors. Hero card text was 2.2:1 on the light end of its gradient in light mode — now ≥ 4.9:1. Itinerary banners tint from `palette.accent`. Removed unused `journeySteps` data.
+- **Components:** `EmptyState`; `PageContainer` `fullBleed` variant and `meta` slot. Stays, Explore and both detail pages now use `PageContainer`. Explore previously showed a blank grid with no results — it now has an empty state that differs before and after a search.
+- **Tests:** 127 passing (new: email verification, `EmptyState`, `PageContainer`).
+
 ## Still open
 
 | Item | Notes |
 |------|-------|
-| Landing page literals (~70 in `Landing.jsx` + `Landing.css`) | Hero/trip gradients and accent colors. Mostly mode-aware already; candidate for `marketing.*` tokens or MUI CSS variables |
-| 79 `fontWeight: 600` overrides | Many are now redundant since `h6` is 600 — remove as files are touched |
-| 33 `transition: "… 0.3s ease"` | Migrate to `motion.duration.base` + `easing.standard` as files are touched |
-| `PageContainer` on full-bleed pages | Stays/Explore/detail pages have `<h1>` but their own headers; consider a `PageContainer` `fullBleed` variant |
-| Primary text on tinted light surfaces | Use `primary.dark`; not yet swept |
-| Shared `EmptyState` component | Pattern exists ad hoc in several pages |
-| Three dark-mode mechanisms | Still set together by `AppearanceContext`; consolidating to MUI CSS variables (`colorSchemes`) would let `Landing.css` use tokens |
+| Cultural Guide hero | Fixed blue gradient with white text (5 literals); could become a `marketing`-style token pair |
+| 55 `fontWeight: 600` overrides | On `subtitle*`/`body*` — legitimate emphasis, but worth a `subtitle2` weight review |
+| `transition: "all …"` | Now tokenized, but `all` animates layout properties; narrow to `transform`/`box-shadow`/`color` as files are touched |
+| Explore loading | Uses a spinner; should be card-shaped `Skeleton`s like Stays |
+| Three dark-mode mechanisms | Still set together by `AppearanceContext`; MUI CSS variables (`colorSchemes`) would remove the need for the hand-set `--landing-*` variables |
+| Unused code in pages | Lint flags unused imports/state in Discover, Landing, Phrasebook (e.g. `heroMetrics`, `handlePlanFromNL`) — pre-existing |
