@@ -29,7 +29,6 @@ import {
   Hotel as HotelIcon,
   CheckCircle as CheckIcon,
   AccessTime as AccessTimeIcon,
-  Groups as GroupsIcon,
 } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
 import { ModuleCard, ModuleCardGrid } from "../common/ModuleCard";
@@ -136,16 +135,16 @@ export default function Landing() {
         title: "Nordic Nightfall",
         subtitle: "5 stops · Iceland",
         points: ["Aurora alerts", "Safe stays", "Thermal pools"],
-        accent: "#64B5F6",
+        accent: theme.palette.accent.blue,
       },
       {
         title: "Lisbon Slow Tour",
         subtitle: "6 stops · Portugal",
         points: ["Metro phrases", "Tile workshop", "Sunset sail"],
-        accent: "#81C784",
+        accent: theme.palette.accent.green,
       },
     ],
-    [theme.palette.primary.light]
+    [theme.palette.primary.light, theme.palette.accent]
   );
 
   const testimonials = useMemo(
@@ -168,51 +167,6 @@ export default function Landing() {
     []
   );
 
-  const journeySteps = useMemo(
-    () => [
-      {
-        title: "Create your workspace",
-        description:
-          "Sign in, invite your crew, and create a shared space for everything your trip needs.",
-        icon: <GroupsIcon fontSize="small" />,
-        accent: "#32B8C6",
-        meta: "Setup",
-      },
-      {
-        title: "Sync travel context",
-        description:
-          "Pick a destination and languages once—translation, stays, POIs, culture, and emergency modules stay in lockstep.",
-        icon: <MapIcon fontSize="small" />,
-        accent: "#7CB342",
-        meta: "Context-aware",
-      },
-      {
-        title: "Translate & build phrasebooks",
-        description:
-          "Prep etiquette, allergy, and transit cards—then save and share them as handy tiles.",
-        icon: <LanguageIcon fontSize="small" />,
-        accent: "#F59E0B",
-        meta: "Language",
-      },
-      {
-        title: "Search stays & POIs",
-        description:
-          "Find stays and places with map-friendly details, local context, and useful safety signals.",
-        icon: <TravelExploreIcon fontSize="small" />,
-        accent: "#64B5F6",
-        meta: "Discovery",
-      },
-      {
-        title: "Share safety & culture",
-        description:
-          "Emergency briefs, culture intel, and check-ins adapt to your context so everyone arrives ready.",
-        icon: <SecurityIcon fontSize="small" />,
-        accent: "#E45A4F",
-        meta: "Safety",
-      },
-    ],
-    []
-  );
 
   const platformSignals = useMemo(
     () => [
@@ -245,11 +199,19 @@ export default function Landing() {
   );
 
   return (
-    <Box className="landing-root">
+    <Box
+      className="landing-root"
+      sx={(t) => ({
+        "--landing-bg-top": t.palette.marketing.backdropTop,
+        "--landing-bg-mid": t.palette.marketing.backdropMid,
+        "--landing-bg-bottom": t.palette.marketing.backdropBottom,
+        "--landing-glow-strong": t.palette.marketing.glowStrong,
+        "--landing-glow-soft": t.palette.marketing.glowSoft,
+      })}
+    >
       <IconButton
         aria-label={`Switch to ${mode === "light" ? "dark" : "light"} mode`}
         onClick={toggleMode}
-        className="landing-toggle-button"
         sx={(theme) => ({
           position: "fixed",
           top: `calc(${theme.spacing(2)} + env(safe-area-inset-top, 0px))`,
@@ -260,20 +222,15 @@ export default function Landing() {
           width: { xs: "32px", sm: "48px" },
           height: { xs: "32px", sm: "48px" },
           p: { xs: 1.1, sm: 1.25 },
-          backgroundColor:
-            mode === "light" ? "rgba(255,255,255,0.9)" : "rgba(16,28,36,0.9)",
+          backgroundColor: theme.palette.surface.glass,
           border: (t) => `1px solid ${t.palette.divider}`,
-          boxShadow:
-            mode === "light"
-              ? "0 12px 32px -18px rgba(12,32,44,0.35)"
-              : "0 12px 32px -16px rgba(0,0,0,0.55)",
+          boxShadow: theme.customShadows.overlay,
           backdropFilter: "blur(12px)",
           color: "inherit",
           transition: transitionFor(["transform", "box-shadow"], "fast"),
           touchAction: "manipulation",
           "&:hover": {
-            backgroundColor:
-              mode === "light" ? "rgba(255,255,255,1)" : "rgba(18,32,40,0.96)",
+            backgroundColor: theme.palette.background.paper,
           },
           "&:active": {
             transform: "translateY(1px) scale(0.99)",
@@ -311,14 +268,8 @@ export default function Landing() {
 
         <Box
           sx={(theme) => ({
-            background:
-              theme.palette.mode === "light"
-                ? "linear-gradient(160deg, rgba(33,128,141,0.14) 0%, rgba(33,128,141,0.08) 100%)"
-                : "linear-gradient(160deg, rgba(33,128,141,0.28) 0%, rgba(16,28,36,0.92) 100%)",
-            boxShadow:
-              theme.palette.mode === "light"
-                ? "0px 12px 40px rgba(0,0,0,0.08)"
-                : "0px 12px 40px rgba(0,0,0,0.45)",
+            background: theme.palette.marketing.ctaGradient,
+            boxShadow: theme.customShadows.section,
             borderRadius: "24px",
             py: { xs: 6, md: 8 },
             px: { xs: 3, md: 6 },
@@ -449,14 +400,8 @@ function HeroSection({ metrics, onPrimary, onSecondary, isMdUp }) {
                     borderRadius: "999px",
                     fontWeight: 600,
                     borderColor: theme.palette.divider,
-                    backgroundColor:
-                      theme.palette.mode === "light"
-                        ? "rgba(255,255,255,0.8)"
-                        : "rgba(16,32,39,0.75)",
-                    color:
-                      theme.palette.mode === "light"
-                        ? theme.palette.text.primary
-                        : "#E1E8EA",
+                    backgroundColor: theme.palette.surface.glass,
+                    color: theme.palette.text.primary,
                     "& .MuiChip-icon": { color: "inherit" },
                     backdropFilter: "blur(6px)",
                   })}
@@ -471,13 +416,10 @@ function HeroSection({ metrics, onPrimary, onSecondary, isMdUp }) {
             sx={{
               flex: isMdUp ? "0 0 360px" : "1",
               borderRadius: 4,
-              border: "1px solid rgba(255,255,255,0.24)",
-              background: (theme) =>
-                theme.palette.mode === "light"
-                  ? "linear-gradient(155deg, rgba(42,120,132,0.9) 0%, rgba(78,177,191,0.92) 100%)"
-                  : "linear-gradient(160deg, rgba(7,18,24,0.98) 0%, rgba(26,96,108,0.92) 100%)",
-              color: "#FCFCF9",
-              boxShadow: "0 30px 90px -40px rgba(3,9,18,0.9)",
+              border: (theme) => `1px solid ${theme.palette.marketing.heroBorder}`,
+              background: (theme) => theme.palette.marketing.heroGradient,
+              color: "marketing.onHero",
+              boxShadow: (theme) => theme.customShadows.section,
               position: "relative",
               overflow: "hidden",
             }}
@@ -486,8 +428,8 @@ function HeroSection({ metrics, onPrimary, onSecondary, isMdUp }) {
               sx={{
                 position: "absolute",
                 inset: 0,
-                background:
-                  "radial-gradient(circle at 20% 20%, rgba(255,255,255,0.12), transparent 40%)",
+                background: (theme) =>
+                  `radial-gradient(circle at 20% 20%, ${alpha(theme.palette.common.white, 0.12)}, transparent 40%)`,
                 opacity: 0.8,
               }}
             />
@@ -497,7 +439,7 @@ function HeroSection({ metrics, onPrimary, onSecondary, isMdUp }) {
                 display: "flex",
                 flexDirection: "column",
                 gap: 3,
-                color: "#EAF4F6",
+                color: "marketing.onHeroMuted",
               }}
             >
               <Stack direction="row" spacing={2} alignItems="center">
@@ -506,7 +448,7 @@ function HeroSection({ metrics, onPrimary, onSecondary, isMdUp }) {
                     width: 56,
                     height: 56,
                     borderRadius: 2,
-                    backgroundColor: "rgba(255,255,255,0.14)",
+                    backgroundColor: (theme) => alpha(theme.palette.common.white, 0.14),
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
@@ -521,38 +463,38 @@ function HeroSection({ metrics, onPrimary, onSecondary, isMdUp }) {
                   </Typography>
                   <Typography
                     variant="subtitle1"
-                    sx={{ fontWeight: 700, color: "#FFFFFF" }}
+                    sx={{ fontWeight: 700, color: "marketing.onHero" }}
                   >
                     Kyoto in Bloom · departs in 3 weeks
                   </Typography>
                 </Box>
               </Stack>
-              <Divider sx={{ borderColor: "rgba(255,255,255,0.12)" }} />
+              <Divider sx={{ borderColor: "marketing.heroBorder" }} />
               <Stack spacing={1.75}>
                 <Stack direction="row" spacing={1} alignItems="center">
                   <AccessTimeIcon
                     fontSize="small"
-                    sx={{ opacity: 0.9, color: "#E8F4F6" }}
+                    sx={{ opacity: 0.9, color: "marketing.onHeroMuted" }}
                   />
-                  <Typography variant="body2" sx={{ color: "#EAF4F6" }}>
+                  <Typography variant="body2" sx={{ color: "marketing.onHeroMuted" }}>
                     Next step · Generate itinerary
                   </Typography>
                 </Stack>
                 <Stack direction="row" spacing={1} alignItems="center">
                   <MapIcon
                     fontSize="small"
-                    sx={{ opacity: 0.9, color: "#E8F4F6" }}
+                    sx={{ opacity: 0.9, color: "marketing.onHeroMuted" }}
                   />
-                  <Typography variant="body2" sx={{ color: "#EAF4F6" }}>
+                  <Typography variant="body2" sx={{ color: "marketing.onHeroMuted" }}>
                     POIs synced from your destination search
                   </Typography>
                 </Stack>
                 <Stack direction="row" spacing={1} alignItems="center">
                   <LanguageIcon
                     fontSize="small"
-                    sx={{ opacity: 0.9, color: "#E8F4F6" }}
+                    sx={{ opacity: 0.9, color: "marketing.onHeroMuted" }}
                   />
-                  <Typography variant="body2" sx={{ color: "#EAF4F6" }}>
+                  <Typography variant="body2" sx={{ color: "marketing.onHeroMuted" }}>
                     Translation + phrasebook ready to pin
                   </Typography>
                 </Stack>
@@ -710,21 +652,14 @@ function ItinerarySection({ itineraries, onPrimary }) {
                 sx={(theme) => ({
                   borderRadius: 3,
                   height: 160,
-                  background: `linear-gradient(145deg, ${trip.accent} 0%, rgba(250,250,250,0.4) 100%)`,
+                  background: `linear-gradient(145deg, ${alpha(trip.accent, 0.38)} 0%, ${alpha(trip.accent, 0.08)} 100%)`,
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
                   fontSize: 14,
                   letterSpacing: "0.18em",
                   textTransform: "uppercase",
-                  color:
-                    theme.palette.mode === "light"
-                      ? "#0B1A1F"
-                      : "rgba(10,18,23,0.8)",
-                  textShadow:
-                    theme.palette.mode === "light"
-                      ? "none"
-                      : "0 1px 8px rgba(0,0,0,0.45)",
+                  color: theme.palette.text.primary,
                 })}
               >
                 {trip.subtitle}

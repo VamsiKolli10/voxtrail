@@ -83,16 +83,39 @@ function buildPalette(mode = "light") {
           backgroundSoft: "#13252E",
           surface: "#162A33",
           accent: BRAND.tealLight,
+          onHero: "#FFFFFF",
+          onHeroMuted: "#EAF4F6",
+          heroBorder: alpha("#FFFFFF", 0.24),
           textPrimary: "#E6EEF1",
           textSecondary: "#B1C1C6",
+          // Page backdrop (Landing.css reads these via CSS variables)
+          backdropTop: "#0C171C",
+          backdropMid: "#0F1C22",
+          backdropBottom: "#0F1C22",
+          glowStrong: alpha(BRAND.tealLight, 0.2),
+          glowSoft: alpha(BRAND.tealLight, 0.12),
+          // Hero card: fixed dark-teal panel, always light text
+          heroGradient: "linear-gradient(160deg, #071218 0%, #1A606C 100%)",
+          ctaGradient: `linear-gradient(160deg, ${alpha(BRAND.teal, 0.28)} 0%, ${alpha("#101C24", 0.92)} 100%)`,
         }
       : {
           background: "#F6F9FB",
           backgroundSoft: "#EEF3F6",
           surface: "#FFFFFF",
           accent: BRAND.teal,
+          onHero: "#FFFFFF",
+          onHeroMuted: "#EAF4F6",
+          heroBorder: alpha("#FFFFFF", 0.24),
           textPrimary: "#0F1D23",
           textSecondary: "#627079",
+          backdropTop: "#F6F9FB",
+          backdropMid: "#FFFFFF",
+          backdropBottom: "#F6F9FB",
+          glowStrong: alpha(BRAND.teal, 0.16),
+          glowSoft: alpha(BRAND.teal, 0.08),
+          // #EAF4F6 on #1D7480 = 4.9:1 (the old #4EB1BF end stop was 2.2:1)
+          heroGradient: "linear-gradient(155deg, #1A6872 0%, #1D7480 100%)",
+          ctaGradient: `linear-gradient(160deg, ${alpha(BRAND.teal, 0.14)} 0%, ${alpha(BRAND.teal, 0.08)} 100%)`,
         },
     // In dark mode the brand teal is lifted so text/links keep ≥4.5:1 contrast.
     primary: isDark
