@@ -82,8 +82,8 @@ export function AuthProvider({ children }) {
       const ok = await handleEmailVerification(oobCode);
       if (ok) {
         setStatusMessage("Email verified! Redirecting…");
-        // Prevent re-processing on reload
-        window.history.replaceState({}, document.title, url.pathname);
+        // Prevent re-processing on reload: drop the one-time action params.
+        window.history.replaceState({}, document.title, window.location.pathname);
       } else {
         setStatusMessage(
           "Verification link is invalid or has expired. Request a new one from Login."
