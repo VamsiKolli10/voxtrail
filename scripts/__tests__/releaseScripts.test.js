@@ -24,9 +24,15 @@ for (const existing of [false, true]) {
     fs.copyFileSync(path.join(repoRoot, 'scripts/run-emulator-tests.js'), path.join(dir, 'scripts/run-emulator-tests.js'));
     fs.writeFileSync(path.join(dir, 'travel-app-be/firebase.json'), JSON.stringify({ firestore: { rules: 'firestore.rules' } }));
     const localEnv = path.join(dir, 'travel-app-be/.env.local');
-    if (existing) fs.writeFileSync(localEnv, 'PRIVATE_VALUE=preserve-me\n');
+    const localSecrets = path.join(dir, 'travel-app-be/.secret.local');
+    if (existing) {
+      fs.writeFileSync(localEnv, 'PRIVATE_VALUE=preserve-me\n');
+      fs.writeFileSync(localSecrets, 'PRIVATE_SECRET=preserve-me-too\n');
+    }
     executable(dir, 'firebase', `#!/bin/sh
 cat .env.local > "$TRACE_FILE"
+echo "--- secrets" >> "$TRACE_FILE"
+cat .secret.local >> "$TRACE_FILE"
 cat .firebase-emulator.generated.json >> "$TRACE_FILE"
 exit 7
 `);
@@ -36,13 +42,22 @@ exit 7
     });
     assert.equal(result.status, 7);
     const duringRun = fs.readFileSync(trace, 'utf8');
-    assert.match(duringRun, /REQUEST_SIGNING_SECRET=emulator-signing-secret-only/);
-    assert.match(duringRun, /OPENROUTER_API_KEY=""/);
+    const [envPart, secretPart] = duringRun.split('--- secrets');
+    // Provider keys are secrets on apiV2: they must be in .secret.local only.
+    assert.match(secretPart, /REQUEST_SIGNING_SECRET=emulator-signing-secret-only/);
+    assert.match(secretPart, /OPENROUTER_API_KEY=""/);
+    assert.doesNotMatch(envPart, /OPENROUTER_API_KEY|GOOGLE_PLACES_API_KEY|REQUEST_SIGNING_SECRET/);
+    assert.doesNotMatch(duringRun, /preserve-me-too/);
     assert.match(duringRun, /firestore.emulator.rules/);
     assert.doesNotMatch(duringRun, /preserve-me/);
     assert.equal(fs.existsSync(path.join(dir, 'travel-app-be/.firebase-emulator.generated.json')), false);
-    if (existing) assert.equal(fs.readFileSync(localEnv, 'utf8'), 'PRIVATE_VALUE=preserve-me\n');
-    else assert.equal(fs.existsSync(localEnv), false);
+    if (existing) {
+      assert.equal(fs.readFileSync(localEnv, 'utf8'), 'PRIVATE_VALUE=preserve-me\n');
+      assert.equal(fs.readFileSync(localSecrets, 'utf8'), 'PRIVATE_SECRET=preserve-me-too\n');
+    } else {
+      assert.equal(fs.existsSync(localEnv), false);
+      assert.equal(fs.existsSync(localSecrets), false);
+    }
   });
 }
 for (const failedSuite of ['frontend', 'backend']) {

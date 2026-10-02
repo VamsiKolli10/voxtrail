@@ -1,6 +1,6 @@
 # ADR-001: Run the API on Cloud Functions 2nd gen
 
-**Status:** Proposed
+**Status:** Accepted — implemented on branch `css-variables-theme`; production cutover pending (see Action Items)
 **Date:** 2026-10-02
 **Deciders:** Vamsi Kolli
 
@@ -76,9 +76,9 @@ B and C have the same runtime characteristics. B keeps the Firebase CLI, emulato
 
 ## Action Items
 
-1. [ ] Change `index.js` to `const { onRequest } = require("firebase-functions/v2/https")` and export `apiV2 = onRequest({ region, cpu: 1, concurrency: 80, memory: "512MiB", timeoutSeconds: 120, minInstances: 0, maxInstances: 5, secrets: [...] }, app)`.
-2. [ ] Move `OPENROUTER_API_KEY` and `GOOGLE_PLACES_API_KEY` to `defineSecret(...)` (`firebase functions:secrets:set ...`). Read them via `process.env` (secrets are injected as env vars), so `config/env.js` keeps working.
-3. [ ] Audit module-level state for request-specific data; add a Supertest test that fires overlapping requests.
-4. [ ] Deploy `apiV2` next to `api`; point the Hosting rewrite in `travel-app-be/firebase.json` at `apiV2`; run the emulator smoke test and a production smoke test.
-5. [ ] After a day of clean logs, delete `api` (`firebase functions:delete api`) and update `ENVIRONMENT_VARIABLES.md` and `PRODUCTION_DEPLOYMENT.md`.
-6. [ ] Delete the archived `travel-app-be/functions/` codebase so there's one obvious entry point.
+1. [x] Change `index.js` to `const { onRequest } = require("firebase-functions/v2/https")` and export `apiV2 = onRequest({ region, cpu: 1, concurrency: 80, memory: "512MiB", timeoutSeconds: 120, minInstances: 0, maxInstances: 5, secrets: [...] }, app)`.
+2. [x] Move `OPENROUTER_API_KEY` and `GOOGLE_PLACES_API_KEY` to `defineSecret(...)` (`firebase functions:secrets:set ...`). Read them via `process.env` (secrets are injected as env vars), so `config/env.js` keeps working.
+3. [x] Audit module-level state for request-specific data; add a Supertest test that fires overlapping requests. (`tests/concurrentRequests.test.js`; module-level state is limited to shared caches, counters and limiter stores.)
+4. [ ] *(you)* Deploy `apiV2` next to `api` (the rewrite already points at `apiV2` in the repo); point the Hosting rewrite in `travel-app-be/firebase.json` at `apiV2`; run the emulator smoke test and a production smoke test.
+5. [ ] *(you, then code)* After a day of clean logs, delete `api` (`firebase functions:delete api`) and update `ENVIRONMENT_VARIABLES.md` and `PRODUCTION_DEPLOYMENT.md`.
+6. [x] Delete the archived `travel-app-be/functions/` codebase so there's one obvious entry point.

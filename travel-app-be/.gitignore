@@ -12,3 +12,6 @@ public/
 public.*/
 .firebase/
 .firebase-emulator.generated.json
+
+# Emulator secrets (ADR-001); never commit
+.secret.local

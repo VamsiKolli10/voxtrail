@@ -16,7 +16,6 @@
         "firebase-debug.log",
         "firebase-debug.*.log",
         "coverage/**",
-        "functions/**",
         "public/**",
         "tests/**",
         "firestore.emulator.rules",
@@ -42,7 +41,7 @@
       {
         "source": "/api/{,**}",
         "function": {
-          "functionId": "api",
+          "functionId": "apiV2",
           "codebase": "backend",
           "region": "us-central1"
         }

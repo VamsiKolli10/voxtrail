@@ -33,7 +33,6 @@ flowchart LR
 VoxTrail
 ├── travel-app-fe/              React + Vite + Material UI frontend
 ├── travel-app-be/              Express API + Firebase Admin backend
-├── travel-app-be/functions/    Archived Functions codebase (not deployed)
 └── scripts/                    Deployment and release helpers
 ```
 
@@ -145,9 +144,10 @@ GitHub Actions workflows are available in `.github/workflows/`:
 - `ci.yml` runs clean installs, frontend/backend tests, dependency audits, the production build, and Firebase Emulator integration smoke tests.
 - `deploy.yml` deploys the Firebase stack only after successful `main` CI, or by a protected manual run from `main`, when every required Firebase repository secret is configured. Otherwise, its preflight reports a clean skip.
 
-The active Firebase topology uses the `backend` Functions codebase in
-`travel-app-be/`. The historical `travel-app-be/functions/` directory is
-archived and is not deployed.
+The Firebase topology uses the `backend` Functions codebase in
+`travel-app-be/`: one Express API served by the 2nd gen function `apiV2`
+(Hosting rewrites `/api/**` to it). Provider keys are Secret Manager secrets.
+See [docs/adr/001-api-runtime-2nd-gen.md](docs/adr/001-api-runtime-2nd-gen.md).
 
 ## Security
 

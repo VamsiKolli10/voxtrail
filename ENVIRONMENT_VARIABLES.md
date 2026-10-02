@@ -68,7 +68,9 @@ Route throttles layer with global/method/role limits; the strictest reached limi
 
 ## Functions and CI
 
-`FUNCTION_MEMORY=2GB`, `FUNCTION_TIMEOUT=120`, `FUNCTION_MIN_INSTANCES=0`, `FUNCTION_MAX_INSTANCES=10` are the function defaults. Region is fixed to `us-central1` to match Hosting rewrites; `FUNCTION_REGION` is not consumed.
+The API runs as the Cloud Functions **2nd gen** function `apiV2` (`travel-app-be/index.js`, options in `src/config/functionOptions.js`): `us-central1`, 1 vCPU, 512 MiB, concurrency 80, 120 s timeout. `FUNCTION_MIN_INSTANCES` (default 0) and `FUNCTION_MAX_INSTANCES` (default 5) are deploy-time params read from `.env` / `.env.<project>`. Region is fixed to `us-central1` to match the Hosting rewrite. The 1st gen `api` export remains only as a rollback target until it is deleted.
+
+**Secrets.** `OPENROUTER_API_KEY`, `GOOGLE_PLACES_API_KEY` and `REQUEST_SIGNING_SECRET` are bound with `defineSecret` and must exist in Secret Manager (`firebase functions:secrets:set NAME`, or `travel-app-be/scripts/set-firebase-secrets.sh`). Do **not** also put these names in a deployed `.env` file: the CLI rejects a name that is both an env var and a secret. Local emulator runs read them from `travel-app-be/.secret.local` (git-ignored); local `npm run dev` still reads `.env`.
 
 CI uses dummy provider configuration for mocked tests. Deployment requires `FIREBASE_SERVICE_ACCOUNT`, `FIREBASE_PROJECT_ID` and the frontend variables named in `.github/workflows/deploy.yml`. Runtime backend secrets need separate configuration; successful frontend build/deploy does not prove they exist in Functions. Legacy `firebase functions:config:set` values are not read by this code.
 
