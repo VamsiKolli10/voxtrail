@@ -31,7 +31,7 @@ function createCustomLimiter(options = {}) {
   const limiter = rateLimit({
     windowMs,
     max,
-    keyGenerator: keyGenerator || ipKeyGenerator,
+    keyGenerator: keyGenerator || ((req) => ipKeyGenerator(req.ip)),
     standardHeaders: true,
     legacyHeaders: false,
     handler: (req, res) => {
@@ -99,7 +99,7 @@ function createRoleBasedLimiter(options = {}) {
   // Create a rate limiter for each role
   Object.keys(limits).forEach((role) => {
     const maxRequests = limits[role];
-    const keyGenerator = (req) => `${ipKeyGenerator(req)}:${role}`;
+    const keyGenerator = (req) => `${ipKeyGenerator(req.ip)}:${role}`;
     const message = `${defaultMessage} for ${role} role`;
 
     roleLimiters[role] = createCustomLimiter({
@@ -162,7 +162,7 @@ function createMethodBasedLimiter(options = {}) {
   Object.keys(limits).forEach((method) => {
     if (method !== "DEFAULT") {
       const maxRequests = limits[method];
-      const keyGenerator = (req) => `${ipKeyGenerator(req)}:${method}`;
+      const keyGenerator = (req) => `${ipKeyGenerator(req.ip)}:${method}`;
       const message = `${defaultMessage} for ${method} requests`;
 
       methodLimiters[method] = createCustomLimiter({

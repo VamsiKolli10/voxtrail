@@ -103,6 +103,8 @@ function StaysSearchPageBody() {
   const [destinationMeta, setDestinationMeta] = useState(null);
   const [error, setError] = useState("");
   const resultsTopRef = useRef(null);
+  const latestSearch = useRef(0);
+  useEffect(() => () => { latestSearch.current += 1; }, []);
   const { trackModuleView, trackEvent } = useAnalytics();
   const appliedFiltersCount =
     (filters.type?.length || 0) +
@@ -111,7 +113,7 @@ function StaysSearchPageBody() {
 
   const scrollResultsToTop = () => {
     // Scroll the full page to the very top after pagination changes
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    window.scrollTo({ top: 0, behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth" });
   };
 
   useEffect(() => {
@@ -168,7 +170,7 @@ function StaysSearchPageBody() {
     const lngFromUrl = urlLngRaw ? Number(urlLngRaw) : undefined;
     const nextDisplay =
       urlDest ||
-      (latFromUrl && lngFromUrl ? "Selected area" : contextDestination || "");
+      (Number.isFinite(latFromUrl) && Number.isFinite(lngFromUrl) ? "Selected area" : contextDestination || "");
     setDestinationContext(nextDisplay, {
       display: nextDisplay,
       lat: latFromUrl,
@@ -252,6 +254,7 @@ function StaysSearchPageBody() {
     pageOverride = page
   ) => {
     const normalizedQuery = normalizeSearchQuery(searchQuery);
+    const requestId = ++latestSearch.current;
     setLoading(true);
     setError("");
     try {
@@ -282,6 +285,7 @@ function StaysSearchPageBody() {
       }
 
       const data = await searchStays(searchParams);
+      if (requestId !== latestSearch.current) return;
       const fullItems = data.items || [];
       const responseTotal = data.total ?? fullItems.length ?? 0;
       setAllItems(fullItems);
@@ -293,7 +297,7 @@ function StaysSearchPageBody() {
         data.resolvedDestination?.city?.trim() ||
         data.resolvedDestination?.display ||
         searchQuery.dest ||
-        (searchQuery.lat && searchQuery.lng ? "Current location" : "Nearby");
+        (Number.isFinite(searchQuery.lat) && Number.isFinite(searchQuery.lng) ? "Current location" : "Nearby");
 
       const destinationPayload = data.resolvedDestination
         ? {
@@ -343,7 +347,7 @@ function StaysSearchPageBody() {
       });
       trackEvent("stays_search", {
         hasDestination: Boolean(searchQuery.dest),
-        hasCoordinates: Boolean(searchQuery.lat && searchQuery.lng),
+        hasCoordinates: Boolean(Number.isFinite(searchQuery.lat) && Number.isFinite(searchQuery.lng)),
         filtersApplied: {
           type: searchFilters.type?.length || 0,
           amenities: searchFilters.amenities?.length || 0,
@@ -358,6 +362,7 @@ function StaysSearchPageBody() {
       }));
       // applyPage already syncs the URL
     } catch (e) {
+      if (requestId !== latestSearch.current) return;
       const apiMsg = e?.response?.data?.error?.message;
       setError(apiMsg || e?.message || "Failed to fetch stays");
       setAllItems([]);
@@ -367,18 +372,18 @@ function StaysSearchPageBody() {
       setTotalPages(1);
       trackEvent("stays_search", {
         hasDestination: Boolean(searchQuery.dest),
-        hasCoordinates: Boolean(searchQuery.lat && searchQuery.lng),
+        hasCoordinates: Boolean(Number.isFinite(searchQuery.lat) && Number.isFinite(searchQuery.lng)),
         error: apiMsg || e?.message || "unknown",
         success: false,
       });
     } finally {
-      setLoading(false);
+      if (requestId === latestSearch.current) setLoading(false);
     }
   };
 
   const runSearch = () => {
     // Only search if we have a destination or coordinates
-    if (query.dest || (query.lat && query.lng)) {
+    if (query.dest || (Number.isFinite(query.lat) && Number.isFinite(query.lng))) {
       const resetPage = 1;
       const normalized = normalizeSearchQuery(query);
       setQuery((prev) => ({ ...prev, ...normalized }));
@@ -786,7 +791,7 @@ function StaysSearchPageBody() {
 
             {view === "split" && (
               <Grid container spacing={2} sx={{ overflowX: "hidden" }}>
-                <Grid item xs={12} md={6}>
+                <Grid size={{ xs: 12, md: 6 }}>
                   <Box
                     sx={{
                       width: "100%",
@@ -798,7 +803,7 @@ function StaysSearchPageBody() {
                     <ResultsList items={items} loading={loading} />
                   </Box>
                 </Grid>
-                <Grid item xs={12} md={6}>
+                <Grid size={{ xs: 12, md: 6 }}>
                   <Card>
                     <Box sx={{ height: { xs: 400, sm: 500, md: 600 } }}>
                       <StaysMap items={items} loading={loading} />

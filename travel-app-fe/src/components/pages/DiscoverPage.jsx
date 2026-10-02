@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import {
   Box,
@@ -92,6 +92,8 @@ export default function DiscoverPage() {
   });
 
   // Map/List views are removed. Always show card list.
+  const latestSearch = useRef(0);
+  useEffect(() => () => { latestSearch.current += 1; }, []);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [results, setResults] = useState([]);
@@ -191,6 +193,7 @@ export default function DiscoverPage() {
   const performSearch = async (localQuery = query, localFilters = filters) => {
     const normalizedQuery = normalizeDiscoverQuery(localQuery);
     setQuery((prev) => ({ ...prev, ...normalizedQuery }));
+    const requestId = ++latestSearch.current;
     setHasSearched(true);
     setLoading(true);
     setError("");
@@ -203,14 +206,15 @@ export default function DiscoverPage() {
         kidFriendly: localFilters.kidFriendly,
         accessibility: localFilters.accessibility,
       });
+      if (requestId !== latestSearch.current) return;
       setResults(items || []);
       if (
         (normalizedQuery.dest && normalizedQuery.dest.trim()) ||
-        (normalizedQuery.lat && normalizedQuery.lng)
+        (Number.isFinite(normalizedQuery.lat) && Number.isFinite(normalizedQuery.lng))
       ) {
         const label =
           normalizedQuery.dest?.trim() ||
-          (normalizedQuery.lat && normalizedQuery.lng
+          (Number.isFinite(normalizedQuery.lat) && Number.isFinite(normalizedQuery.lng)
             ? `Lat ${normalizedQuery.lat.toFixed(
                 2
               )}, Lng ${normalizedQuery.lng.toFixed(2)}`
@@ -233,6 +237,8 @@ export default function DiscoverPage() {
         ...localFilters,
       });
     } catch (e) {
+      if (requestId !== latestSearch.current) return;
+      setResults([]);
       console.error("Discover search error", e);
       const apiMsg = e?.response?.data?.error?.message || e?.message || "";
       setError(
@@ -241,14 +247,14 @@ export default function DiscoverPage() {
           : "Failed to fetch places. Try again."
       );
     } finally {
-      setLoading(false);
+      if (requestId === latestSearch.current) setLoading(false);
     }
   };
 
   const runSearch = () => {
     const normalized = normalizeDiscoverQuery(query);
     const hasDest = normalized.dest;
-    const hasCoords = normalized.lat && normalized.lng;
+    const hasCoords = Number.isFinite(normalized.lat) && Number.isFinite(normalized.lng);
     if (!hasDest && !hasCoords) {
       // Do not call API without a valid location
       return;
@@ -258,14 +264,18 @@ export default function DiscoverPage() {
 
   useEffect(() => {
     // Auto-search only if a valid location is present
-    if ((query.dest && query.dest.trim()) || (query.lat && query.lng)) {
+    if ((query.dest && query.dest.trim()) || (Number.isFinite(query.lat) && Number.isFinite(query.lng))) {
       runSearch();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleNearMe = () => {
-    if (!navigator.geolocation) return;
+    if (!navigator.geolocation) {
+      setError("Geolocation is not supported by your browser. Enter a destination instead.");
+      return;
+    }
+    setError("");
     navigator.geolocation.getCurrentPosition((pos) => {
       const nextQuery = {
         lat: pos.coords.latitude,
@@ -275,7 +285,9 @@ export default function DiscoverPage() {
       setQuery(nextQuery);
       // Immediately search with new coordinates
       performSearch(nextQuery, filters);
-    });
+    }, () => {
+      setError("Could not get your location. Check location permissions or enter a destination.");
+    }, { timeout: 10000, maximumAge: 60000 });
   };
 
   // Very lightweight NL parser: extracts days, destination, category, budget, pace, and season
@@ -442,7 +454,7 @@ export default function DiscoverPage() {
       ).toString(),
     };
     if (hasDest) paramsObj.dest = hasDest;
-    else if (query.lat && query.lng) {
+    else if (Number.isFinite(query.lat) && Number.isFinite(query.lng)) {
       paramsObj.lat = query.lat;
       paramsObj.lng = query.lng;
     } else {
@@ -567,7 +579,7 @@ export default function DiscoverPage() {
         }}
       >
         <Grid container spacing={2} alignItems="center">
-          <Grid item xs={12} md={6}>
+          <Grid size={{ xs: 12, md: 6 }}>
             <TextField
               fullWidth
               label="Search city, country, or attraction"
@@ -595,7 +607,7 @@ export default function DiscoverPage() {
             />
           </Grid>
           {/* Distance input removed */}
-          <Grid item xs={12} md="auto">
+          <Grid size={{ xs: 12, md: "auto" }}>
             <Button
               variant="outlined"
               startIcon={<MyLocationIcon />}
@@ -725,7 +737,7 @@ export default function DiscoverPage() {
             }}
           />
           <Chip
-            label="Accessible"
+            label="Wheelchair entrance"
             color={filters.accessibility ? "primary" : "default"}
             onClick={() => {
               const nextFilters = {

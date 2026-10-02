@@ -1,447 +1,77 @@
-# Environment Variables Configuration
-
-## Table of Contents
-
-1. [Overview](#overview)
-2. [Backend Variables](#backend-variables)
-3. [Frontend Variables](#frontend-variables)
-4. [Required vs Optional](#required-vs-optional)
-5. [Security Considerations](#security-considerations)
-6. [Development vs Production](#development-vs-production)
-
-## Overview
-
-Environment variables are crucial for configuring the VoxTrail application. They control everything from API connections to security settings.
-
-## Backend Variables
-
-### Server Configuration
-
-| Variable                 | Description                                                  | Default                 | Required |
-| ------------------------ | ------------------------------------------------------------ | ----------------------- | -------- |
-| `APP_PORT`               | Server port number (local dev)                               | `8000`                  | No       |
-| `NODE_ENV`               | Environment mode                                             | `development`           | No       |
-| `FIRESTORE_PREFER_REST`  | Use REST API over gRPC                                       | `true`                  | No       |
-| `REQUEST_BODY_LIMIT`     | Maximum request body size                                    | `256kb`                 | No       |
-| `MAX_TRANSLATION_CHARS`  | Maximum text length for translation                          | `500`                   | No       |
-| `TRANSLATION_CACHE_TTL_MS` | Cache TTL for translation responses (ms)                   | `600000` (10 minutes)   | No       |
-| `TRANSLATION_INFERENCE_TIMEOUT_MS` | Timeout waiting on the OpenRouter translation call before failing (ms) | `20000`  | No       |
-
-> Translation runs entirely through OpenRouter (`OPENROUTER_API_KEY` is required). A local on-device translation model was previously used here but was removed in favor of this lightweight proxy call -- see ADR-EVAL-1 for the cost/complexity reasoning.
-
-### Firebase Configuration
-
-#### Admin Credentials (Backend)
-
-| Variable               | Description                                                                                   | Format                | Required |
-| ---------------------- | --------------------------------------------------------------------------------------------- | --------------------- | -------- |
-| `FB_ADMIN_CREDENTIALS` | Base64-encoded (or raw JSON) Firebase service account (formerly `FIREBASE_ADMIN_CREDENTIALS`) | JSON string or base64 | Yes      |
-
-> :warning: The backend no longer loads credentials from disk. Always inject the service account via `FB_ADMIN_CREDENTIALS` (renamed from `FIREBASE_ADMIN_CREDENTIALS`).
-
-#### Client Configuration (Frontend Integration)
-
-| Variable                    | Description          | Example                   | Required |
-| --------------------------- | -------------------- | ------------------------- | -------- |
-| `FBAPP_API_KEY`             | Firebase web API key | `AIzaSy...`               | Yes      |
-| `FBAPP_AUTH_DOMAIN`         | Firebase auth domain | `project.firebaseapp.com` | Yes      |
-| `FBAPP_PROJECT_ID`          | Firebase project ID  | `my-project`              | Yes      |
-| `FBAPP_STORAGE_BUCKET`      | Storage bucket URL   | `project.appspot.com`     | Yes      |
-| `FBAPP_MESSAGING_SENDER_ID` | Messaging sender ID  | `123456789`               | Yes      |
-| `FBAPP_APP_ID`              | Firebase app ID      | `1:123456:web:abc`        | Yes      |
-
-### External API Keys
-
-| Variable                    | Description                                | Required                    |
-| --------------------------- | ------------------------------------------ | --------------------------- |
-| `GOOGLE_PLACES_API_KEY`     | Google Places / POI / Stays search key     | Yes                         |
-| `OPENROUTER_API_KEY`        | OpenRouter API key for AI phrasebooks/etc. | Yes                         |
-| `OPENROUTER_MODEL`          | Default AI model name                      | No (default: `gpt-4o-mini`) |
-| `OPENROUTER_MODEL_CHAIN`    | Comma-separated fallback models to try     | No                          |
-| `ITINERARY_MODEL`           | Optional dedicated itinerary model         | No                          |
-| `ITINERARY_ENABLE_FALLBACK` | Enable static/sample itinerary fallback    | No (default: `true`)        |
-
-### Security Settings
-
-| Variable                 | Description                             | Default            | Required |
-| ------------------------ | --------------------------------------- | ------------------ | -------- |
-| `REQUEST_SIGNING_SECRET` | Secret for request signature validation | None               | Yes      |
-| `CORS_ALLOWED_ORIGINS`   | Allowed CORS origins                    | `http://localhost` | Yes      |
-| `RATE_LIMIT_WINDOW_MS`   | Rate limit window in milliseconds       | `60000`            | No       |
-| `RATE_LIMIT_MAX`         | Default rate limit                      | `60`               | No       |
-
-### Quotas & Monitoring
-
-| Variable                           | Description                                             | Default |
-| ---------------------------------- | ------------------------------------------------------- | ------- |
-| `STAYS_PER_USER_PER_HOUR`          | Per-user stay search operations per hour. In production this is enforced durably (Firestore-backed, shared across all server instances) in addition to the fast in-process check | `60`    |
-| `STAYS_PER_USER_WINDOW_MS`         | Window length in ms for the stays per-user quota above (both in-process and durable) | `3600000` |
-| `STAYS_SEARCH_MAX_PER_IP`          | Stay search requests per minute per IP                  | `15`    |
-| `POI_PER_USER_PER_HOUR`            | Per-user POI search quota. In production this is enforced durably (Firestore-backed, shared across all server instances) in addition to the fast in-process check | `120`   |
-| `POI_PER_USER_WINDOW_MS`           | Window length in ms for the POI per-user quota above (both in-process and durable) | `3600000` |
-| `PHRASEBOOK_MAX_REQUESTS_PER_HOUR` | Phrasebook generations per user per hour (in-process check) | `25`    |
-| `PHRASEBOOK_DAILY_QUOTA`           | Phrasebook generations per user per day, durably enforced in production (Firestore-backed) | `20`    |
-| `ITINERARY_MAX_REQUESTS_PER_HOUR`  | Itinerary generations per user per hour (in-process check) | `20`    |
-| `ITINERARY_DAILY_QUOTA`            | Itinerary generations per user per day, durably enforced in production (Firestore-backed) | `25`    |
-| `CULTURE_DAILY_QUOTA`              | Culture brief/Q&A/contextual-tips generations per user per day, durably enforced in production (Firestore-backed) | `30`    |
-| `USAGE_ALERT_FALLBACK`             | Default threshold before emitting external usage alerts | `500`   |
-
-Durable quotas write one Firestore document per user per window under the `usageQuotas` collection (`middleware/durableQuota.js`) and are only active when `NODE_ENV` is neither `test` nor `development`. They exist because the plain in-process quotas (`utils/quota.js`) live in memory per server instance: under multiple Firebase Functions instances, an in-process-only cap on a paid-API route (POI, Stays) can be bypassed simply by landing on a different warm instance.
-
-### Advanced Configuration
-
-| Variable                        | Description                   | Default | Notes                                         |
-| ------------------------------- | ----------------------------- | ------- | --------------------------------------------- |
-| `LOG_LEVEL`                     | Logging level                 | `info`  | `error`, `warn`, `info`, `debug`              |
-| `ENABLE_REQUEST_LOGGING`        | Log all requests              | `true`  | Set to `false` in production                  |
-| `ENABLE_PERFORMANCE_MONITORING` | Track performance metrics     | `false` | Enable for APM                                |
-| `CACHE_TTL_SECONDS`             | Default cache TTL             | `3600`  | Cache duration in seconds                     |
-| `CULTURE_BRIEF_CACHE_VERSION`   | Culture brief cache namespace | `1`     | Bump to invalidate cached briefs in Firestore |
-
-## Frontend Variables
-
-### Firebase Configuration
-
-All frontend variables must be prefixed with `VITE_` to be accessible in the browser.
-
-| Variable                            | Description          | Example                   | Required |
-| ----------------------------------- | -------------------- | ------------------------- | -------- |
-| `VITE_FIREBASE_API_KEY`             | Firebase web API key | `AIzaSy...`               | Yes      |
-| `VITE_FIREBASE_AUTH_DOMAIN`         | Firebase auth domain | `project.firebaseapp.com` | Yes      |
-| `VITE_FIREBASE_PROJECT_ID`          | Firebase project ID  | `my-project`              | Yes      |
-| `VITE_FIREBASE_STORAGE_BUCKET`      | Storage bucket URL   | `project.appspot.com`     | Yes      |
-| `VITE_FIREBASE_MESSAGING_SENDER_ID` | Messaging sender ID  | `123456789`               | Yes      |
-| `VITE_FIREBASE_APP_ID`              | Firebase app ID      | `1:123456:web:abc`        | Yes      |
-
-### API Configuration
-
-| Variable                        | Description                                      | Example                       | Required |
-| ------------------------------- | ------------------------------------------------ | ----------------------------- | -------- |
-| `VITE_API_URL`                  | Backend API base URL (include `/api` suffix)     | `https://api.example.com/api` | Yes      |
-| `VITE_API_TIMEOUT`              | API request timeout (ms)                         | `30000`                       | No       |
-| `VITE_ENABLE_OFFLINE_MODE`      | Enable offline caching utilities                 | `true`                        | No       |
-| `VITE_ENABLE_ITINERARY_PLANNER` | Toggle Discover Itinerary planner (beta)         | `true`                        | No       |
-| `VITE_ANALYTICS_WRITE_KEY`      | Analytics key (if using external analytics tool) | `env-specific`                | No       |
-
-### Feature Flags
-
-| Variable                             | Description                | Default | Notes                          |
-| ------------------------------------ | -------------------------- | ------- | ------------------------------ |
-| `VITE_ENABLE_ANALYTICS`              | Enable analytics tracking  | `true`  | Set to `false` for development |
-| `VITE_ENABLE_ERROR_REPORTING`        | Enable error reporting     | `true`  | Use Sentry or similar          |
-| `VITE_ENABLE_PERFORMANCE_MONITORING` | Track frontend performance | `false` | Enable for optimization        |
-
-## Required vs Optional
-
-### Backend Required Variables
-
-```bash
-# Minimal production setup
-GOOGLE_PLACES_API_KEY=your_key_here
-OPENROUTER_API_KEY=your_key_here
-REQUEST_SIGNING_SECRET=your_secret_here
-CORS_ALLOWED_ORIGINS=https://yourdomain.com
-# Firebase
-FB_ADMIN_CREDENTIALS=$(cat serviceAccount.json | base64)
-```
-
-### Frontend Required Variables
-
-```bash
-# Minimal production setup
-VITE_FIREBASE_API_KEY=your_firebase_key
-VITE_FIREBASE_AUTH_DOMAIN=yourproject.firebaseapp.com
-VITE_FIREBASE_PROJECT_ID=yourproject
-VITE_FIREBASE_STORAGE_BUCKET=yourproject.appspot.com
-VITE_FIREBASE_MESSAGING_SENDER_ID=123456789
-VITE_FIREBASE_APP_ID=1:123456:web:abc
-VITE_API_URL=https://api.yourdomain.com
-```
-
-## Security Considerations
-
-### Sensitive Data
-
-- **Never commit** `.env` files to version control
-- **Use different** secrets for development and production
-- **Rotate** API keys regularly
-- **Restrict** API keys to specific domains/IPs
-
-### API Key Restrictions
-
-#### Google Places API
-
-- Enable Places API and Places Photos API
-- Restrict to your domain in HTTP referrer restrictions
-- Set usage quotas appropriate for your traffic
-
-#### OpenRouter API
-
-- Set model to `gpt-4o-mini` for cost optimization
-- Monitor usage in OpenRouter dashboard
-- Set spending limits if needed
-
-#### Firebase
-
-- Use service account with minimal required permissions
-- Enable only required Firebase services
-- Set up proper security rules
-
-### Request Signing
-
-- Configure a strong `REQUEST_SIGNING_SECRET` per environment and rotate regularly.
-- Server-to-server clients must include `x-timestamp` and `x-request-signature` headers for protected routes.
-- Any request with an `Authorization: Bearer <token>` header skips signature validation and will be validated by the auth middleware instead. Background jobs or tooling that cannot send ID tokens **must** use signed requests.
-
-## CI/CD Secrets (GitHub Actions)
-
-- CI workflow uses dummy keys for isolated Jest/Vitest runs and does not call external services.
-- Deploy workflow (`.github/workflows/deploy.yml`) requires GitHub secrets:
-  - `FIREBASE_SERVICE_ACCOUNT` (service account JSON for Hosting + Functions deploys)
-  - `FIREBASE_PROJECT_ID`
-  - Frontend build vars: `VITE_FIREBASE_API_KEY`, `VITE_FIREBASE_AUTH_DOMAIN`, `VITE_FIREBASE_PROJECT_ID`, `VITE_FIREBASE_STORAGE_BUCKET`, `VITE_FIREBASE_MESSAGING_SENDER_ID`, `VITE_FIREBASE_APP_ID`, `VITE_API_URL`
-- Use environment- or environment-specific secrets in GitHub to keep staging and production isolated.
-
-### Environment-Specific Settings
-
-#### Development
-
-```bash
-NODE_ENV=development
-LOG_LEVEL=debug
-ENABLE_REQUEST_LOGGING=true
-VITE_ENABLE_ANALYTICS=false
-VITE_ENABLE_ERROR_REPORTING=false
-CORS_ALLOWED_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
-```
-
-#### Staging
-
-```bash
-NODE_ENV=staging
-LOG_LEVEL=info
-ENABLE_REQUEST_LOGGING=true
-VITE_ENABLE_ANALYTICS=true
-VITE_ENABLE_ERROR_REPORTING=true
-CORS_ALLOWED_ORIGINS=https://staging.yourdomain.com
-```
-
-#### Production
-
-```bash
-NODE_ENV=production
-LOG_LEVEL=error
-ENABLE_REQUEST_LOGGING=false
-VITE_ENABLE_ANALYTICS=true
-VITE_ENABLE_ERROR_REPORTING=true
-CORS_ALLOWED_ORIGINS=https://yourdomain.com,https://www.yourdomain.com
-```
-
-## Development vs Production
-
-### File Structure
-
-#### Development
-
-```
-project/
-├── .env.development
-├── .env.local
-└── travel-app-be/.env
-```
-
-#### Production
-
-```
-project/
-├── .env.production
-├── travel-app-be/.env.production
-└── travel-app-fe/.env.production
-```
-
-### Environment File Setup
-
-#### Backend `.env` template
-
-```bash
-# Copy this template and fill in your values
-
-# Server
-APP_PORT=8000
-NODE_ENV=production
-FIRESTORE_PREFER_REST=true
-
-# Firebase
-FB_ADMIN_CREDENTIALS=your_service_account_json_here
-FBAPP_API_KEY=your_firebase_web_api_key
-FBAPP_AUTH_DOMAIN=your-project.firebaseapp.com
-FBAPP_PROJECT_ID=your-project-id
-FBAPP_STORAGE_BUCKET=your-project.appspot.com
-FBAPP_MESSAGING_SENDER_ID=123456789
-FBAPP_APP_ID=1:123456:web:abc
-
-# External APIs
-GOOGLE_PLACES_API_KEY=your_google_places_api_key
-OPENROUTER_API_KEY=your_openrouter_api_key
-OPENROUTER_MODEL=x-ai/grok-4.1-fast:free
-# Optional comma-separated fallbacks, tried in order
-OPENROUTER_MODEL_CHAIN=x-ai/grok-4.1-fast:free,openai/gpt-4o-mini
-
-# Security
-REQUEST_SIGNING_SECRET=your_random_secret_string_here
-CORS_ALLOWED_ORIGINS=https://yourdomain.com,https://www.yourdomain.com
-
-# Rate Limiting
-RATE_LIMIT_WINDOW_MS=60000
-RATE_LIMIT_MAX=60
-
-# Application
-REQUEST_BODY_LIMIT=1mb
-MAX_TRANSLATION_CHARS=500
-
-# Firebase Functions Configuration (optional, defaults shown)
-FUNCTION_REGION=us-central1
-FUNCTION_MEMORY=2GB
-FUNCTION_TIMEOUT=120
-FUNCTION_MIN_INSTANCES=1
-FUNCTION_MAX_INSTANCES=10
-
-# Translation Configuration (optional; requires OPENROUTER_API_KEY)
-TRANSLATION_INFERENCE_TIMEOUT_MS=20000
-TRANSLATION_CACHE_TTL_MS=600000
-```
-
-#### Frontend `.env` template
-
-```bash
-# Copy this template and fill in your values
-
-# Firebase
-VITE_FIREBASE_API_KEY=your_firebase_web_api_key
-VITE_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
-VITE_FIREBASE_PROJECT_ID=your-project-id
-VITE_FIREBASE_STORAGE_BUCKET=your-project.appspot.com
-VITE_FIREBASE_MESSAGING_SENDER_ID=123456789
-VITE_FIREBASE_APP_ID=1:123456:web:abc
-
-# API
-VITE_API_URL=https://api.yourdomain.com
-VITE_API_TIMEOUT=30000
-
-# Features
-VITE_ENABLE_ANALYTICS=true
-VITE_ENABLE_ERROR_REPORTING=true
-VITE_ENABLE_PERFORMANCE_MONITORING=false
-```
-
-### Deployment Platform Specific
-
-#### Vercel
-
-```bash
-# Backend (if using Vercel Functions)
-vercel env add FB_ADMIN_CREDENTIALS
-vercel env add GOOGLE_PLACES_API_KEY
-# ... add all required variables
-
-# Frontend
-vercel env add VITE_FIREBASE_API_KEY
-vercel env add VITE_API_URL
-# ... add all required variables
-```
-
-#### Netlify
-
-```bash
-# Backend
-netlify env:set FB_ADMIN_CREDENTIALS "your_value"
-netlify env:set GOOGLE_PLACES_API_KEY "your_value"
-
-# Frontend
-netlify env:set VITE_FIREBASE_API_KEY "your_value"
-netlify env:set VITE_API_URL "your_value"
-```
-
-#### Firebase Hosting
-
-```bash
-# Use Firebase CLI to set environment variables
-firebase functions:config:set firebase.admin_credentials="your_json"
-firebase functions:config:set google.places_key="your_key"
-```
-
-### Validation
-
-Add this script to validate environment variables:
-
-```javascript
-// validate-env.js
-const requiredEnvVars = {
-  "travel-app-be": [
-    "GOOGLE_PLACES_API_KEY",
-    "OPENROUTER_API_KEY",
-    "REQUEST_SIGNING_SECRET",
-    "CORS_ALLOWED_ORIGINS",
-  ],
-  "travel-app-fe": [
-    "VITE_FIREBASE_API_KEY",
-    "VITE_FIREBASE_AUTH_DOMAIN",
-    "VITE_FIREBASE_PROJECT_ID",
-    "VITE_API_URL",
-  ],
-};
-
-function validateEnv() {
-  const errors = [];
-
-  Object.entries(requiredEnvVars).forEach(([app, vars]) => {
-    vars.forEach((varName) => {
-      if (!process.env[varName]) {
-        errors.push(`Missing required variable: ${varName} in ${app}`);
-      }
-    });
-  });
-
-  if (errors.length > 0) {
-    console.error("Environment validation failed:");
-    errors.forEach((error) => console.error(`  - ${error}`));
-    process.exit(1);
-  }
-
-  console.log("✅ All required environment variables are set");
-}
-
-module.exports = { validateEnv };
-```
-
-## Troubleshooting
-
-### Common Issues
-
-1. **API Key Not Working**
-
-   - Check if the key is valid and not expired
-   - Verify domain restrictions
-   - Ensure billing is enabled for Google Cloud
-
-2. **CORS Errors**
-
-   - Check `CORS_ALLOWED_ORIGINS` includes your domain
-   - Ensure no trailing spaces or typos
-   - Include both `https://domain.com` and `https://www.domain.com`
-
-3. **Firebase Connection Issues**
-
-   - Verify service account permissions
-   - Check if Firestore is enabled
-   - Ensure project IDs match
-
-4. **Rate Limiting Issues**
-   - Check rate limit headers in responses
-   - Verify user roles are correctly set
-   - Monitor rate limit usage in logs
-
----
-
-**Last Updated**: 2025-11-13
-**Version**: 1.1.0
+# VoxTrail environment configuration
+
+Updated October 2, 2026. Node 22 and npm >=10 are required. Copy `travel-app-fe/.env.example` and `travel-app-be/.env.example` for local development. Never commit populated environment files or service-account JSON. Vite values are public browser configuration; backend secrets must never use the `VITE_` prefix.
+
+## Frontend
+
+| Variable | Purpose |
+| --- | --- |
+| `VITE_API_URL` | API base URL; recommend `http://localhost:8000/api` locally and `/api` for same-origin Firebase Hosting. Origin-only and trailing-slash inputs are normalized. Axios uses a fixed 60-second timeout. |
+| `VITE_FIREBASE_API_KEY` | Firebase web app API key |
+| `VITE_FIREBASE_AUTH_DOMAIN` | Firebase authorized auth domain |
+| `VITE_FIREBASE_PROJECT_ID` | Firebase project ID |
+| `VITE_FIREBASE_STORAGE_BUCKET` | Firebase web app bucket |
+| `VITE_FIREBASE_MESSAGING_SENDER_ID` | Firebase web app sender ID |
+| `VITE_FIREBASE_APP_ID` | Firebase web app ID |
+
+The previously documented `VITE_API_TIMEOUT`, generic offline/analytics/error-reporting environment flags are not consumed by the current service/context implementation. Feature flags are managed by `FeatureFlagsContext`; do not rely on unused environment variables to disable features.
+
+## Backend credentials and server
+
+| Variable | Default / behavior |
+| --- | --- |
+| `APP_PORT` | 8000 for standalone development |
+| `NODE_ENV` | Set `development` locally; production/staging enable durable quotas and culture authentication. Only `test` and `development` bypass those production-specific gates. |
+| `REQUEST_SIGNING_SECRET` | Required; at least 16 characters, use a strong per-environment random secret |
+| `CORS_ALLOWED_ORIGINS` | Comma-separated exact origins; set explicitly for deployed environments |
+| `REQUEST_BODY_LIMIT` | `256kb` |
+| `READINESS_TIMEOUT_MS` | 3000, maximum 10000 |
+| `FIRESTORE_PREFER_REST` | `true` |
+| `FB_ADMIN_CREDENTIALS` | Local service-account JSON or base64 JSON; legacy `FIREBASE_ADMIN_CREDENTIALS` also accepted |
+| `GOOGLE_APPLICATION_CREDENTIALS` | Alternative local path to a readable credential JSON file |
+
+Managed Firebase Functions/Cloud Run uses Application Default Credentials when explicit credentials are absent. Local standalone startup requires credentials. Demo emulators use a process-local demo certificate and isolated signing configuration, and disable external provider keys. Do not point emulator tests at a real project.
+
+## Providers and translation
+
+| Variable | Default / purpose |
+| --- | --- |
+| `GOOGLE_PLACES_API_KEY` | Required for live location/stays/POI/photo calls |
+| `OPENROUTER_API_KEY` | Required for live translation, phrasebooks, culture and AI itineraries |
+| `OPENROUTER_MODEL` | Optional primary model |
+| `OPENROUTER_MODEL_CHAIN` | Comma-separated ordered fallback models; the configured primary is prepended and legacy `gpt-4o-mini` fallback is appended |
+| `OPENROUTER_TIMEOUT_MS` | 30000 per request |
+| `MAX_TRANSLATION_CHARS` | 500; UI/schema also cap text at 500 |
+| `TRANSLATION_INFERENCE_TIMEOUT_MS` | 20000, total translation operation deadline; aborts upstream work |
+| `TRANSLATION_CACHE_TTL_MS` | 600000 |
+| `ITINERARY_MODEL` | Optional itinerary-specific model selection |
+| `ITINERARY_ENABLE_FALLBACK` | `true`; allows sample/static fallback plans |
+| `CULTURE_BRIEF_CACHE_VERSION` | `1`; increment to invalidate brief cache namespace |
+
+Model availability/pricing depends on the provider. A primary model labeled free does not make fallback usage free. Review every configured fallback and provider spending cap. The historical Hugging Face model/warmup settings are not used by the current translation implementation.
+
+## Throttles and quotas
+
+| Variable | Default |
+| --- | --- |
+| `RATE_LIMIT_WINDOW_MS` / `RATE_LIMIT_MAX` | 60000 / 60 (additional global controls) |
+| `STAYS_SEARCH_MAX_PER_IP` / `STAY_DETAIL_MAX_PER_IP` | 15 / 30 per minute |
+| `POI_SEARCH_MAX_PER_IP` / `POI_DETAIL_MAX_PER_IP` | 30 / 60 per minute |
+| `STAYS_PER_USER_PER_HOUR` / `STAYS_PER_USER_WINDOW_MS` | 60 / 3600000 |
+| `POI_PER_USER_PER_HOUR` / `POI_PER_USER_WINDOW_MS` | 120 / 3600000 |
+| `PHRASEBOOK_MAX_REQUESTS_PER_HOUR` / `PHRASEBOOK_DAILY_QUOTA` | 25 / 20 |
+| `ITINERARY_MAX_REQUESTS_PER_HOUR` / `ITINERARY_DAILY_QUOTA` | 20 / 25 |
+| `CULTURE_DAILY_QUOTA` | 30 shared daily generations |
+| `USAGE_ALERT_FALLBACK` | 500 external usage alert threshold |
+
+Route throttles layer with global/method/role limits; the strictest reached limit wins. Production durable quotas use Firestore `usageQuotas`, while minute throttles and cache hits are per process. See route code for detail/search quota separation and cache TTL overrides.
+
+## Functions and CI
+
+`FUNCTION_MEMORY=2GB`, `FUNCTION_TIMEOUT=120`, `FUNCTION_MIN_INSTANCES=0`, `FUNCTION_MAX_INSTANCES=10` are the function defaults. Region is fixed to `us-central1` to match Hosting rewrites; `FUNCTION_REGION` is not consumed.
+
+CI uses dummy provider configuration for mocked tests. Deployment requires `FIREBASE_SERVICE_ACCOUNT`, `FIREBASE_PROJECT_ID` and the frontend variables named in `.github/workflows/deploy.yml`. Runtime backend secrets need separate configuration; successful frontend build/deploy does not prove they exist in Functions. Legacy `firebase functions:config:set` values are not read by this code.
+
+A bearer token bypasses HMAC validation and is verified by authentication middleware. A signature alone does not authorize endpoints requiring a user. Keep the signing secret exclusively on trusted servers, never in frontend bundles.
+
+Troubleshoot configuration with the current source contracts (`src/config/env.js`, `src/config/firebaseAdmin.js`, provider wrappers), health/readiness, request IDs and provider logs. Avoid printing tokens, signing secrets or credential JSON during diagnostics.

@@ -213,15 +213,7 @@ export default function CulturalGuide() {
         columnSpacing={{ xs: 2, md: 3 }}
         rowSpacing={{ xs: 2, md: 3 }}
       >
-        <Grid
-          item
-          xs={12}
-          md={4}
-          lg={4}
-          sx={{
-            flexBasis: { md: "33%", lg: "33%" },
-            maxWidth: { md: "33%", lg: "33%" },
-          }}
+        <Grid size={{ xs: 12, md: 4, lg: 4 }}
         >
           <Stack spacing={2} sx={{ height: "100%" }}>
             <Card
@@ -292,7 +284,7 @@ export default function CulturalGuide() {
                     </Stack>
                   </Box>
                   <Grid container spacing={2}>
-                    <Grid item xs={12} md={6}>
+                    <Grid size={{ xs: 12, md: 6 }}>
                       <TextField
                         label="Destination"
                         placeholder="e.g., Lima"
@@ -302,7 +294,7 @@ export default function CulturalGuide() {
                         required
                       />
                     </Grid>
-                    {/* <Grid item xs={12} md={6}>
+                    {/* <Grid size={{ xs: 12, md: 6 }}>
                       <TextField
                         label="Culture focus"
                         placeholder="optional"
@@ -311,7 +303,7 @@ export default function CulturalGuide() {
                         fullWidth
                       />
                     </Grid> */}
-                    <Grid item xs={12} md={6}>
+                    <Grid size={{ xs: 12, md: 6 }}>
                       <FormControl fullWidth>
                         <InputLabel>Language</InputLabel>
                         <Select
@@ -327,10 +319,7 @@ export default function CulturalGuide() {
                         </Select>
                       </FormControl>
                     </Grid>
-                    <Grid
-                      item
-                      xs={12}
-                      md={6}
+                    <Grid size={{ xs: 12, md: 6 }}
                       sx={{ display: "flex", alignItems: "stretch" }}
                     >
                       <Button
@@ -505,15 +494,7 @@ export default function CulturalGuide() {
             </Card>
           </Stack>
         </Grid>
-        <Grid
-          item
-          xs={12}
-          md={8}
-          lg={8}
-          sx={{
-            flexBasis: { md: "65%", lg: "65%" },
-            maxWidth: { md: "65%", lg: "65%" },
-          }}
+        <Grid size={{ xs: 12, md: 8, lg: 8 }}
         >
           <CulturalEtiquette
             destination={destination}

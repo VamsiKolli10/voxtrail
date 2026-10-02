@@ -19,7 +19,7 @@ function buildModelChain() {
     chain.unshift(legacyPrimary);
   }
 
-  // Always end with a known-good free model
+  // Preserve the legacy fallback. This model can incur provider charges.
   if (!chain.includes(FALLBACK_MODEL)) {
     chain.push(FALLBACK_MODEL);
   }
@@ -74,6 +74,7 @@ async function chatComplete({
   user,
   temperature = 0.4,
   response_format = undefined,
+  signal,
 }) {
   if (!process.env.OPENROUTER_API_KEY) {
     throw new Error("Missing OPENROUTER_API_KEY in environment");
@@ -131,6 +132,7 @@ async function chatComplete({
         timeout: Number(process.env.OPENROUTER_TIMEOUT_MS || 30000),
         maxContentLength: 256 * 1024,
         maxBodyLength: 256 * 1024,
+        signal,
       });
 
       const text = data?.choices?.[0]?.message?.content || "";
@@ -139,6 +141,7 @@ async function chatComplete({
     } catch (err) {
       // Preserve context for the eventual throw
       lastError = err;
+      if (signal?.aborted) throw err;
       const status = err?.response?.status;
       const retryable = !err.response || RETRYABLE_STATUS.has(status);
 

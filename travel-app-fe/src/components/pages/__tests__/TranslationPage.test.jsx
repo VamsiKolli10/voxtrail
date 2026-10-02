@@ -104,11 +104,10 @@ describe("Translation page", () => {
     fireEvent.click(screen.getByRole("button", { name: /translate/i }));
 
     await waitFor(() => {
-      // Component sets a generic error message string in the target field
-      const errorMessage = screen.getByDisplayValue(
-        /error contacting translation server/i
-      );
-      expect(errorMessage).toBeInTheDocument();
+      expect(screen.getByText("Invalid input")).toBeInTheDocument();
+      expect(screen.getByLabelText("Translated text")).toHaveValue("");
+      expect(screen.getByRole("button", { name: /save to phrasebook/i })).toBeDisabled();
+      expect(screen.queryByText("Translation complete")).not.toBeInTheDocument();
     });
   });
 
@@ -134,11 +133,8 @@ describe("Translation page", () => {
     fireEvent.click(screen.getByRole("button", { name: /translate/i }));
 
     await waitFor(() => {
-      // Component sets a generic error message string
-      const errorMessage = screen.getByDisplayValue(
-        /error contacting translation server/i
-      );
-      expect(errorMessage).toBeInTheDocument();
+      expect(screen.getByText(/wait a minute/i)).toBeInTheDocument();
+      expect(screen.getByLabelText("Translated text")).toHaveValue("");
     });
   });
 
@@ -153,10 +149,7 @@ describe("Translation page", () => {
     fireEvent.click(screen.getByRole("button", { name: /translate/i }));
 
     await waitFor(() => {
-      // Component sets a generic error message string
-      const errorMessage = screen.getByDisplayValue(
-        /error contacting translation server/i
-      );
+      const errorMessage = screen.getByText(/error contacting translation server/i);
       expect(errorMessage).toBeInTheDocument();
     });
   });
@@ -230,4 +223,37 @@ describe("Translation page", () => {
       expect(translateButton).not.toBeDisabled();
     });
   });
+  it("clears stale output when the source changes", async () => {
+    translateText.mockResolvedValue({ translation: "hola" });
+    render(<Translation />);
+    const input = screen.getByLabelText("Text to translate");
+    fireEvent.change(input, { target: { value: "hello" } });
+    fireEvent.click(screen.getByRole("button", { name: /^translate$/i }));
+    await screen.findByDisplayValue("hola");
+    fireEvent.change(input, { target: { value: "goodbye" } });
+    expect(screen.getByLabelText("Translated text")).toHaveValue("");
+    expect(screen.getByRole("button", { name: /save to phrasebook/i })).toBeDisabled();
+  });
+
+  it("reports clipboard failures without losing the translation", async () => {
+    navigator.clipboard.writeText.mockRejectedValue(new Error("Permission denied"));
+    translateText.mockResolvedValue({ translation: "hola" });
+    render(<Translation />);
+    fireEvent.change(screen.getByLabelText("Text to translate"), { target: { value: "hello" } });
+    fireEvent.click(screen.getByRole("button", { name: /^translate$/i }));
+    await screen.findByDisplayValue("hola");
+    fireEvent.click(screen.getByRole("button", { name: /^copy$/i }));
+    expect(await screen.findByText(/could not copy/i)).toBeInTheDocument();
+    expect(screen.getByLabelText("Translated text")).toHaveValue("hola");
+  });
+
+  it("treats empty provider results as errors", async () => {
+    translateText.mockResolvedValue({ translation: "" });
+    render(<Translation />);
+    fireEvent.change(screen.getByLabelText("Text to translate"), { target: { value: "hello" } });
+    fireEvent.click(screen.getByRole("button", { name: /^translate$/i }));
+    expect(await screen.findByText(/error contacting translation server/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^copy$/i })).toBeDisabled();
+  });
+
 });

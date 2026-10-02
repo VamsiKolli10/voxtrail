@@ -114,6 +114,7 @@ function mapPlaceToPoiCard(place, center, language = "en") {
     categories,
     openingHours: weekdayDescriptions,
     openNow: openingNow,
+    wheelchairAccessibleEntrance: place.accessibilityOptions?.wheelchairAccessibleEntrance ?? null,
     suggestedDuration,
     badges,
     location: {
@@ -156,7 +157,7 @@ async function geocodeText(text, language = "en") {
 async function searchNearbyPoi({ lat, lng, radiusMeters = 5000, language = "en", categories = [] }) {
   ensureKey();
   const FIELD_MASK =
-    "places.id,places.displayName,places.shortFormattedAddress,places.formattedAddress,places.location,places.types,places.rating,places.userRatingCount,places.photos,places.googleMapsUri,places.currentOpeningHours,places.regularOpeningHours,places.editorialSummary";
+    "places.id,places.displayName,places.shortFormattedAddress,places.formattedAddress,places.location,places.types,places.rating,places.userRatingCount,places.photos,places.googleMapsUri,places.currentOpeningHours,places.regularOpeningHours,places.editorialSummary,places.accessibilityOptions";
 
   let includedTypes = [];
   const wanted = Array.isArray(categories) ? categories : String(categories || "").split(",").map((s) => s.trim()).filter(Boolean);
@@ -218,8 +219,7 @@ function applySmartFilters(items, { kidFriendly, accessibility, openNow, timeNee
     result = result.filter((i) => i.openNow);
   }
   if (accessibility === "true" || accessibility === true) {
-    // Accessible entrance if detectable in categories or via future enrichment
-    // We don't have accessibilityOptions in the mapped card; filter is no-op for now.
+    result = result.filter((i) => i.wheelchairAccessibleEntrance === true);
   }
   if (kidFriendly === "true" || kidFriendly === true) {
     result = result.filter((i) => !i.categories.includes("bar") && !i.categories.includes("night_club"));

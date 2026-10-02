@@ -192,6 +192,7 @@ router.get(
       amenities: normalizeList(amenities),
       rating: rating ? Number(rating) : null,
       page: pageNumber,
+      pageSize: pageSizeInput ?? 5,
       lang,
     });
 
@@ -221,7 +222,7 @@ router.get(
 
     let center;
     let resolvedDestination = null;
-    if (lat && lng) {
+    if (Number.isFinite(lat) && Number.isFinite(lng)) {
       center = { lat: Number(lat), lng: Number(lng) };
     } else if (dest) {
       const ge = await geocodeCity(dest, lang);

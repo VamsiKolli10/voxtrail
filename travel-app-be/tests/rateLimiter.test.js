@@ -15,6 +15,20 @@ function buildApp(middleware) {
 }
 
 describe("rateLimiter utilities", () => {
+  test.each([
+    ["custom", () => createCustomLimiter({ windowMs: 60000, max: 1 })],
+    ["role", () => createRoleBasedLimiter({ windowMs: 60000, limits: { anonymous: 1 } })],
+    ["method", () => createMethodBasedLimiter({ windowMs: 60000, limits: { GET: 1 } })],
+  ])("%s limiter counts requests per client instead of per request object or all clients", async (_name, create) => {
+    const app = buildApp(create());
+    app.set("trust proxy", 1);
+    const get = (ip) => request(app).get("/").set("X-Forwarded-For", ip);
+    expect((await get("192.0.2.1")).status).toBe(200);
+    expect((await get("192.0.2.1")).status).toBe(429);
+    expect((await get("192.0.2.2")).status).toBe(200);
+    expect((await get("2001:db8::1")).status).toBe(200);
+    expect((await get("2001:db8::2")).status).toBe(429);
+  });
   test("createCustomLimiter blocks after max requests", async () => {
     const app = buildApp(
       createCustomLimiter({

@@ -8,7 +8,6 @@ import {
   TextField,
   Typography,
   Box,
-  Paper,
   Divider,
   CircularProgress,
   useTheme,
@@ -25,27 +24,10 @@ import { styled } from "@mui/material/styles";
 import { auth } from "../../firebase";
 import { signOut } from "firebase/auth";
 import AuthShell from "../layout/AuthShell";
-import useNotification from "../../hooks/useNotification";
+import { useNotify } from "../../contexts/NotificationContext.jsx";
 import { loginWithEmail, resendEmailVerification } from "../../services/auth";
 import { useAuth } from "../../contexts/AuthContext";
 import { transitionFor } from "../../theme";
-
-const AnimatedPaper = styled(Paper)(({ theme }) => ({
-  borderRadius: 16,
-  padding: theme.spacing(4),
-  boxShadow: `0 10px 40px ${alpha(theme.palette.common.black, 0.1)}`,
-  background: `linear-gradient(180deg, ${alpha(
-    theme.palette.background.paper,
-    0.9
-  )} 0%, ${alpha(theme.palette.background.paper, 0.95)} 100%)`,
-  backdropFilter: "blur(10px)",
-  border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
-  transition: transitionFor(["transform", "box-shadow"]),
-  "&:hover": {
-    transform: "translateY(-4px)",
-    boxShadow: `0 15px 50px ${alpha(theme.palette.common.black, 0.15)}`,
-  },
-}));
 
 const StyledTextField = styled(TextField)(({ theme }) => ({
   "& .MuiOutlinedInput-root": {
@@ -74,11 +56,16 @@ const StyledTextField = styled(TextField)(({ theme }) => ({
 export default function Login() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { showNotification } = useNotification();
+  const { notify: showNotification } = useNotify();
   const theme = useTheme();
   const { user } = useAuth();
   const redirectPath = useMemo(
-    () => location.state?.from?.pathname || "/home",
+    () => {
+      const from = location.state?.from;
+      return from?.pathname
+        ? `${from.pathname}${from.search || ""}${from.hash || ""}`
+        : "/home";
+    },
     [location.state]
   );
 
@@ -307,7 +294,7 @@ export default function Login() {
         </Stack>
       }
     >
-      <AnimatedPaper elevation={0}>
+      <Box>
         <Stack component="form" spacing={3} onSubmit={handleSubmit}>
           {error && (
             <Alert
@@ -474,7 +461,7 @@ export default function Login() {
             )}
           </Button>
         </Stack>
-      </AnimatedPaper>
+      </Box>
     </AuthShell>
   );
 }

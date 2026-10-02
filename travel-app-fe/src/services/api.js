@@ -1,13 +1,15 @@
 // src/services/api.js
 import axios from "axios";
 import { getAuth } from "firebase/auth";
+import { normalizeApiBaseUrl } from "./apiConfig";
 
 /**
  * Axios instance for all backend requests.
  * Base URL includes /api, so service paths should NOT prefix it again.
  */
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || "http://localhost:8000/api", // ✅ includes /api
+  baseURL: normalizeApiBaseUrl(import.meta.env.VITE_API_URL || undefined),
+  timeout: 60000,
 });
 
 // 🔒 Automatically attach Firebase auth token (if logged in)

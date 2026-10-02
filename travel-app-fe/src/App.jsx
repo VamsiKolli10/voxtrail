@@ -12,6 +12,7 @@ import FeatureGate from "./components/common/FeatureGate.jsx";
 import ErrorBoundary from "./components/common/ErrorBoundary.jsx";
 import { NotificationProvider } from "./contexts/NotificationContext.jsx";
 import { MotionConfig } from "framer-motion";
+import RouteNavigation from "./components/common/RouteNavigation";
 
 const Landing = lazy(() => import("./components/pages/Landing"));
 const Login = lazy(() => import("./components/pages/Login"));
@@ -61,6 +62,7 @@ export default function App() {
             <NotificationProvider>
               <FeatureFlagsProvider>
                 <AnalyticsProvider>
+                  <RouteNavigation />
                   <Suspense fallback={<RouteFallback />}>
                     <Routes>
                     {/* 🌐 Public routes */}

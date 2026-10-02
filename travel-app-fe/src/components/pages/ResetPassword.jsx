@@ -22,7 +22,7 @@ import {
   VisibilityOff as VisibilityOffIcon,
 } from "@mui/icons-material";
 import AuthShell from "../layout/AuthShell";
-import useNotification from "../../hooks/useNotification";
+import { useNotify } from "../../contexts/NotificationContext.jsx";
 import {
   confirmPasswordResetWithCode,
   verifyPasswordReset,
@@ -47,7 +47,7 @@ function extractActionParams(searchParams, hashString) {
 export default function ResetPassword() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { showNotification } = useNotification();
+  const { notify: showNotification } = useNotify();
   const [searchParams] = useSearchParams();
 
   const clientApiKey = import.meta.env.VITE_FIREBASE_API_KEY;

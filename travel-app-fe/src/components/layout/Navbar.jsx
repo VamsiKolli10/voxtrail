@@ -191,7 +191,6 @@ export default function Navbar({ isLanding = false }) {
                   className={
                     isNavItemActive(link, location.pathname) ? "active" : undefined
                   }
-                  tabIndex={focusedNavIndex === index ? 0 : -1}
                   ref={(node) => {
                     navRefs.current[index] = node;
                   }}

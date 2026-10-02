@@ -32,7 +32,11 @@ function buildValidator(schema, target = "body") {
       const parsed = schema.parse(payload ?? {});
 
       if (target === "query") {
-        req.query = parsed;
+        // Express 5 exposes query through a getter; assignment silently drops
+        // coercions, defaults and stripped fields. Shadow it for downstream code.
+        Object.defineProperty(req, "query", {
+          value: parsed, writable: true, configurable: true, enumerable: true,
+        });
       } else if (target === "params") {
         req.params = parsed;
       } else {

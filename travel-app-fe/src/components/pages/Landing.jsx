@@ -30,7 +30,7 @@ import {
   CheckCircle as CheckIcon,
   AccessTime as AccessTimeIcon,
 } from "@mui/icons-material";
-import { useNavigate } from "react-router-dom";
+import { Link as RouterLink, useNavigate } from "react-router-dom";
 import { ModuleCard, ModuleCardGrid } from "../common/ModuleCard";
 import { useAppearance } from "../../contexts/AppearanceContext.jsx";
 import "./Landing.css";
@@ -54,48 +54,27 @@ export default function Landing() {
   const isMdUp = useMediaQuery(theme.breakpoints.up("md"));
   const { mode, toggleMode } = useAppearance();
 
-  const heroMetrics = useMemo(
-    () => [
-      {
-        value: "200+",
-        label: "Languages & dialects",
-        helper: "Instant, camera-friendly",
-      },
-      {
-        value: "2.1M",
-        label: "POI signals tracked",
-        helper: "Safety + context",
-      },
-      {
-        value: "4.9",
-        label: "Traveler rating",
-        helper: "Built for real trips",
-      },
-    ],
-    []
-  );
-
   const highlightCards = useMemo(
     () => [
       {
         icon: <LanguageIcon color="primary" />,
         title: "Translate & Phrasebooks",
         description:
-          "Voice, text, and camera translation with phrase tiles you can pin, reorder, and hand off quickly.",
+          "Translate text between English, Spanish, French, and German, with voice input and playback where supported.",
         badge: "Languages",
       },
       {
         icon: <ActivityIcon color="primary" />,
         title: "Phrasebook Studio",
         description:
-          "Build etiquette notes and useful examples, then curate and share them with your crew.",
+          "Generate phrases by topic and language, then save useful examples to your personal collection.",
         badge: "Studio",
       },
       {
         icon: <HotelIcon color="primary" />,
         title: "Stays with Context",
         description:
-          "Search by destination or map area; every result comes with neighborhood context and an arrival brief.",
+          "Search by destination or current location, filter results, and compare stays on a map.",
         badge: "Stays",
       },
       {
@@ -116,7 +95,7 @@ export default function Landing() {
         icon: <SecurityIcon color="primary" />,
         title: "Emergency Ready",
         description:
-          "Emergency cards, alerts, and SOS sharing that follow your travel context so the crew stays aligned when it matters.",
+          "Find emergency contact numbers by country and keep useful safety information available offline.",
         badge: "Safety",
       },
     ],
@@ -127,18 +106,21 @@ export default function Landing() {
     () => [
       {
         title: "Kyoto Ground Truth",
+        destination: "Kyoto, Japan",
         subtitle: "7 stops · Japan",
         points: ["Train handoffs", "Allergy cards", "Shrine etiquette"],
         accent: theme.palette.primary.light,
       },
       {
         title: "Nordic Nightfall",
+        destination: "Reykjavik, Iceland",
         subtitle: "5 stops · Iceland",
         points: ["Aurora alerts", "Safe stays", "Thermal pools"],
         accent: theme.palette.accent.blue,
       },
       {
         title: "Lisbon Slow Tour",
+        destination: "Lisbon, Portugal",
         subtitle: "6 stops · Portugal",
         points: ["Metro phrases", "Tile workshop", "Sunset sail"],
         accent: theme.palette.accent.green,
@@ -151,17 +133,17 @@ export default function Landing() {
     () => [
       {
         quote:
-          "Translations, POIs, and safety nudges all live in one place. I stopped hopping between five apps on day one.",
-        name: "Riya Patel",
-        role: "Solo explorer",
-        flag: "🇸🇬",
+          "Choose a destination, compare nearby stays, and generate a phrasebook for everyday travel situations.",
+        name: "Before you arrive",
+        role: "Example travel workflow",
+        flag: "🧳",
       },
       {
         quote:
-          "Our crew shared phrase cards, arrival briefs, and hotel picks. The calm came from knowing everyone was synced.",
-        name: "Martin Dupont",
-        role: "Family traveler",
-        flag: "🇫🇷",
+          "Look up local places, translate a short phrase, and check the emergency numbers for your selected country.",
+        name: "On the go",
+        role: "Example travel workflow",
+        flag: "🧭",
       },
     ],
     []
@@ -189,9 +171,9 @@ export default function Landing() {
         icon: <TravelExploreIcon fontSize="small" />,
       },
       {
-        title: "Production ready",
+        title: "Connected tools",
         description:
-          "A dependable foundation keeps the experience quick, stable, and ready for real trips.",
+          "Move between travel tools while keeping your destination and language preferences.",
         icon: <SecurityIcon fontSize="small" />,
       },
     ],
@@ -209,18 +191,21 @@ export default function Landing() {
         "--landing-glow-soft": t.palette.marketing.glowSoft,
       })}
     >
+      <Box component="header" sx={{ position: "absolute", top: 20, left: { xs: 16, md: 48 }, zIndex: 2 }}>
+        <Typography component={RouterLink} to="/" variant="h6" sx={{ color: "text.primary", textDecoration: "none", fontWeight: 800 }}>VoxTrail</Typography>
+      </Box>
       <IconButton
         aria-label={`Switch to ${mode === "light" ? "dark" : "light"} mode`}
         onClick={toggleMode}
         sx={(theme) => ({
           position: "fixed",
           top: `calc(${theme.spacing(2)} + env(safe-area-inset-top, 0px))`,
-          right: `calc(${theme.spacing(6)} + env(safe-area-inset-right, 0px))`,
+          right: `calc(${theme.spacing(2)} + env(safe-area-inset-right, 0px))`,
           left: "auto",
           bottom: "auto",
           zIndex: 2000,
-          width: { xs: "32px", sm: "48px" },
-          height: { xs: "32px", sm: "48px" },
+          width: { xs: "44px", sm: "48px" },
+          height: { xs: "44px", sm: "48px" },
           p: { xs: 1.1, sm: 1.25 },
           backgroundColor: theme.palette.surface.glass,
           border: (t) => `1px solid ${t.palette.divider}`,
@@ -254,7 +239,7 @@ export default function Landing() {
         <SectionWrapper background>
           <ItinerarySection
             itineraries={itineraries}
-            onPrimary={() => navigate("/login")}
+            onPrimary={(trip) => navigate("/login", { state: { from: { pathname: "/discover", search: `?dest=${encodeURIComponent(trip.destination)}` } } })}
           />
         </SectionWrapper>
 
@@ -282,6 +267,10 @@ export default function Landing() {
           <FinalCTA />
         </Box>
       </main>
+      <Stack component="footer" direction="row" spacing={3} justifyContent="center" sx={{ py: 3 }}>
+        <Button component={RouterLink} to="/terms">Terms</Button>
+        <Button component={RouterLink} to="/privacy">Privacy</Button>
+      </Stack>
     </Box>
   );
 }
@@ -378,7 +367,7 @@ function HeroSection({ metrics, onPrimary, onSecondary, isMdUp }) {
                 Start your journey
               </Button>
               <Button size="large" variant="outlined" onClick={onSecondary}>
-                Preview the dashboard
+                Log in to your workspace
               </Button>
             </Stack>
 
@@ -459,13 +448,13 @@ function HeroSection({ metrics, onPrimary, onSecondary, isMdUp }) {
                 </Box>
                 <Box>
                   <Typography variant="subtitle2" sx={{ opacity: 0.9 }}>
-                    Live itinerary pulse
+                    Example travel workspace
                   </Typography>
                   <Typography
                     variant="subtitle1"
                     sx={{ fontWeight: 700, color: "marketing.onHero" }}
                   >
-                    Kyoto in Bloom · departs in 3 weeks
+                    Kyoto · example destination
                   </Typography>
                 </Box>
               </Stack>
@@ -477,7 +466,7 @@ function HeroSection({ metrics, onPrimary, onSecondary, isMdUp }) {
                     sx={{ opacity: 0.9, color: "marketing.onHeroMuted" }}
                   />
                   <Typography variant="body2" sx={{ color: "marketing.onHeroMuted" }}>
-                    Next step · Generate itinerary
+                    Next step · Explore local places
                   </Typography>
                 </Stack>
                 <Stack direction="row" spacing={1} alignItems="center">
@@ -501,7 +490,7 @@ function HeroSection({ metrics, onPrimary, onSecondary, isMdUp }) {
               </Stack>
               <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
                 <Button variant="contained" onClick={onPrimary} size="large">
-                  Build my trip
+                  Start planning
                 </Button>
               </Stack>
             </CardContent>
@@ -624,8 +613,7 @@ function ItinerarySection({ itineraries, onPrimary }) {
             lineHeight: 1.6,
           })}
         >
-          Signature itineraries stay flexible with live language tools, POI
-          context, arrival briefs, and collaborative planning baked in.
+          Use these example destinations as inspiration. Sign in to search local places and plan your own trip.
         </Typography>
       </Stack>
       <ModuleCardGrid>
@@ -673,7 +661,7 @@ function ItinerarySection({ itineraries, onPrimary }) {
                   color="text.secondary"
                   sx={{ mt: 0.5 }}
                 >
-                  Guided experiences · Flexible itineraries
+                  Example destination · Plan your own trip
                 </Typography>
               </Box>
               <Stack spacing={1}>
@@ -689,10 +677,10 @@ function ItinerarySection({ itineraries, onPrimary }) {
               </Stack>
               <Button
                 variant="contained"
-                onClick={onPrimary}
+                onClick={() => onPrimary(trip)}
                 sx={{ alignSelf: "flex-start", mt: "auto" }}
               >
-                View details
+                Explore destination
               </Button>
             </CardContent>
           </ModuleCard>
@@ -707,7 +695,7 @@ function TestimonialsSection({ testimonials }) {
     <Container maxWidth="lg">
       <Stack spacing={2.5} sx={{ maxWidth: 640, mb: { xs: 2, md: 3 } }}>
         <Chip
-          label="Loved by explorers worldwide"
+          label="Travel workflows"
           color="primary"
           variant="outlined"
           sx={{ alignSelf: "flex-start", fontWeight: 600 }}
@@ -737,7 +725,7 @@ function TestimonialsSection({ testimonials }) {
       </Stack>
       <Grid container spacing={3}>
         {testimonials.map((testimonial) => (
-          <Grid item xs={12} md={6} key={testimonial.name}>
+          <Grid size={{ xs: 12, md: 6 }} key={testimonial.name}>
             <Card
               sx={{
                 height: "100%",
@@ -790,7 +778,7 @@ function SignalsSection({ signals }) {
             color: theme.palette.text.primary,
           })}
         >
-          Production-ready from day one.
+          Your travel tools, together.
         </Typography>
         <Typography
           sx={(theme) => ({
@@ -799,8 +787,7 @@ function SignalsSection({ signals }) {
             lineHeight: 1.7,
           })}
         >
-          Standardized errors, monitoring, rate limits, and security headers are
-          already wired so you can focus on the trip experience.
+          Keep destinations, languages, and saved phrases close at hand as you plan and explore.
         </Typography>
       </Stack>
       <ModuleCardGrid>
@@ -845,6 +832,7 @@ function SignalsSection({ signals }) {
 }
 
 function FinalCTA() {
+  const navigate = useNavigate();
   return (
     <Container maxWidth="md">
       <Card
@@ -878,8 +866,7 @@ function FinalCTA() {
             color="text.secondary"
             sx={{ maxWidth: 540, mx: "auto" }}
           >
-            Join thousands of travelers who rely on VoxTrail for smarter
-            translation, curated planning, and real-time safety.
+            Create a workspace for translation, destination discovery, and practical travel information.
           </Typography>
           <Stack
             direction={{ xs: "column", sm: "row" }}
@@ -889,14 +876,14 @@ function FinalCTA() {
             <Button
               size="large"
               variant="contained"
-              onClick={() => (window.location.href = "/register")}
+              onClick={() => navigate("/register")}
             >
               Create a free account
             </Button>
             <Button
               size="large"
               variant="outlined"
-              onClick={() => (window.location.href = "/login")}
+              onClick={() => navigate("/login")}
             >
               Log in
             </Button>

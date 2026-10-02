@@ -277,11 +277,11 @@ export default function DestinationDetailsPage() {
       <PageContainer variant="fullBleed" maxWidth="lg" gap={0}>
         <Skeleton variant="rounded" height={360} sx={{ mb: 3 }} />
         <Grid container spacing={3}>
-          <Grid item xs={12} md={8}>
+          <Grid size={{ xs: 12, md: 8 }}>
             <Skeleton variant="rounded" height={220} sx={{ mb: 2 }} />
             <Skeleton variant="rounded" height={180} />
           </Grid>
-          <Grid item xs={12} md={4}>
+          <Grid size={{ xs: 12, md: 4 }}>
             <Skeleton variant="rounded" height={320} />
           </Grid>
         </Grid>
@@ -408,7 +408,7 @@ export default function DestinationDetailsPage() {
       </Box>
 
       <Grid container spacing={3}>
-        <Grid item xs={12} md={8}>
+        <Grid size={{ xs: 12, md: 8 }}>
           <Paper sx={paperStyles}>
             <Typography variant="h6" sx={{ mb: 1 }}>
               Overview
@@ -566,7 +566,7 @@ export default function DestinationDetailsPage() {
           )}
         </Grid>
 
-        <Grid item xs={12} md={4}>
+        <Grid size={{ xs: 12, md: 4 }}>
           <Paper sx={paperStyles}>
             <Typography variant="h6" sx={{ mb: 2 }}>
               Essentials

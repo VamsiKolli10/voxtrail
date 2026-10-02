@@ -40,7 +40,7 @@ async function resolveUserFromRequest(req, { enforceHeader = true } = {}) {
   }
 
   const token = authHeader.slice("Bearer ".length);
-  const decoded = await adminAuth.verifyIdToken(token);
+  const decoded = await adminAuth.verifyIdToken(token, true);
   const roles = extractRoles(decoded);
 
   if (decoded.exp * 1000 < Date.now()) {

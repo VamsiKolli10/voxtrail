@@ -35,4 +35,10 @@ describe("POI provider utilities", () => {
     expect(filtered).toHaveLength(1);
     expect(filtered[0].name).toBe("Museum");
   });
+
+  test("filters for confirmed wheelchair entrances and excludes unknown status", () => {
+    const card = mapPlaceToPoiCard({ id: "accessible", accessibilityOptions: { wheelchairAccessibleEntrance: true } });
+    const items = [card, { id: "unknown" }, { id: "inaccessible", wheelchairAccessibleEntrance: false }];
+    expect(applySmartFilters(items, { accessibility: true }).map((item) => item.id)).toEqual(["accessible"]);
+  });
 });

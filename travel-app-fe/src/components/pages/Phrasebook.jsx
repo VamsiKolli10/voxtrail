@@ -1,3 +1,4 @@
+import { useAuth } from "../../contexts/AuthContext.jsx";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Alert,
@@ -86,6 +87,7 @@ const normalizeLanguageForApi = (value = "") => {
 };
 
 export default function Phrasebook() {
+  const { user } = useAuth();
   const {
     sourceLanguageName,
     targetLanguageName,
@@ -132,7 +134,7 @@ export default function Phrasebook() {
   }, [targetLanguageName, targetLanguageCode, targetLang]);
 
   const persistSaved = (items) =>
-    cacheSavedPhrases(items).catch((error) =>
+    cacheSavedPhrases(items, user?.uid).catch((error) =>
       console.warn("Failed to persist saved phrases locally", error)
     );
 
@@ -170,6 +172,7 @@ export default function Phrasebook() {
 
   useEffect(() => {
     let active = true;
+    setSaved([]);
     (async () => {
       try {
         setLoadingSaved(true);
@@ -179,10 +182,10 @@ export default function Phrasebook() {
           setSaved(items || []);
           setUsingOfflineSaved(false);
           setSavedCacheMissing(false);
-          await cacheSavedPhrases(items || []);
+          await cacheSavedPhrases(items || [], user?.uid);
           return;
         }
-        const cached = await readSavedPhrases();
+        const cached = await readSavedPhrases(user?.uid);
         if (!active) return;
         if (cached?.length) {
           setSaved(cached);
@@ -194,7 +197,7 @@ export default function Phrasebook() {
           setSavedCacheMissing(true);
         }
       } catch (e) {
-        const cached = await readSavedPhrases();
+        const cached = await readSavedPhrases(user?.uid);
         if (active) {
           if (cached?.length) {
             setSaved(cached);
@@ -216,7 +219,7 @@ export default function Phrasebook() {
     return () => {
       active = false;
     };
-  }, [isOnline]);
+  }, [isOnline, user?.uid]);
 
   useEffect(() => {
     if (!filter) {

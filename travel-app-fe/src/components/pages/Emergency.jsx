@@ -469,7 +469,7 @@ export default function Emergency() {
             </Typography>
             <Grid container spacing={2}>
               {emergencyTips.map((tip) => (
-                <Grid item xs={12} sm={6} key={tip.title}>
+                <Grid size={{ xs: 12, sm: 6 }} key={tip.title}>
                   <Card
                     variant="outlined"
                     sx={{
@@ -642,7 +642,7 @@ export default function Emergency() {
                 {essentialContacts.map((contact) => {
                   const disabled = !contact.number;
                   return (
-                    <Grid item xs={12} md={6} key={contact.id}>
+                    <Grid size={{ xs: 12, md: 6 }} key={contact.id}>
                       <Card
                         variant="outlined"
                         sx={{

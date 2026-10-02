@@ -38,7 +38,7 @@ const createErrorResponse = (status, code, message, details = null) => {
       message,
     },
   };
-  if (details) {
+  if (details && (status < 500 || process.env.NODE_ENV === "development")) {
     response.error.details = details;
   }
   return response;
@@ -107,6 +107,13 @@ const expressErrorHandler = (err, req, res, next) => {
 
   // Log error with context
   logError(err, { url: req.originalUrl, method: req.method });
+
+  // Provider bodies and internal exception messages can contain credentials,
+  // prompts or database details. Keep them in diagnostics, not public responses.
+  if (process.env.NODE_ENV !== "development") {
+    if (status >= 500) message = "Internal Server Error";
+    if (err.response || status >= 500) details = null;
+  }
 
   // Send error response
   res.status(status).json(createErrorResponse(status, code, message, details));

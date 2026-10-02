@@ -11,12 +11,12 @@ import {
   Button,
 } from "@mui/material";
 import AuthShell from "../layout/AuthShell";
-import useNotification from "../../hooks/useNotification";
+import { useNotify } from "../../contexts/NotificationContext.jsx";
 import { sendPasswordReset } from "../../services/auth";
 
 export default function ForgotPassword() {
   const navigate = useNavigate();
-  const { showNotification } = useNotification();
+  const { notify: showNotification } = useNotify();
 
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);

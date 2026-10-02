@@ -59,8 +59,9 @@ const cultureQuota =
       })
     : (_req, _res, next) => next();
 
+const briefMiddleware = [productionAuth, briefLimiter, cultureQuota];
 // GET /api/culture/brief
-router.get("/brief", productionAuth, briefLimiter, cultureQuota, asyncHandler(getBrief));
+router.get("/brief", ...briefMiddleware, asyncHandler(getBrief));
 
 // POST /api/culture/qa
 router.post(
@@ -83,3 +84,4 @@ router.post(
 );
 
 module.exports = router;
+module.exports.briefMiddleware = briefMiddleware;

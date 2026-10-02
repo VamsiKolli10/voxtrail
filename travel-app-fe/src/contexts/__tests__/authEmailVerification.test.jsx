@@ -34,9 +34,9 @@ vi.mock("../../services/auth", () => ({
   handleEmailVerification: vi.fn(),
 }));
 
-const renderProvider = () =>
+const renderProvider = (path = "/") =>
   render(
-    <MemoryRouter>
+    <MemoryRouter initialEntries={[path]}>
       <Provider store={configureStore({ reducer: { auth: authReducer } })}>
         <AuthProvider>
           <div>app</div>
@@ -49,7 +49,8 @@ describe("AuthProvider email verification link", () => {
   const originalPath = window.location.pathname + window.location.search;
 
   beforeEach(() => {
-    window.history.pushState({}, "", "/verify-email?mode=verifyEmail&oobCode=abc123");
+    vi.clearAllMocks();
+    window.history.pushState({}, "", "/?mode=verifyEmail&oobCode=abc123");
   });
 
   afterEach(() => {
@@ -64,8 +65,22 @@ describe("AuthProvider email verification link", () => {
 
     await waitFor(() => expect(handleEmailVerification).toHaveBeenCalledWith("abc123"));
     await waitFor(() => expect(replaceSpy).toHaveBeenCalled());
-    expect(window.location.pathname).toBe("/verify-email");
+    expect(window.location.pathname).toBe("/");
     expect(window.location.search).toBe("");
     replaceSpy.mockRestore();
   });
+  it("leaves dedicated verification pages to handle their own code", async () => {
+    renderProvider("/verify-email?mode=verifyEmail&oobCode=abc123");
+    await waitFor(() => expect(document.body).toHaveTextContent("app"));
+    expect(handleEmailVerification).not.toHaveBeenCalled();
+  });
+
+  it("does not repeatedly submit an expired legacy code", async () => {
+    handleEmailVerification.mockResolvedValue(false);
+    renderProvider();
+    await waitFor(() => expect(handleEmailVerification).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(document.body).toHaveTextContent("app"));
+    expect(handleEmailVerification).toHaveBeenCalledTimes(1);
+  });
+
 });

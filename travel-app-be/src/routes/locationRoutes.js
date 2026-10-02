@@ -21,9 +21,15 @@ const cacheTtlMs = Number(
 );
 
 router.get("/resolve", resolveLimiter, asyncHandler(async (req, res) => {
-  const query =
-    (req.query.q || req.query.query || req.query.dest || "").trim();
-  const lang = (req.query.lang || "en").trim() || "en";
+  const rawQuery = req.query.q || req.query.query || req.query.dest || "";
+  const rawLang = req.query.lang || "en";
+  if (typeof rawQuery !== "string" || rawQuery.length > 200 ||
+      typeof rawLang !== "string" || rawLang.length > 12) {
+    return res.status(400).json(createErrorResponse(400, ERROR_CODES.VALIDATION_ERROR,
+      "Location query and language must be single bounded strings"));
+  }
+  const query = rawQuery.trim();
+  const lang = rawLang.trim() || "en";
 
   if (!query) {
     return res

@@ -5,6 +5,8 @@ import { generatePhrasebook } from "../../../services/phrasebook";
 import { listSavedPhrases, addSavedPhrase } from "../../../services/savedPhrases";
 import { cacheSavedPhrases, readSavedPhrases } from "../../../services/offlineCache";
 
+vi.mock("../../../contexts/AuthContext.jsx", () => ({ useAuth: () => ({ user: { uid: "u1" } }) }));
+
 vi.mock("../../../services/phrasebook", () => ({
   generatePhrasebook: vi.fn(),
 }));

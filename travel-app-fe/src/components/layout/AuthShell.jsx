@@ -67,6 +67,7 @@ export default function AuthShell({
             <Tooltip title={mode === "dark" ? "Switch to light mode" : "Switch to dark mode"}>
               <IconButton
                 onClick={toggleMode}
+                aria-label={mode === "dark" ? "Switch to light mode" : "Switch to dark mode"}
                 sx={{
                   borderRadius: 2,
                   border: (theme) => `1px solid ${theme.palette.border.subtle}`,

@@ -71,9 +71,9 @@ async function search(req, res) {
       lng: normalizeNumber(lng),
       distance: Number(distance) || 5,
       category: normalizeList(category),
-      kidFriendly: kidFriendly === "true",
-      accessibility: accessibility === "true",
-      openNow: openNow === "true",
+      kidFriendly: kidFriendly === true,
+      accessibility: accessibility === true,
+      openNow: openNow === true,
       timeNeeded: timeNeeded ? String(timeNeeded) : null,
       cost: cost ? String(cost) : null,
       lang,
@@ -82,7 +82,7 @@ async function search(req, res) {
 
     let center;
     let resolvedDestination = null;
-    if (lat && lng) {
+    if (Number.isFinite(lat) && Number.isFinite(lng)) {
       center = { lat: Number(lat), lng: Number(lng) };
     } else if (dest) {
       // Use existing, well-tested geocoder shared with Stays

@@ -50,17 +50,21 @@ function getLangLabel(code = "") {
   return LANG_LABELS[normalized] || normalized || "unknown";
 }
 
-async function withTimeout(promise, timeoutMs, label) {
+async function withTimeout(operation, timeoutMs, label) {
   let timeoutHandle = null;
+  const controller = new AbortController();
   const timeoutPromise = new Promise((_, reject) => {
     timeoutHandle = setTimeout(
-      () => reject(new Error(`${label} timed out after ${timeoutMs}ms`)),
+      () => {
+        reject(new Error(`${label} timed out after ${timeoutMs}ms`));
+        controller.abort();
+      },
       timeoutMs
     );
   });
 
   try {
-    return await Promise.race([promise, timeoutPromise]);
+    return await Promise.race([operation(controller.signal), timeoutPromise]);
   } finally {
     if (timeoutHandle) {
       clearTimeout(timeoutHandle);
@@ -86,7 +90,7 @@ async function translateViaOpenRouter(text, langPair) {
   const user = `Text to translate:\n"""${text}"""`;
 
   const raw = await withTimeout(
-    chatComplete({ system, user, temperature: 0 }),
+    (signal) => chatComplete({ system, user, temperature: 0, signal }),
     TRANSLATION_REQUEST_TIMEOUT_MS,
     "Translation request"
   );

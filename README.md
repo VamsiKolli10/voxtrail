@@ -48,6 +48,8 @@ VoxTrail
 
 ## Run locally
 
+Use Node.js **22** and npm >=10 (`node --version` must report 22.x).
+
 ### 1. Install dependencies
 
 ```bash
@@ -155,12 +157,13 @@ Review [ENVIRONMENT_VARIABLES.md](ENVIRONMENT_VARIABLES.md) and [travel-app-be/f
 
 ## Production status
 
-The repository is a **staging-ready release candidate**: clean installs, unit tests, production builds, full dependency audits, Firebase Emulator integration checks, and real local translation inference pass. Unrestricted public launch remains conditional on staging observability, provider quota/spend validation, legal review, and rollback/backup drills.
+The October 2026 audit fixes verified UI, UX, API, authentication, cache isolation and dependency issues. Local tests and builds pass. Translation uses OpenRouter; live provider and authenticated staging/device workflows remain release checks. See [PROJECT_AUDIT.md](PROJECT_AUDIT.md) for findings, validation evidence and limitations.
 
 Read the full assessment in [PRODUCTION_READINESS_REPORT.md](PRODUCTION_READINESS_REPORT.md).
 
 ## Documentation
 
+- [Project audit](PROJECT_AUDIT.md)
 - [API documentation](API_Documentation.md)
 - [MVP plan](MVP_PLAN.md)
 - [Environment variables](ENVIRONMENT_VARIABLES.md)

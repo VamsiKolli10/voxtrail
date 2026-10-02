@@ -198,4 +198,12 @@ describe("Location routes", () => {
     // At least one should be rate limited
     expect(rateLimited.length).toBeGreaterThan(0);
   });
+
+  test("rejects repeated query parameters without calling geocoding", async () => {
+    const res = await request(app).get("/api/location/resolve?q=Paris&q=London")
+      .set("user-agent", "jest").set("X-Forwarded-For", "192.0.2.99")
+      .set("Authorization", "Bearer valid-user-token");
+    expect(res.statusCode).toBe(400);
+    expect(geocodeCity).not.toHaveBeenCalled();
+  });
 });

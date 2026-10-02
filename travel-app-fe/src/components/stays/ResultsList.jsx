@@ -50,7 +50,7 @@ export default function ResultsList({ items = [], loading }) {
     return (
       <Grid container spacing={2}>
         {[...Array(6)].map((_, i) => (
-          <Grid item xs={12} key={i}>
+          <Grid size={{ xs: 12 }} key={i}>
             <Card>
               <CardContent>
                 <Skeleton width="80%" sx={{ mb: 1 }} />

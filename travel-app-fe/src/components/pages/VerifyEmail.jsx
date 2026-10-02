@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Alert, CircularProgress, Stack, Typography, Button } from "@mui/material";
 import AuthShell from "../layout/AuthShell";
-import useNotification from "../../hooks/useNotification";
+import { useNotify } from "../../contexts/NotificationContext.jsx";
 import { handleEmailVerification } from "../../services/auth";
 
 function extractActionParams(searchParams) {
@@ -33,12 +33,13 @@ function extractActionParams(searchParams) {
 export default function VerifyEmail() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { showNotification } = useNotification();
+  const { notify: showNotification } = useNotify();
 
   const [verifying, setVerifying] = useState(true);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState("");
   const [verifiedEmail, setVerifiedEmail] = useState("");
+  const verificationAttempt = useRef(null);
 
   const { mode, oobCode, apiKey: linkApiKey } = useMemo(
     () => extractActionParams(searchParams),
@@ -85,7 +86,12 @@ export default function VerifyEmail() {
       }
 
       try {
-        const ok = await handleEmailVerification(oobCode);
+        // StrictMode replays effects. Both runs must await the same operation
+        // so a one-time code is never submitted twice.
+        if (verificationAttempt.current?.code !== oobCode) {
+          verificationAttempt.current = { code: oobCode, result: handleEmailVerification(oobCode) };
+        }
+        const ok = await verificationAttempt.current.result;
         if (!isMounted) return;
 
         if (ok) {

@@ -324,19 +324,8 @@ if [[ ${SKIP_TESTS} -eq 0 ]]; then
     if (cd "${FRONTEND_DIR}" && npm test -- --run 2>&1); then
       log_success "Frontend tests passed"
     else
-      log_warn "Frontend tests failed or not configured."
-      if [[ -n "${CI:-}" ]]; then
-        log_error "Frontend tests are required in CI; refusing deployment."
-        exit 1
-      fi
-      if [[ ${FORCE} -eq 0 ]] && [[ -z "${CI:-}" ]]; then
-        read -p "Continue with deployment anyway? (y/N) " -n 1 -r
-        echo
-        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-          log "Deployment cancelled."
-          exit 1
-        fi
-      fi
+      log_error "Frontend tests failed; refusing deployment."
+      exit 1
     fi
   else
     log_info "Frontend tests not configured, skipping"
@@ -349,19 +338,8 @@ if [[ ${SKIP_TESTS} -eq 0 ]]; then
       if (cd "${BACKEND_DIR}" && npm test 2>&1); then
         log_success "Backend tests passed"
       else
-        log_warn "Backend tests failed or not configured."
-        if [[ -n "${CI:-}" ]]; then
-          log_error "Backend tests are required in CI; refusing deployment."
-          exit 1
-        fi
-        if [[ ${FORCE} -eq 0 ]] && [[ -z "${CI:-}" ]]; then
-          read -p "Continue with deployment anyway? (y/N) " -n 1 -r
-          echo
-          if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-            log "Deployment cancelled."
-            exit 1
-          fi
-        fi
+        log_error "Backend tests failed; refusing deployment."
+        exit 1
       fi
     else
       log_info "Backend tests not configured, skipping"

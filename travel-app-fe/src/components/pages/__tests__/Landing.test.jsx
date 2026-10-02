@@ -25,14 +25,14 @@ describe("Landing page", () => {
       screen.getByText(/one travel workspace for translation, stays, pois, and safety/i)
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /start your journey/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /preview the dashboard/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /log in to your workspace/i })).toBeInTheDocument();
   });
 
   it("highlights core modules and production signals", () => {
     renderLanding();
     expect(screen.getByText(/translate & phrasebooks/i)).toBeInTheDocument();
     expect(screen.getByText(/stays with context/i)).toBeInTheDocument();
-    expect(screen.getByText(/production-ready from day one/i)).toBeInTheDocument();
+    expect(screen.getByText(/your travel tools, together/i)).toBeInTheDocument();
   });
 
   it("renders itineraries section with connected journey copy", () => {

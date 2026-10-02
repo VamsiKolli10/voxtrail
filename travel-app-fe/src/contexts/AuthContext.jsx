@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { signOut } from "firebase/auth";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { useLocation } from "react-router-dom";
@@ -7,6 +7,7 @@ import { auth } from "../firebase";
 import { setUser, clearUser, setLoading } from "../store/slices/authSlice";
 import FullScreenLoader from "../components/common/FullScreenLoader.jsx";
 import { handleEmailVerification } from "../services/auth";
+import { setRecentActivityUser } from "../utils/recentActivity";
 
 const AuthContext = createContext();
 
@@ -38,6 +39,11 @@ export function AuthProvider({ children }) {
   const [isEmailVerificationInProgress, setIsEmailVerificationInProgress] =
     useState(false);
   const [firebaseUser, firebaseLoading, firebaseError] = useAuthState(auth);
+  const processedVerificationCode = useRef(null);
+
+  useEffect(() => {
+    setRecentActivityUser(authState.user?.uid);
+  }, [authState.user?.uid]);
 
   const isPublicRoute = useMemo(() => {
     const path = location.pathname;
@@ -46,6 +52,9 @@ export function AuthProvider({ children }) {
       path === "/login" ||
       path === "/register" ||
       path === "/forgot-password" ||
+      path === "/terms" ||
+      path === "/privacy" ||
+      path === "/auth-action" ||
       path.startsWith("/reset-password") ||
       path.startsWith("/verify-email")
     );
@@ -57,6 +66,8 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     const maybeHandleEmailVerificationLink = async () => {
+      // Dedicated action pages own their one-time codes and show their results.
+      if (["/verify-email", "/auth-action", "/reset-password"].includes(location.pathname)) return;
       const { mode, oobCode, apiKey: linkApiKey } = extractActionParams(
         window.location.href
       );
@@ -67,6 +78,8 @@ export function AuthProvider({ children }) {
       const isVerifyEmailMode =
         !mode || mode === "verifyEmail" || mode === "action";
       if (!isVerifyEmailMode) return;
+      if (processedVerificationCode.current === oobCode) return;
+      processedVerificationCode.current = oobCode;
 
       setIsEmailVerificationInProgress(true);
       setStatusMessage("Verifying your email…");
@@ -79,7 +92,12 @@ export function AuthProvider({ children }) {
         return;
       }
 
-      const ok = await handleEmailVerification(oobCode);
+      let ok = false;
+      try {
+        ok = await handleEmailVerification(oobCode);
+      } catch (error) {
+        console.error("Email verification failed", error);
+      }
       if (ok) {
         setStatusMessage("Email verified! Redirecting…");
         // Prevent re-processing on reload: drop the one-time action params.
@@ -95,9 +113,10 @@ export function AuthProvider({ children }) {
     };
 
     maybeHandleEmailVerificationLink();
-  }, [dispatch, isEmailVerificationInProgress]);
+  }, [dispatch, location.pathname, location.search, location.hash]);
 
   useEffect(() => {
+    let active = true;
     const syncUser = async () => {
       if (isEmailVerificationInProgress) return;
 
@@ -116,16 +135,20 @@ export function AuthProvider({ children }) {
 
         if (firebaseUser) {
           await firebaseUser.reload();
+          if (!active) return;
           try {
             // Force-refresh token to detect revocation (e.g., password reset elsewhere)
             await firebaseUser.getIdToken(true);
           } catch (tokenError) {
+            if (!active) return;
             console.warn("Token refresh failed, forcing logout", tokenError);
             await signOut(auth);
+            if (!active) return;
             dispatch(clearUser());
             setStatusMessage("Session expired. Please sign in again.");
             return;
           }
+          if (!active) return;
 
           if (firebaseUser.emailVerified) {
             dispatch(
@@ -144,14 +167,16 @@ export function AuthProvider({ children }) {
           dispatch(clearUser());
         }
       } catch (error) {
+        if (!active) return;
         console.error("Auth sync error", error);
         dispatch(clearUser());
       } finally {
-        dispatch(setLoading(false));
+        if (active) dispatch(setLoading(false));
       }
     };
 
     syncUser();
+    return () => { active = false; };
   }, [
     dispatch,
     firebaseError,
