@@ -24,6 +24,7 @@ import {
 import { useNavigate } from "react-router-dom";
 import { useState } from "react";
 import PhotoCarousel from "./PhotoCarousel";
+import { transitionFor } from "../../theme";
 
 export default function ResultsList({ items = [], loading }) {
   const nav = useNavigate();
@@ -119,7 +120,7 @@ export default function ResultsList({ items = [], loading }) {
                 "&:hover": {
                   boxShadow: theme.shadows[4],
                 },
-                transition: "box-shadow 0.3s",
+                transition: transitionFor("box-shadow"),
                 width: "100%",
                 maxWidth: "100%",
                 boxSizing: "border-box",
@@ -228,7 +229,6 @@ export default function ResultsList({ items = [], loading }) {
                     <Typography
                       variant="h6"
                       sx={{
-                        fontWeight: 600,
                         mb: 0.5,
                         wordBreak: "break-word",
                         overflow: "hidden",

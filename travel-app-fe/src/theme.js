@@ -51,6 +51,18 @@ export const motion = {
   },
 };
 
+/**
+ * Build a CSS transition string from motion tokens.
+ *   transitionFor("all")                              → "all 250ms cubic-bezier(...)"
+ *   transitionFor(["transform", "box-shadow"], "fast") → 150ms each
+ */
+export function transitionFor(props = "all", speed = "base") {
+  const list = Array.isArray(props) ? props : [props];
+  return list
+    .map((prop) => `${prop} ${motion.duration[speed]}ms ${motion.easing.standard}`)
+    .join(", ");
+}
+
 const BRAND = {
   teal: "#21808D",
   tealLight: "#32B8C6",
@@ -207,6 +219,19 @@ export function createAppTheme(mode = "light") {
       MuiPaper: {
         styleOverrides: {
           rounded: { borderRadius: radius.lg - 4 },
+        },
+      },
+      MuiChip: {
+        styleOverrides: {
+          // Outlined primary chips sit on tinted/marketing backgrounds where
+          // primary.main drops below 4.5:1 in light mode; primary.dark keeps AA.
+          outlinedPrimary: ({ theme }) =>
+            theme.palette.mode === "light"
+              ? {
+                  color: theme.palette.primary.dark,
+                  borderColor: alpha(theme.palette.primary.main, 0.5),
+                }
+              : {},
         },
       },
       MuiAlert: {

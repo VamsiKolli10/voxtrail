@@ -28,6 +28,7 @@ import AuthShell from "../layout/AuthShell";
 import useNotification from "../../hooks/useNotification";
 import { loginWithEmail, resendEmailVerification } from "../../services/auth";
 import { useAuth } from "../../contexts/AuthContext";
+import { transitionFor } from "../../theme";
 
 const AnimatedPaper = styled(Paper)(({ theme }) => ({
   borderRadius: 16,
@@ -39,7 +40,7 @@ const AnimatedPaper = styled(Paper)(({ theme }) => ({
   )} 0%, ${alpha(theme.palette.background.paper, 0.95)} 100%)`,
   backdropFilter: "blur(10px)",
   border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
-  transition: "transform 0.3s ease, box-shadow 0.3s ease",
+  transition: transitionFor(["transform", "box-shadow"]),
   "&:hover": {
     transform: "translateY(-4px)",
     boxShadow: `0 15px 50px ${alpha(theme.palette.common.black, 0.15)}`,
@@ -49,7 +50,7 @@ const AnimatedPaper = styled(Paper)(({ theme }) => ({
 const StyledTextField = styled(TextField)(({ theme }) => ({
   "& .MuiOutlinedInput-root": {
     borderRadius: 12,
-    transition: "all 0.3s ease",
+    transition: transitionFor("all"),
     "& fieldset": {
       borderColor: alpha(theme.palette.divider, 0.5),
     },
@@ -411,7 +412,7 @@ export default function Login() {
                         showPassword ? "Hide password" : "Show password"
                       }
                       sx={{
-                        transition: "transform 0.2s ease",
+                        transition: transitionFor("transform", "fast"),
                         "&:hover": {
                           transform: "scale(1.1)",
                         },
@@ -451,7 +452,7 @@ export default function Login() {
                 height: "100%",
                 background:
                   "linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent)",
-                transition: "left 0.5s",
+                transition: transitionFor("left", "slow"),
               },
               "&:hover::after": {
                 left: "100%",

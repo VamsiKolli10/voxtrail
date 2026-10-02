@@ -877,7 +877,7 @@ function StaysSearchPageBody() {
         }}
       >
         <Stack spacing={2} sx={{ height: "100%" }}>
-          <Typography variant="h6" sx={{ fontWeight: 600 }}>
+          <Typography variant="h6">
             Filters
           </Typography>
           <FiltersSidebar

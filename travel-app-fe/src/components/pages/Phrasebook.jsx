@@ -48,6 +48,7 @@ import {
   TRANSLATION_LANGUAGES,
 } from "../../constants/languages";
 import { logRecentActivity } from "../../utils/recentActivity";
+import { transitionFor } from "../../theme";
 
 const COUNT_MARKS = [
   { value: 5, label: "5" },
@@ -460,7 +461,7 @@ export default function Phrasebook() {
                   sx={{
                     "& .MuiOutlinedInput-root": {
                       borderRadius: 2,
-                      transition: "all 0.3s ease",
+                      transition: transitionFor("all"),
                       "& fieldset": {
                         borderColor: alpha(theme.palette.divider, 0.5),
                       },
@@ -489,7 +490,7 @@ export default function Phrasebook() {
                   sx={{
                     "& .MuiOutlinedInput-root": {
                       borderRadius: 2,
-                      transition: "all 0.3s ease",
+                      transition: transitionFor("all"),
                       "& fieldset": {
                         borderColor: alpha(theme.palette.divider, 0.5),
                       },
@@ -524,7 +525,7 @@ export default function Phrasebook() {
                   sx={{
                     "& .MuiOutlinedInput-root": {
                       borderRadius: 2,
-                      transition: "all 0.3s ease",
+                      transition: transitionFor("all"),
                       "& fieldset": {
                         borderColor: alpha(theme.palette.divider, 0.5),
                       },
@@ -565,7 +566,7 @@ export default function Phrasebook() {
                     valueLabelDisplay="auto"
                     sx={{
                       "& .MuiSlider-thumb": {
-                        transition: "all 0.3s ease",
+                        transition: transitionFor("all"),
                         "&:hover": {
                           boxShadow: `0 0 0 8px ${alpha(
                             theme.palette.primary.main,
@@ -599,7 +600,7 @@ export default function Phrasebook() {
                   disabled={!canSubmit || loading}
                   startIcon={<GenerateIcon />}
                   sx={{
-                    transition: "all 0.3s ease",
+                    transition: transitionFor("all"),
                     position: "relative",
                     overflow: "hidden",
                     "&::after": {
@@ -611,7 +612,7 @@ export default function Phrasebook() {
                       height: "100%",
                       background:
                         "linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent)",
-                      transition: "left 0.5s",
+                      transition: transitionFor("left", "slow"),
                     },
                     "&:hover::after": {
                       left: "100%",
@@ -705,7 +706,7 @@ export default function Phrasebook() {
               justifyContent="space-between"
             >
               <Box>
-                <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                <Typography variant="h6">
                   {result.topic}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
@@ -754,7 +755,7 @@ export default function Phrasebook() {
                         borderColor: savedAlready
                           ? "primary.light"
                           : "border.subtle",
-                        transition: "all 0.3s ease",
+                        transition: transitionFor("all"),
                         "&:hover": {
                           transform: "translateY(-4px)",
                           boxShadow: theme.shadows[4],
@@ -782,7 +783,7 @@ export default function Phrasebook() {
                             >
                               #{index + 1}
                             </Typography>
-                            <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                            <Typography variant="h6">
                               {item.phrase}
                             </Typography>
                           </Stack>
@@ -802,7 +803,7 @@ export default function Phrasebook() {
                               color={savedAlready ? "primary" : "default"}
                               size="small"
                               sx={{
-                                transition: "all 0.3s ease",
+                                transition: transitionFor("all"),
                                 "&:hover": {
                                   transform: "scale(1.1)",
                                 },
@@ -851,7 +852,7 @@ export default function Phrasebook() {
                   gap: 2,
                 }}
               >
-                <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                <Typography variant="h6">
                   Generate a phrasebook to get started
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
@@ -888,7 +889,7 @@ export default function Phrasebook() {
               justifyContent="space-between"
             >
               <Box>
-                <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                <Typography variant="h6">
                   Saved phrases
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
@@ -977,7 +978,7 @@ export default function Phrasebook() {
                         flexGrow: "1",
                         flexDirection: "column",
                         borderColor: "border.subtle",
-                        transition: "all 0.3s ease",
+                        transition: transitionFor("all"),
                         "&:hover": {
                           transform: "translateY(-4px)",
                           boxShadow: theme.shadows[4],
@@ -1005,7 +1006,7 @@ export default function Phrasebook() {
                             >
                               #{index + 1}
                             </Typography>
-                            <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                            <Typography variant="h6">
                               {item.phrase}
                             </Typography>
                           </Stack>
@@ -1016,7 +1017,7 @@ export default function Phrasebook() {
                               size="small"
                               color="primary"
                               sx={{
-                                transition: "all 0.3s ease",
+                                transition: transitionFor("all"),
                                 "&:hover": {
                                   transform: "scale(1.1)",
                                 },

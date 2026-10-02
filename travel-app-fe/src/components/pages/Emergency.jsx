@@ -464,7 +464,7 @@ export default function Emergency() {
 
         <Card>
           <CardContent>
-            <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>
+            <Typography variant="h6" sx={{ mb: 2 }}>
               Emergency Preparedness
             </Typography>
             <Grid container spacing={2}>
@@ -619,7 +619,7 @@ export default function Emergency() {
               justifyContent="space-between"
             >
               <Box>
-                <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                <Typography variant="h6">
                   Essential contacts
                 </Typography>
                 <Typography variant="body2" color="text.secondary">

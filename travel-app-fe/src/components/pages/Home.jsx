@@ -23,6 +23,7 @@ import { setUser } from "../../store/slices/authSlice";
 import useTravelContext from "../../hooks/useTravelContext";
 import { formatDestinationLabel } from "../../utils/destination";
 import { readRecentActivity } from "../../utils/recentActivity";
+import { transitionFor } from "../../theme";
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -231,7 +232,7 @@ export default function Dashboard() {
                 alignItems={{ xs: "flex-start", md: "center" }}
               >
                 <Box>
-                  <Typography variant="h6" sx={{ fontWeight: 600, mb: 0.5 }}>
+                  <Typography variant="h6" sx={{ mb: 0.5 }}>
                     Quick Actions
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
@@ -269,7 +270,7 @@ export default function Dashboard() {
                           height: "100%",
                           background:
                             "linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent)",
-                          transition: "left 0.5s",
+                          transition: transitionFor("left", "slow"),
                         },
                         "&:hover::after": {
                           left: "100%",
@@ -311,7 +312,7 @@ export default function Dashboard() {
                     sx={{
                       backgroundColor: theme.palette.background.paper,
                       border: (theme) => `1px solid ${theme.palette.border.subtle}`,
-                      transition: "all 0.3s ease",
+                      transition: transitionFor("all"),
                       overflow: "hidden",
                       position: "relative",
                       minHeight: 220,
@@ -365,7 +366,7 @@ export default function Dashboard() {
                       <Box sx={{ flexGrow: 1 }}>
                         <Typography
                           variant="h6"
-                          sx={{ fontWeight: 600, mb: 1 }}
+                          sx={{ mb: 1 }}
                         >
                           {card.title}
                         </Typography>
@@ -424,7 +425,7 @@ export default function Dashboard() {
             <CardContent
               sx={{ display: "flex", flexDirection: "column", gap: 2 }}
             >
-              <Typography variant="h6" sx={{ fontWeight: 600 }}>
+              <Typography variant="h6">
                 Recent Activity
               </Typography>
               <Stack spacing={1.5}>
@@ -444,7 +445,7 @@ export default function Dashboard() {
                           p: 1.5,
                           borderRadius: 2,
                           backgroundColor: "surface.tint",
-                          transition: "all 0.2s ease",
+                          transition: transitionFor("all", "fast"),
                           "&:hover": {
                             backgroundColor: (theme) => alpha(theme.palette.primary.main, 0.12),
                             transform: "translateX(4px)",
@@ -490,7 +491,7 @@ export default function Dashboard() {
             <CardContent
               sx={{ display: "flex", flexDirection: "column", gap: 2 }}
             >
-              <Typography variant="h6" sx={{ fontWeight: 600 }}>
+              <Typography variant="h6">
                 Travel Tips
               </Typography>
               <Stack spacing={1.5}>
@@ -523,7 +524,7 @@ export default function Dashboard() {
                         borderRadius: 2,
                         border: (theme) => `1px solid ${theme.palette.border.subtle}`,
                         backgroundColor: "action.hover",
-                        transition: "all 0.2s ease",
+                        transition: transitionFor("all", "fast"),
                         "&:hover": {
                           borderColor: "border.strong",
                           boxShadow: theme.shadows[2],

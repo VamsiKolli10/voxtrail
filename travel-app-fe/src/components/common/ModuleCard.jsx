@@ -1,5 +1,6 @@
 import { Card } from "@mui/material";
 import { styled } from "@mui/material/styles";
+import { transitionFor } from "../../theme";
 
 const StyledModuleCard = styled(Card, {
   shouldForwardProp: (prop) => prop !== "interactive",
@@ -8,10 +9,10 @@ const StyledModuleCard = styled(Card, {
   flexDirection: "column",
   height: "100%",
   minHeight: 220,
-  borderRadius: 24,
+  borderRadius: theme.radius.xl,
   transition: interactive
-    ? "transform 200ms ease, box-shadow 200ms ease"
-    : "box-shadow 200ms ease",
+    ? transitionFor(["transform", "box-shadow"], "fast")
+    : transitionFor("box-shadow", "fast"),
   [theme.breakpoints.down("sm")]: {
     minHeight: 200,
   },
@@ -19,7 +20,7 @@ const StyledModuleCard = styled(Card, {
     cursor: "pointer",
     "&:hover": {
       transform: "translateY(-4px)",
-      boxShadow: theme.shadows[6],
+      boxShadow: theme.customShadows.cardHover,
     },
   }),
 }));

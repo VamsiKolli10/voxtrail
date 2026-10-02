@@ -35,6 +35,7 @@ import { useNavigate } from "react-router-dom";
 import { ModuleCard, ModuleCardGrid } from "../common/ModuleCard";
 import { useAppearance } from "../../contexts/AppearanceContext.jsx";
 import "./Landing.css";
+import { transitionFor } from "../../theme";
 
 const heroAnimation = {
   hidden: { opacity: 0, y: 32 },
@@ -268,7 +269,7 @@ export default function Landing() {
               : "0 12px 32px -16px rgba(0,0,0,0.55)",
           backdropFilter: "blur(12px)",
           color: "inherit",
-          transition: "transform 180ms ease, box-shadow 180ms ease",
+          transition: transitionFor(["transform", "box-shadow"], "fast"),
           touchAction: "manipulation",
           "&:hover": {
             backgroundColor:
@@ -638,7 +639,7 @@ function HighlightsSection({ cards }) {
                   sx={{ fontWeight: 600 }}
                 />
               </Stack>
-              <Typography variant="h6" sx={{ fontWeight: 600 }}>
+              <Typography variant="h6">
                 {card.title}
               </Typography>
               <Typography variant="body2" color="text.secondary">
@@ -729,7 +730,7 @@ function ItinerarySection({ itineraries, onPrimary }) {
                 {trip.subtitle}
               </Box>
               <Box>
-                <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                <Typography variant="h6">
                   {trip.title}
                 </Typography>
                 <Typography

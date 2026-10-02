@@ -23,6 +23,7 @@ import PageContainer from "../layout/PageContainer";
 import CulturalEtiquette from "./CulturalEtiquette";
 import useTravelContext from "../../hooks/useTravelContext";
 import { TRANSLATION_LANGUAGES } from "../../constants/languages";
+import { transitionFor } from "../../theme";
 
 const featuredDestinations = [
   { destination: "Tokyo", culture: "Japanese", language: "ja" },
@@ -439,7 +440,7 @@ export default function CulturalGuide() {
                           sx={{
                             borderRadius: 2,
                             cursor: "pointer",
-                            transition: "transform 0.2s ease, box-shadow 0.2s",
+                            transition: transitionFor(["transform", "box-shadow"], "fast"),
                             "&:hover": {
                               transform: "translateY(-2px)",
                               boxShadow: (theme) => theme.shadows[4],

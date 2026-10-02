@@ -44,6 +44,7 @@ import {
   TRANSLATION_LANGUAGES,
   getLanguageLabel,
 } from "../../constants/languages";
+import { transitionFor } from "../../theme";
 
 const translationHighlights = [
   {
@@ -546,7 +547,7 @@ function TranslationBody() {
                     borderRadius: 3,
                     backgroundColor: "background.paper",
                     transition:
-                      "transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out",
+                      transitionFor(["transform", "box-shadow"], "fast"),
                     "&:hover": {
                       transform: "translateY(-2px)",
                       boxShadow: (theme) => theme.customShadows.overlay,
@@ -640,7 +641,7 @@ function TranslationBody() {
                     borderRadius: 3,
                     backgroundColor: "background.paper",
                     transition:
-                      "transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out",
+                      transitionFor(["transform", "box-shadow"], "fast"),
                     "&:hover": {
                       transform: "translateY(-2px)",
                       boxShadow: (theme) => theme.customShadows.overlay,
@@ -784,7 +785,7 @@ function TranslationBody() {
                 size="large"
                 sx={{
                   minWidth: 120,
-                  transition: "all 0.3s ease",
+                  transition: transitionFor("all"),
                   "&:hover": {
                     transform: "translateY(-2px)",
                     boxShadow: 4,
@@ -810,7 +811,7 @@ function TranslationBody() {
                 size="large"
                 sx={{
                   minWidth: 100,
-                  transition: "all 0.3s ease",
+                  transition: transitionFor("all"),
                   "&:hover": {
                     transform: "translateY(-2px)",
                     boxShadow: 2,
@@ -827,7 +828,7 @@ function TranslationBody() {
                 size="large"
                 sx={{
                   minWidth: 100,
-                  transition: "all 0.3s ease",
+                  transition: transitionFor("all"),
                   "&:hover": {
                     transform: "translateY(-2px)",
                     boxShadow: 2,
@@ -843,7 +844,7 @@ function TranslationBody() {
                 size="large"
                 sx={{
                   minWidth: 150,
-                  transition: "all 0.3s ease",
+                  transition: transitionFor("all"),
                   "&:hover": {
                     transform: "translateY(-2px)",
                     boxShadow: 2,
@@ -873,7 +874,7 @@ function TranslationBody() {
                   border: (theme) => `1px solid ${theme.palette.border.subtle}`,
                   backgroundColor: "surface.glass",
                   transition:
-                    "transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out",
+                    transitionFor(["transform", "box-shadow"]),
                   "&:hover": {
                     transform: "translateY(-4px)",
                     boxShadow: (theme) => theme.customShadows.overlay,
@@ -888,7 +889,7 @@ function TranslationBody() {
                     justifyContent="space-between"
                     alignItems="center"
                   >
-                    <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                    <Typography variant="h6">
                       Speech settings
                     </Typography>
                     <Chip
@@ -976,7 +977,7 @@ function TranslationBody() {
                               fontSize: "0.75rem",
                             },
                             "& .MuiSlider-thumb": {
-                              transition: "transform 0.2s ease",
+                              transition: transitionFor("transform", "fast"),
                               "&:hover": {
                                 transform: "scale(1.2)",
                               },
@@ -1000,7 +1001,7 @@ function TranslationBody() {
                       startIcon={<SpeakerIcon />}
                       fullWidth
                       sx={{
-                        transition: "all 0.3s ease",
+                        transition: transitionFor("all"),
                         "&:hover": {
                           transform: "translateY(-2px)",
                           boxShadow: 4,
@@ -1014,7 +1015,7 @@ function TranslationBody() {
                       onClick={handlePauseAudio}
                       disabled={!isSpeaking}
                       sx={{
-                        transition: "all 0.3s ease",
+                        transition: transitionFor("all"),
                         "&:hover": {
                           transform: "translateY(-2px)",
                           boxShadow: 2,
@@ -1028,7 +1029,7 @@ function TranslationBody() {
                       onClick={handleStopAudio}
                       disabled={!isSpeaking}
                       sx={{
-                        transition: "all 0.3s ease",
+                        transition: transitionFor("all"),
                         "&:hover": {
                           transform: "translateY(-2px)",
                           boxShadow: 2,
@@ -1060,7 +1061,7 @@ function TranslationBody() {
                   justifyContent="space-between"
                   alignItems="center"
                 >
-                  <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                  <Typography variant="h6">
                     Quick tips
                   </Typography>
                   <Chip label="Best practice" size="small" />
@@ -1102,7 +1103,7 @@ function TranslationBody() {
                 <Typography variant="h4" component="span">
                   {highlight.icon}
                 </Typography>
-                <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                <Typography variant="h6">
                   {highlight.title}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">

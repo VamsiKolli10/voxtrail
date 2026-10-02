@@ -24,6 +24,7 @@ import {
 } from "@mui/icons-material";
 import { useAppearance } from "../../contexts/AppearanceContext.jsx";
 import { NAV_ITEMS, isNavItemActive } from "./navItems";
+import { transitionFor } from "../../theme";
 
 
 const StyledLink = styled(Link)(({ theme }) => ({
@@ -43,7 +44,7 @@ const StyledLink = styled(Link)(({ theme }) => ({
     backgroundColor: theme.palette.primary.main,
     transform: "scaleX(0)",
     transformOrigin: "right",
-    transition: "transform 0.3s ease",
+    transition: transitionFor("transform"),
   },
   "&:hover::after": {
     transform: "scaleX(1)",
@@ -59,7 +60,7 @@ const StyledNavLink = styled(NavLink)(({ theme }) => ({
   padding: "9px 13px",
   borderRadius: "10px",
   position: "relative",
-  transition: "color 150ms ease",
+  transition: transitionFor("color", "fast"),
   "&::after": {
     content: '""',
     position: "absolute",
@@ -70,7 +71,7 @@ const StyledNavLink = styled(NavLink)(({ theme }) => ({
     backgroundColor: theme.palette.primary.main,
     transform: "scaleX(0)",
     transformOrigin: "left",
-    transition: "transform 0.3s ease",
+    transition: transitionFor("transform"),
   },
   "&:hover": {
     color: theme.palette.primary.main,
@@ -126,7 +127,7 @@ export default function Navbar({ isLanding = false }) {
         backdropFilter: "blur(8px)",
         backgroundColor: alpha(theme.palette.background.paper, 0.8),
         borderBottom: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
-        transition: "all 0.3s ease",
+        transition: transitionFor("all"),
       }}
     >
       <Toolbar
@@ -226,7 +227,7 @@ export default function Navbar({ isLanding = false }) {
                 borderRadius: 2,
                 border: (theme) => `1px solid ${theme.palette.border.subtle}`,
                 backgroundColor: "background.paper",
-                transition: "all 0.3s ease",
+                transition: transitionFor("all"),
                 "&:hover": {
                   transform: "scale(1.05)",
                   backgroundColor: alpha(theme.palette.primary.main, 0.1),

@@ -410,7 +410,7 @@ export default function DestinationDetailsPage() {
       <Grid container spacing={3}>
         <Grid item xs={12} md={8}>
           <Paper sx={paperStyles}>
-            <Typography variant="h6" sx={{ fontWeight: 600, mb: 1 }}>
+            <Typography variant="h6" sx={{ mb: 1 }}>
               Overview
             </Typography>
             <Typography variant="body1" color="text.secondary">
@@ -421,7 +421,7 @@ export default function DestinationDetailsPage() {
 
           {highlights.length > 0 && (
             <Paper sx={paperStyles}>
-              <Typography variant="h6" sx={{ fontWeight: 600, mb: 1 }}>
+              <Typography variant="h6" sx={{ mb: 1 }}>
                 Highlights
               </Typography>
               <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap" }}>
@@ -439,7 +439,7 @@ export default function DestinationDetailsPage() {
               alignItems="stretch"
             >
               <Box sx={{ flex: 1, minHeight: 280 }}>
-                <Typography variant="h6" sx={{ fontWeight: 600, mb: 1 }}>
+                <Typography variant="h6" sx={{ mb: 1 }}>
                   Map & directions
                 </Typography>
                 <Box sx={{ height: 240 }}>
@@ -484,7 +484,7 @@ export default function DestinationDetailsPage() {
                 sx={{ display: { xs: "none", md: "block" } }}
               />
               <Box sx={{ flex: 1 }}>
-                <Typography variant="h6" sx={{ fontWeight: 600, mb: 1 }}>
+                <Typography variant="h6" sx={{ mb: 1 }}>
                   Opening hours
                 </Typography>
                 {hoursPreview.length > 0 ? (
@@ -517,7 +517,7 @@ export default function DestinationDetailsPage() {
 
           {reviews.length > 0 && (
             <Paper sx={paperStyles}>
-              <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>
+              <Typography variant="h6" sx={{ mb: 2 }}>
                 Recent reviews
               </Typography>
               <Stack spacing={2}>
@@ -568,7 +568,7 @@ export default function DestinationDetailsPage() {
 
         <Grid item xs={12} md={4}>
           <Paper sx={paperStyles}>
-            <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>
+            <Typography variant="h6" sx={{ mb: 2 }}>
               Essentials
             </Typography>
             <Stack spacing={2}>
