@@ -141,7 +141,7 @@ class MockMarker {
     return this._element;
   }
 
-  addTo(map) {
+  addTo(_map) {
     return this;
   }
 
@@ -167,7 +167,7 @@ class MockPopup {
     return this;
   }
 
-  addTo(map) {
+  addTo(_map) {
     return this;
   }
 
@@ -187,7 +187,7 @@ class MockMap {
     this._zoom = options.zoom || 0;
   }
 
-  addControl(control, position) {
+  addControl(_control, _position) {
     return this;
   }
 
@@ -210,11 +210,11 @@ class MockMap {
     return this;
   }
 
-  easeTo(options) {
+  easeTo(_options) {
     return this;
   }
 
-  fitBounds(bounds, options) {
+  fitBounds(_bounds, _options) {
     return this;
   }
 

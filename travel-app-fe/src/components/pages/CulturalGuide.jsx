@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Box,
   Button,
@@ -9,7 +9,6 @@ import {
   Stack,
   TextField,
   Typography,
-  Divider,
   FormControl,
   InputLabel,
   MenuItem,
@@ -218,11 +217,10 @@ export default function CulturalGuide() {
           <Stack spacing={2} sx={{ height: "100%" }}>
             <Card
               sx={{
-                background:
-                  "linear-gradient(135deg, rgba(16,57,85,0.9) 0%, rgba(22,96,136,0.85) 100%)",
-                color: "common.white",
+                background: (theme) => theme.palette.culture.heroGradient,
+                color: "culture.onHero",
                 borderRadius: 3,
-                boxShadow: "0 18px 45px rgba(22, 96, 136, 0.25)",
+                boxShadow: (theme) => theme.palette.culture.heroShadow,
               }}
             >
               <CardContent>
@@ -230,7 +228,7 @@ export default function CulturalGuide() {
                   <Typography variant="h5" sx={{ fontWeight: 600 }}>
                     Travel with cultural confidence
                   </Typography>
-                  <Typography variant="body2" sx={{ opacity: 0.8 }}>
+                  <Typography variant="body2" sx={{ color: "culture.onHeroMuted" }}>
                     Curated etiquette briefs, safety cues, and practical tips
                     adapt to every destination you explore.
                   </Typography>
@@ -241,9 +239,10 @@ export default function CulturalGuide() {
                         icon={callout.icon}
                         label={callout.label}
                         sx={{
-                          color: "common.white",
-                          borderColor: "rgba(255,255,255,0.4)",
-                          backgroundColor: "rgba(255,255,255,0.12)",
+                          color: "culture.onHero",
+                          borderColor: "culture.chipBorder",
+                          backgroundColor: "culture.chipFill",
+                          "& .MuiChip-icon": { color: "inherit" },
                         }}
                         variant="outlined"
                       />

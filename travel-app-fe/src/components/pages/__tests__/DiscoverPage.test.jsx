@@ -64,4 +64,27 @@ describe("DiscoverPage (POI search)", () => {
     fireEvent.keyDown(searchInput, { key: "Enter", code: "Enter" });
     await waitFor(() => expect(searchPOIs).not.toHaveBeenCalled());
   });
+
+  it("explains a failed search and lets the user retry", async () => {
+    searchPOIs.mockRejectedValueOnce(new Error("Network Error"));
+    searchPOIs.mockResolvedValueOnce({ items: [{ id: "p1", name: "Louvre" }] });
+
+    render(
+      <MemoryRouter>
+        <DiscoverPage />
+      </MemoryRouter>
+    );
+
+    const searchInput = screen.getByLabelText(/Search city, country, or attraction/i);
+    fireEvent.change(searchInput, { target: { value: "Paris" } });
+    fireEvent.keyDown(searchInput, { key: "Enter", code: "Enter" });
+
+    await waitFor(() =>
+      expect(screen.getByText(/couldn't load places/i)).toBeInTheDocument()
+    );
+    expect(screen.queryByText(/no places found/i)).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /try again/i }));
+    await waitFor(() => expect(screen.getByText(/Louvre/i)).toBeInTheDocument());
+  });
 });

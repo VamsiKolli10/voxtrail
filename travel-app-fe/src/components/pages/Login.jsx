@@ -8,9 +8,7 @@ import {
   TextField,
   Typography,
   Box,
-  Divider,
   CircularProgress,
-  useTheme,
   alpha,
   Button,
 } from "@mui/material";
@@ -57,7 +55,6 @@ export default function Login() {
   const navigate = useNavigate();
   const location = useLocation();
   const { notify: showNotification } = useNotify();
-  const theme = useTheme();
   const { user } = useAuth();
   const redirectPath = useMemo(
     () => {
@@ -277,6 +274,37 @@ export default function Login() {
     }
   };
 
+  const resendButton = (
+    <Box sx={{ mt: 1 }}>
+      <Button
+        variant="contained"
+        size="small"
+        onClick={handleResendVerification}
+        startIcon={
+          resendingVerification ? (
+            <CircularProgress size={16} color="inherit" />
+          ) : (
+            <EmailIcon fontSize="small" />
+          )
+        }
+        disabled={
+          resendingVerification ||
+          (resendCooldownUntil
+            ? resendCooldownUntil - nowTick > 0
+            : false)
+        }
+      >
+        {resendingVerification
+          ? "Resending..."
+          : resendCooldownUntil && resendCooldownUntil - nowTick > 0
+          ? `Resend in ${Math.ceil(
+              (resendCooldownUntil - nowTick) / 1000 / 60
+            )}m`
+          : "Resend verification email"}
+      </Button>
+    </Box>
+  );
+
   return (
     <AuthShell
       icon="🔐"
@@ -286,7 +314,7 @@ export default function Login() {
       footer={
         <Stack spacing={1.5} alignItems="center">
           <Typography variant="body2" color="text.secondary">
-            Don't have an account? <Link to="/register">Create one</Link>
+            Don&apos;t have an account? <Link to="/register">Create one</Link>
           </Typography>
           <Typography variant="body2" color="text.secondary">
             <Link to="/forgot-password">Forgot your password?</Link>
@@ -296,6 +324,16 @@ export default function Login() {
     >
       <Box>
         <Stack component="form" spacing={3} onSubmit={handleSubmit}>
+          {infoMessage && (
+            <Alert
+              severity="info"
+              onClose={() => setInfoMessage("")}
+              sx={{ borderRadius: 2 }}
+            >
+              {infoMessage}
+              {verificationEmail && resendButton}
+            </Alert>
+          )}
           {error && (
             <Alert
               severity="error"
@@ -310,36 +348,7 @@ export default function Login() {
               }}
             >
               {error}
-              {verificationEmail && (
-                <Box sx={{ mt: 1 }}>
-                  <Button
-                    variant="contained"
-                    size="small"
-                    onClick={handleResendVerification}
-                    startIcon={
-                      resendingVerification ? (
-                        <CircularProgress size={16} color="inherit" />
-                      ) : (
-                        <EmailIcon fontSize="small" />
-                      )
-                    }
-                    disabled={
-                      resendingVerification ||
-                      (resendCooldownUntil
-                        ? resendCooldownUntil - nowTick > 0
-                        : false)
-                    }
-                  >
-                    {resendingVerification
-                      ? "Resending..."
-                      : resendCooldownUntil && resendCooldownUntil - nowTick > 0
-                      ? `Resend in ${Math.ceil(
-                          (resendCooldownUntil - nowTick) / 1000 / 60
-                        )}m`
-                      : "Resend verification email"}
-                  </Button>
-                </Box>
-              )}
+              {verificationEmail && !infoMessage && resendButton}
             </Alert>
           )}
 
@@ -438,7 +447,8 @@ export default function Login() {
                 width: "100%",
                 height: "100%",
                 background:
-                  "linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent)",
+                  (theme) =>
+                  `linear-gradient(90deg, transparent, ${alpha(theme.palette.common.white, 0.2)}, transparent)`,
                 transition: transitionFor("left", "slow"),
               },
               "&:hover::after": {

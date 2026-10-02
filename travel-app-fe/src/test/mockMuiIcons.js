@@ -80,3 +80,4 @@ export const VolumeUp = MockIcon;
 export const AccountBalance = MockIcon;
 export const Emergency = MockIcon;
 export const MoreHoriz = MockIcon;
+export const ErrorOutline = MockIcon;

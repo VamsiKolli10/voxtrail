@@ -8,13 +8,10 @@ import {
   Chip,
   Stack,
   Typography,
-  Fade,
-  Grow,
   Button,
   useTheme,
   alpha,
 } from "@mui/material";
-import { styled } from "@mui/material/styles";
 import { motion, AnimatePresence } from "framer-motion";
 import PageContainer from "../layout/PageContainer";
 import { ModuleCard, ModuleCardGrid } from "../common/ModuleCard";
@@ -269,7 +266,8 @@ export default function Dashboard() {
                           width: "100%",
                           height: "100%",
                           background:
-                            "linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent)",
+                            (theme) =>
+                  `linear-gradient(90deg, transparent, ${alpha(theme.palette.common.white, 0.2)}, transparent)`,
                           transition: transitionFor("left", "slow"),
                         },
                         "&:hover::after": {

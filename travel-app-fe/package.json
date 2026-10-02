@@ -13,7 +13,8 @@
     "preview": "vite preview",
     "test": "vitest run --config vitest.config.js",
     "test:watch": "vitest --config vitest.config.js",
-    "test:coverage": "vitest run --config vitest.config.js --coverage"
+    "test:coverage": "vitest run --config vitest.config.js --coverage",
+    "lint": "eslint --ext .js,.jsx src"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",
@@ -43,6 +44,7 @@
     "baseline-browser-mapping": "^2.8.28",
     "eslint": "^8.57.0",
     "eslint-plugin-react": "^7.34.1",
+    "eslint-plugin-react-hooks": "^5.2.0",
     "jsdom": "^27.2.0",
     "postcss": "^8.5.6",
     "vite": "8.2.2",

@@ -166,6 +166,17 @@ function buildPalette(mode = "light") {
       : { main: "#2E7D4F", light: "#5CC98A", dark: "#1F5A38" },
     info: isDark ? { main: "#A9B6BB" } : { main: "#626C71" },
     rating: { main: "#F5B301" },
+    // Cultural Guide hero: fixed deep-blue panel with light text in both
+    // modes. Solid stops so contrast doesn't depend on the page behind it
+    // (muted text #E3EEF4 on #166088 = 5.8:1).
+    culture: {
+      heroGradient: "linear-gradient(135deg, #103955 0%, #166088 100%)",
+      heroShadow: `0 18px 45px ${alpha("#166088", 0.25)}`,
+      onHero: "#FFFFFF",
+      onHeroMuted: "#E3EEF4",
+      chipBorder: alpha("#FFFFFF", 0.4),
+      chipFill: alpha("#FFFFFF", 0.12),
+    },
     // Categorical accents for feature tiles / service types. Not for text on
     // tinted backgrounds in light mode unless checked for contrast.
     accent: isDark

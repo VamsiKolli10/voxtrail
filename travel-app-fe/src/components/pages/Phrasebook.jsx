@@ -25,9 +25,7 @@ import {
   BookmarkBorder as BookmarkIcon,
   Refresh as RefreshIcon,
   AutoFixHigh as GenerateIcon,
-  Add as AddIcon,
   FilterList as FilterIcon,
-  DeleteSweep as DeleteIcon,
   BookmarkBorder as EmptyBookmarkIcon,
 } from "@mui/icons-material";
 import { motion } from "framer-motion";
@@ -616,7 +614,8 @@ export default function Phrasebook() {
                       width: "100%",
                       height: "100%",
                       background:
-                        "linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent)",
+                        (theme) =>
+                  `linear-gradient(90deg, transparent, ${alpha(theme.palette.common.white, 0.2)}, transparent)`,
                       transition: transitionFor("left", "slow"),
                     },
                     "&:hover::after": {

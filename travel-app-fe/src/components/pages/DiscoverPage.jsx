@@ -7,8 +7,6 @@ import {
   TextField,
   Button,
   InputAdornment,
-  CircularProgress,
-  Alert,
   Typography,
   Chip,
   Card,
@@ -16,28 +14,25 @@ import {
   CardMedia,
   Stack,
   useTheme,
-  useMediaQuery,
   FormControl,
   InputLabel,
   Select,
   MenuItem,
+  Skeleton,
 } from "@mui/material";
 import { alpha } from "@mui/material/styles";
 import {
   Search as SearchIcon,
   MyLocation as MyLocationIcon,
-  DirectionsWalk as DirectionsWalkIcon,
-  Star as StarIcon,
-  AccessTime as AccessTimeIcon,
-  Public as PublicIcon,
-  Launch as LaunchIcon,
   TravelExplore as TravelExploreIcon,
+  ErrorOutline as ErrorOutlineIcon,
 } from "@mui/icons-material";
 import { searchPOIs } from "../../services/poi";
 import { useAnalytics } from "../../contexts/AnalyticsContext.jsx";
 import useTravelContext from "../../hooks/useTravelContext";
 import EmptyState from "../common/EmptyState";
 import PageContainer from "../layout/PageContainer";
+import { useNotify } from "../../contexts/NotificationContext.jsx";
 
 const CATEGORY_CHIPS = [
   { key: "museum", label: "Museum", icon: "🖼️" },
@@ -52,7 +47,6 @@ export default function DiscoverPage() {
   const [params, setParams] = useSearchParams();
   const navigate = useNavigate();
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const isDarkMode = theme.palette.mode === "dark";
   const panelBg = alpha(theme.palette.background.paper, isDarkMode ? 0.96 : 1);
   const cardBg = alpha(theme.palette.background.paper, isDarkMode ? 0.92 : 1);
@@ -98,6 +92,7 @@ export default function DiscoverPage() {
   const [error, setError] = useState("");
   const [results, setResults] = useState([]);
   const [hasSearched, setHasSearched] = useState(false);
+  const { notify } = useNotify();
   const [itineraryMode, setItineraryMode] = useState(false);
   const [nlQuery, setNlQuery] = useState("");
   const [parsedDays, setParsedDays] = useState(undefined);
@@ -243,8 +238,8 @@ export default function DiscoverPage() {
       const apiMsg = e?.response?.data?.error?.message || e?.message || "";
       setError(
         apiMsg
-          ? `Failed to fetch places: ${apiMsg}`
-          : "Failed to fetch places. Try again."
+          ? `Something went wrong: ${apiMsg}`
+          : "Check your connection and try again."
       );
     } finally {
       if (requestId === latestSearch.current) setLoading(false);
@@ -272,7 +267,7 @@ export default function DiscoverPage() {
 
   const handleNearMe = () => {
     if (!navigator.geolocation) {
-      setError("Geolocation is not supported by your browser. Enter a destination instead.");
+      notify("Location isn't available in this browser. Enter a destination instead.", "warning");
       return;
     }
     setError("");
@@ -286,7 +281,7 @@ export default function DiscoverPage() {
       // Immediately search with new coordinates
       performSearch(nextQuery, filters);
     }, () => {
-      setError("Could not get your location. Check location permissions or enter a destination.");
+      notify("Couldn't get your location. Check location permissions or enter a destination.", "warning");
     }, { timeout: 10000, maximumAge: 60000 });
   };
 
@@ -409,78 +404,6 @@ export default function DiscoverPage() {
     return { days, dest, category, budget, pace, season };
   };
 
-  // Low-race helper that both parses and (optionally) generates immediately
-  const handlePlanFromNL = async (generateAfter = false) => {
-    const { days, dest, category, budget, pace, season } =
-      parseTripQuery(nlQuery);
-
-    // Update UI state
-    // Always prefer destination from NL; also reflect it in the search box
-    if (dest) {
-      setQuery((q) => ({ ...q, dest, lat: undefined, lng: undefined }));
-    }
-    if (days) {
-      setParsedDays(days);
-      setItDays(days);
-    }
-    const nextFilters = { ...filters };
-    if (category) nextFilters.category = [category];
-    setFilters(nextFilters);
-    if (category) setItInterests(category);
-    if (budget) setItBudget(budget);
-    if (pace) setItPace(pace);
-    if (season) setItSeason(season);
-
-    // Refresh list results (non-blocking)
-    performSearch(
-      { ...query, dest: dest || query.dest, lat: undefined, lng: undefined },
-      nextFilters
-    );
-
-    if (!generateAfter) return;
-
-    // Build params directly to avoid relying on async setState
-    const hasDest = (dest || query.dest || "").trim();
-    const paramsObj = {
-      days: days || parsedDays || itDays,
-      budget: budget || itBudget,
-      pace: pace || itPace,
-      season: season || itSeason,
-      interests: (
-        itInterests ||
-        category ||
-        nextFilters.category?.[0] ||
-        ""
-      ).toString(),
-    };
-    if (hasDest) paramsObj.dest = hasDest;
-    else if (Number.isFinite(query.lat) && Number.isFinite(query.lng)) {
-      paramsObj.lat = query.lat;
-      paramsObj.lng = query.lng;
-    } else {
-      // No location: don't call API
-      return;
-    }
-
-    setItLoading(true);
-    setItError("");
-    setItinerary(null);
-    try {
-      const { generateItinerary } = await import("../../services/itinerary");
-      const data = await generateItinerary(paramsObj);
-      setItinerary(data);
-      track?.("discover_itinerary_generate", { source: "nl", ...paramsObj });
-    } catch (e) {
-      const apiMsg = e?.response?.data?.error?.message || e?.message || "";
-      setItError(
-        apiMsg
-          ? `Failed to generate itinerary: ${apiMsg}`
-          : "Failed to generate itinerary"
-      );
-    } finally {
-      setItLoading(false);
-    }
-  };
 
   const generatePlan = async () => {
     // Parse NL first to sync controls
@@ -827,12 +750,61 @@ export default function DiscoverPage() {
         </Paper>
       )}
 
-      {/* Error message removed per request */}
 
       {loading ? (
-        <Box sx={{ py: 6, textAlign: "center" }}>
-          <CircularProgress />
+        <Box
+          role="status"
+          aria-label="Loading places"
+          sx={{
+            display: "grid",
+            gridTemplateColumns: {
+              xs: "minmax(0, 1fr)",
+              sm: "repeat(2, minmax(0, 1fr))",
+              lg: "repeat(3, minmax(0, 1fr))",
+            },
+            gap: { xs: 1.5, md: 2 },
+            width: "100%",
+          }}
+        >
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Card
+              key={i}
+              aria-hidden="true"
+              sx={{
+                height: { xs: "auto", md: 360 },
+                bgcolor: cardBg,
+                border: `1px solid ${borderColor}`,
+                boxShadow: softShadow,
+                overflow: "hidden",
+              }}
+            >
+              <Skeleton
+                variant="rectangular"
+                sx={{ width: "100%", height: { xs: 180, md: 200 } }}
+              />
+              <CardContent>
+                <Skeleton width="70%" height={28} />
+                <Skeleton width="95%" />
+                <Skeleton width="85%" sx={{ mb: 1.5 }} />
+                <Stack direction="row" spacing={1}>
+                  <Skeleton variant="rounded" width={64} height={24} />
+                  <Skeleton variant="rounded" width={52} height={24} />
+                </Stack>
+              </CardContent>
+            </Card>
+          ))}
         </Box>
+      ) : results.length === 0 && error ? (
+        <EmptyState
+          icon={<ErrorOutlineIcon />}
+          title="Couldn't load places"
+          description={error}
+          action={
+            <Button variant="outlined" onClick={runSearch}>
+              Try again
+            </Button>
+          }
+        />
       ) : results.length === 0 ? (
         <EmptyState
           icon={<TravelExploreIcon />}

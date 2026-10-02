@@ -9,7 +9,6 @@ import { auth } from "../../firebase";
 import {
   onAuthStateChanged,
   onIdTokenChanged,
-  isSignInWithEmailLink,
 } from "firebase/auth";
 
 const firebaseMocks = vi.hoisted(() => ({
@@ -40,7 +39,7 @@ describe("AuthContext", () => {
       cb(null);
       return () => {};
     });
-    onIdTokenChanged.mockImplementation((authArg, cb) => {
+    onIdTokenChanged.mockImplementation(() => {
       return () => {};
     });
   });

@@ -94,7 +94,7 @@ function TranslationBody() {
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [speechRate, setSpeechRate] = useState(1);
-  const [speechPitch, setSpeechPitch] = useState(1);
+  const speechPitch = 1;
   const [selectedVoice, setSelectedVoice] = useState(null);
   const [availableVoices, setAvailableVoices] = useState([]);
   const [filteredVoices, setFilteredVoices] = useState([]);

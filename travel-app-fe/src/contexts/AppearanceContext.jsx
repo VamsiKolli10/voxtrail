@@ -58,7 +58,7 @@ export function AppearanceProvider({ children }) {
     if (typeof window === "undefined") return;
     const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
     const handler = (event) => {
-      setMode((prev) => {
+      setMode(() => {
         const stored = readAppearancePreference();
         if (stored === "light" || stored === "dark") return stored;
         return event.matches ? "dark" : "light";

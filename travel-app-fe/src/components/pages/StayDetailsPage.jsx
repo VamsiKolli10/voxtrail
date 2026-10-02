@@ -470,22 +470,24 @@ export default function StayDetailsPage() {
               </Box>
 
               {/* Location Map */}
-              {/* <Box sx={{ mb: 2 }}>
-                <Typography
-                  variant="subtitle2"
-                  sx={{ fontWeight: 600, mb: 1.5 }}
-                >
-                  Location
-                </Typography>
-                <Card>
-                  <Box sx={{ height: 350 }}>
-                    <StaysMap
-                      items={[{ location: data.location, name: data.name }]}
-                      loading={false}
-                    />
-                  </Box>
-                </Card>
-              </Box> */}
+              {Number.isFinite(data.location?.lat) && Number.isFinite(data.location?.lng) && (
+                <Box sx={{ mb: 2 }}>
+                  <Typography
+                    variant="subtitle2"
+                    sx={{ fontWeight: 600, mb: 1.5 }}
+                  >
+                    Location
+                  </Typography>
+                  <Card>
+                    <Box sx={{ height: 350 }}>
+                      <StaysMap
+                        items={[{ location: data.location, name: data.name }]}
+                        loading={false}
+                      />
+                    </Box>
+                  </Card>
+                </Box>
+              )}
             </CardContent>
           </Card>
         </Grid>

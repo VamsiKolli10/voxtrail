@@ -85,6 +85,13 @@ describe("Login page", () => {
     await waitFor(() =>
       expect(screen.getByText(/please verify your email/i)).toBeInTheDocument()
     );
+    // The detailed guidance (with the address) is shown, not just the error.
+    expect(
+      screen.getByText(/check user@test\.dev for the verification email/i)
+    ).toBeInTheDocument();
+    expect(
+      screen.getAllByRole("button", { name: /resend verification email/i })
+    ).toHaveLength(1);
 
     fireEvent.click(
       screen.getByRole("button", { name: /resend verification email/i })

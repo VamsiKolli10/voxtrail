@@ -25,7 +25,6 @@ import {
   MyLocation as MyLocationIcon,
   Map as MapIcon,
   ViewList as ListIcon,
-  ViewWeek as SplitIcon,
   FilterList as FilterListIcon,
 } from "@mui/icons-material";
 import { searchStays } from "../../services/stays";

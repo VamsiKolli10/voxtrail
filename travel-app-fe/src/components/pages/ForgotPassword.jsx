@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import {
   Alert,
   List,
@@ -15,7 +15,6 @@ import { useNotify } from "../../contexts/NotificationContext.jsx";
 import { sendPasswordReset } from "../../services/auth";
 
 export default function ForgotPassword() {
-  const navigate = useNavigate();
   const { notify: showNotification } = useNotify();
 
   const [email, setEmail] = useState("");
@@ -59,27 +58,6 @@ export default function ForgotPassword() {
     }
   };
 
-  const handleResend = async () => {
-    if (!email) {
-      setError("Enter your email before resending the link.");
-      return;
-    }
-    setLoading(true);
-    setError("");
-    try {
-      await sendPasswordReset(email);
-      showNotification("Reset email sent again!", "success");
-    } catch (err) {
-      const message =
-        err?.code === "auth/user-not-found"
-          ? "No account found for that email."
-          : "Failed to resend email. Please try again.";
-      setError(message);
-      showNotification(message, "error");
-    } finally {
-      setLoading(false);
-    }
-  };
 
   if (success) {
     return (

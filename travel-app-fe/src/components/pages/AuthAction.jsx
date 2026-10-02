@@ -28,7 +28,7 @@ export default function AuthAction() {
   const navigate = useNavigate();
   const [error, setError] = useState("");
 
-  const { mode, oobCode, apiKey, email, continueUrl, all } = useMemo(
+  const { mode, oobCode, apiKey, email, continueUrl } = useMemo(
     () => extractParams(searchParams, location.hash),
     [searchParams, location.hash]
   );

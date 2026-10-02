@@ -27,7 +27,6 @@ import {
   Security as SecurityIcon,
   TravelExplore as TravelExploreIcon,
   Hotel as HotelIcon,
-  CheckCircle as CheckIcon,
   AccessTime as AccessTimeIcon,
 } from "@mui/icons-material";
 import { Link as RouterLink, useNavigate } from "react-router-dom";
@@ -298,7 +297,7 @@ function SectionWrapper({ surface = false, background = false, children }) {
   );
 }
 
-function HeroSection({ metrics, onPrimary, onSecondary, isMdUp }) {
+function HeroSection({ onPrimary, onSecondary, isMdUp }) {
   const quickBadges = [
     { icon: <LanguageIcon fontSize="small" />, label: "Instant translator" },
     { icon: <MapIcon fontSize="small" />, label: "Travel context sync" },

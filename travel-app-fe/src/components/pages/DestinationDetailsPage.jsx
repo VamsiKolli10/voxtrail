@@ -18,7 +18,6 @@ import { alpha } from "@mui/material/styles";
 import {
   ArrowBack as ArrowBackIcon,
   LocationOn as LocationIcon,
-  AccessTime as AccessTimeIcon,
   AttachMoney as PriceIcon,
   Public as PublicIcon,
   Launch as LaunchIcon,
