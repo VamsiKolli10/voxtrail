@@ -180,16 +180,7 @@ export default function Landing() {
   );
 
   return (
-    <Box
-      className="landing-root"
-      sx={(t) => ({
-        "--landing-bg-top": t.palette.marketing.backdropTop,
-        "--landing-bg-mid": t.palette.marketing.backdropMid,
-        "--landing-bg-bottom": t.palette.marketing.backdropBottom,
-        "--landing-glow-strong": t.palette.marketing.glowStrong,
-        "--landing-glow-soft": t.palette.marketing.glowSoft,
-      })}
-    >
+    <Box className="landing-root">
       <Box component="header" sx={{ position: "absolute", top: 20, left: { xs: 16, md: 48 }, zIndex: 2 }}>
         <Typography component={RouterLink} to="/" variant="h6" sx={{ color: "text.primary", textDecoration: "none", fontWeight: 800 }}>VoxTrail</Typography>
       </Box>

@@ -8,7 +8,9 @@ vi.mock("@testing-library/react", async (importOriginal) => {
   const { createElement } = await import("react");
   const { ThemeProvider } = await import("@mui/material/styles");
   const { createAppTheme } = await import("../theme.js");
-  const theme = createAppTheme("light");
+  // Plain (non-CSS-variables) theme: jsdom can't parse var() in border
+  // shorthands. AppearanceProvider tests still cover the CSS-variables theme.
+  const theme = createAppTheme("light", { cssVariables: false });
   const ThemeWrapper = ({ children }) =>
     createElement(ThemeProvider, { theme }, children);
   const render = (ui, options = {}) => {

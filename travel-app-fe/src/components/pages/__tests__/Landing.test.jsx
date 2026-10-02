@@ -12,7 +12,7 @@ vi.mock("../../../contexts/AppearanceContext.jsx", () => ({
 const renderLanding = () =>
   render(
     <MemoryRouter>
-      <ThemeProvider theme={createAppTheme("light")}>
+      <ThemeProvider theme={createAppTheme("light", { cssVariables: false })}>
         <Landing />
       </ThemeProvider>
     </MemoryRouter>

@@ -20,6 +20,9 @@ describe("AppearanceProvider", () => {
       matches: false,
       addEventListener: vi.fn(),
       removeEventListener: vi.fn(),
+      // MUI's color-scheme manager uses the legacy listener API
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
     });
     vi.spyOn(Storage.prototype, "getItem").mockReturnValue(null);
     vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {});
@@ -97,6 +100,33 @@ describe("AppearanceProvider", () => {
 
     // Should still toggle mode even if localStorage fails
     fireEvent.click(screen.getByText("toggle"));
+    expect(screen.getByTestId("mode").textContent).toBe("dark");
+  });
+
+  it("switches <html data-theme> so CSS variables follow the mode", () => {
+    render(
+      <AppearanceProvider>
+        <Harness />
+      </AppearanceProvider>
+    );
+    expect(document.documentElement.getAttribute("data-theme")).toBe("light");
+    fireEvent.click(screen.getByText("toggle"));
+    expect(document.documentElement.getAttribute("data-theme")).toBe("dark");
+  });
+
+  it("follows the OS preference when nothing is stored", () => {
+    window.matchMedia = vi.fn().mockReturnValue({
+      matches: true,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+    });
+    render(
+      <AppearanceProvider>
+        <Harness />
+      </AppearanceProvider>
+    );
     expect(screen.getByTestId("mode").textContent).toBe("dark");
   });
 });

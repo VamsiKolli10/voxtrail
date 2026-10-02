@@ -1,16 +1,16 @@
 /*
- * Landing backdrop. Colors come from theme.palette.marketing via CSS
- * variables set on .landing-root in Landing.jsx, so light/dark is handled
- * by the theme — no per-mode selectors needed here.
+ * Landing backdrop. Colors are MUI theme variables
+ * (theme.palette.marketing.* → --mui-palette-marketing-*), which switch with
+ * <html data-theme>, so no per-mode selectors are needed here.
  */
 .landing-root {
   min-height: 100vh;
   position: relative;
   overflow-x: clip;
   background:
-    radial-gradient(circle at 14% 12%, var(--landing-glow-strong) 0%, transparent 42%),
-    radial-gradient(circle at 82% 8%, var(--landing-glow-soft) 0%, transparent 42%),
-    linear-gradient(180deg, var(--landing-bg-top) 0%, var(--landing-bg-mid) 42%, var(--landing-bg-bottom) 100%);
+    radial-gradient(circle at 14% 12%, var(--mui-palette-marketing-glowStrong) 0%, transparent 42%),
+    radial-gradient(circle at 82% 8%, var(--mui-palette-marketing-glowSoft) 0%, transparent 42%),
+    linear-gradient(180deg, var(--mui-palette-marketing-backdropTop) 0%, var(--mui-palette-marketing-backdropMid) 42%, var(--mui-palette-marketing-backdropBottom) 100%);
 }
 
 .landing-root::after {
@@ -19,8 +19,8 @@
   inset: 0;
   pointer-events: none;
   background:
-    radial-gradient(circle at 28% 64%, var(--landing-glow-soft), transparent 32%),
-    radial-gradient(circle at 76% 72%, var(--landing-glow-soft), transparent 34%);
+    radial-gradient(circle at 28% 64%, var(--mui-palette-marketing-glowSoft), transparent 32%),
+    radial-gradient(circle at 76% 72%, var(--mui-palette-marketing-glowSoft), transparent 34%);
   opacity: 0.6;
 }
 
@@ -34,8 +34,8 @@
   position: absolute;
   inset: -40px;
   background:
-    radial-gradient(circle at 10% 30%, var(--landing-glow-soft), transparent 45%),
-    radial-gradient(circle at 90% 10%, var(--landing-glow-soft), transparent 45%);
+    radial-gradient(circle at 10% 30%, var(--mui-palette-marketing-glowSoft), transparent 45%),
+    radial-gradient(circle at 90% 10%, var(--mui-palette-marketing-glowSoft), transparent 45%);
   opacity: 0.45;
   z-index: -1;
   pointer-events: none;

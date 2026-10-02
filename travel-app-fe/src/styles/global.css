@@ -18,7 +18,8 @@ button, input, textarea, select { font: inherit; }
 a { color: inherit; }
 ::selection { background: rgba(33, 128, 141, 0.2); }
 *:focus-visible { outline: 3px solid rgba(33, 128, 141, 0.42); outline-offset: 3px; }
-.dark body { background: #0d1f24; color: #edf2f3; }
+[data-theme="dark"] { color-scheme: dark; }
+[data-theme="dark"] body { background: #0d1f24; color: #edf2f3; }
 @media (max-width: 768px) { body { padding-bottom: 76px; } }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: 0.01ms !important; }

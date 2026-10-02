@@ -10,7 +10,13 @@ import { alpha, createTheme } from "@mui/material/styles";
  *   palette.marketing.*                    Landing page surfaces
  *   theme.radius.{sm,md,lg,xl,pill}        px values (use `${theme.radius.md}px`)
  *   theme.motion.{duration,easing}         transition timing
- *   theme.customShadows.*                  elevation levels
+ *   theme.customShadows.*                  elevation levels (CSS variables)
+ *
+ * Light and dark are MUI color schemes with CSS variables
+ * (`cssVariables.colorSchemeSelector: "data-theme"`): MUI sets
+ * <html data-theme="light|dark"> and emits --mui-palette-* variables, so
+ * plain CSS can use e.g. var(--mui-palette-marketing-glowStrong).
+ * Mode state lives in MUI (useColorScheme); use useAppearance() in app code.
  *
  * shape.borderRadius is 4, so numeric sx radii follow MUI defaults:
  *   sx={{ borderRadius: 2 }} → 8px, 3 → 12px, 4 → 16px.
@@ -165,6 +171,8 @@ function buildPalette(mode = "light") {
       ? { main: "#5CC98A", light: "#8FDCAE", dark: "#2E7D4F" }
       : { main: "#2E7D4F", light: "#5CC98A", dark: "#1F5A38" },
     info: isDark ? { main: "#A9B6BB" } : { main: "#626C71" },
+    // Per-scheme box-shadows; exposed as theme.customShadows.* (CSS vars).
+    elevation: buildShadows(mode),
     rating: { main: "#F5B301" },
     // Cultural Guide hero: fixed deep-blue panel with light text in both
     // modes. Solid stops so contrast doesn't depend on the page behind it
@@ -225,14 +233,49 @@ function buildShadows(mode) {
   };
 }
 
-export function createAppTheme(mode = "light") {
-  const palette = buildPalette(mode);
-  const customShadows = buildShadows(mode);
+const SHADOW_KEYS = [
+  "card",
+  "cardHover",
+  "button",
+  "buttonHover",
+  "appBar",
+  "section",
+  "overlay",
+];
+
+/**
+ * App theme with both color schemes. `defaultColorScheme` is used when no
+ * preference is stored and the OS gives none.
+ *
+ * `{ cssVariables: false }` builds a plain single-scheme theme instead. Only
+ * the test setup uses it: jsdom's CSS parser crashes on var() inside border
+ * shorthands, which MUI's CSS-variables output contains.
+ */
+export function createAppTheme(
+  defaultColorScheme = "light",
+  { cssVariables = true } = {}
+) {
+  const customShadows = cssVariables
+    ? Object.fromEntries(
+        SHADOW_KEYS.map((key) => [key, `var(--mui-palette-elevation-${key})`])
+      )
+    : buildShadows(defaultColorScheme);
   const transition = (props, duration = motion.duration.base) =>
     props.map((p) => `${p} ${duration}ms ${motion.easing.standard}`).join(", ");
 
+  const schemeOptions = cssVariables
+    ? {
+        cssVariables: { colorSchemeSelector: "data-theme" },
+        colorSchemes: {
+          light: { palette: buildPalette("light") },
+          dark: { palette: buildPalette("dark") },
+        },
+        defaultColorScheme,
+      }
+    : { palette: buildPalette(defaultColorScheme) };
+
   return createTheme({
-    palette,
+    ...schemeOptions,
     typography,
     shape: { borderRadius: 4 },
     spacing: 8,
@@ -241,14 +284,14 @@ export function createAppTheme(mode = "light") {
     customShadows,
     components: {
       MuiCssBaseline: {
-        styleOverrides: {
+        styleOverrides: (theme) => ({
           body: {
             fontFamily: typography.fontFamily,
-            backgroundColor: palette.background.default,
-            color: palette.text.primary,
+            backgroundColor: (theme.vars || theme).palette.background.default,
+            color: (theme.vars || theme).palette.text.primary,
             transition: `background-color ${motion.duration.base}ms ease, color ${motion.duration.base}ms ease`,
           },
-        },
+        }),
       },
       MuiPaper: {
         styleOverrides: {
@@ -287,12 +330,12 @@ export function createAppTheme(mode = "light") {
             boxShadow: customShadows.button,
             "&:hover": { boxShadow: customShadows.buttonHover },
           },
-          outlined: {
-            borderColor: palette.divider,
+          outlined: ({ theme }) => ({
+            borderColor: theme.palette.divider,
             "&:hover": {
-              backgroundColor: alpha(palette.primary.main, 0.08),
+              backgroundColor: alpha(theme.palette.primary.main, 0.08),
             },
-          },
+          }),
         },
       },
       MuiCard: {
