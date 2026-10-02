@@ -8,7 +8,7 @@ const MAP_STYLE_URL = "https://basemaps.cartocdn.com/gl/positron-gl-style/style.
 const DEFAULT_CENTER = [0, 20];
 const DEFAULT_ZOOM = 2;
 
-export default function MapView({ items = [], loading = false, interactive = true }) {
+export default function DestinationMap({ items = [], loading = false, interactive = true }) {
   const mapContainerRef = useRef(null);
   const mapRef = useRef(null);
   const markersRef = useRef([]);
@@ -83,9 +83,9 @@ export default function MapView({ items = [], loading = false, interactive = tru
 
   return (
     <Box sx={{ position: "relative", width: "100%", height: "100%", borderRadius: 2, overflow: "hidden", bgcolor: "action.hover" }}>
-      <Box ref={mapContainerRef} sx={{ width: "100%", height: "100%", "& .maplibregl-canvas": { borderRadius: 8 } }} />
+      <Box ref={mapContainerRef} sx={{ width: "100%", height: "100%", "& .maplibregl-canvas": { borderRadius: "8px" } }} />
       {loading && (
-        <Box sx={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(2px)", backgroundColor: "rgba(255,255,255,0.6)" }}>
+        <Box sx={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(2px)", backgroundColor: "surface.glass" }}>
           <CircularProgress />
         </Box>
       )}

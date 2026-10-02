@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { Alert, CircularProgress, Stack, Typography } from "@mui/material";
+import { Alert, CircularProgress, Stack, Typography, Button } from "@mui/material";
 import AuthShell from "../layout/AuthShell";
-import Button from "../common/Button";
 import useNotification from "../../hooks/useNotification";
 import { handleEmailVerification } from "../../services/auth";
 

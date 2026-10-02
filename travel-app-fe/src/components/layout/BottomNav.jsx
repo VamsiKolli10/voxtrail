@@ -1,198 +1,145 @@
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import {
   BottomNavigation,
   BottomNavigationAction,
+  Drawer,
+  List,
+  ListItemButton,
+  ListItemIcon,
+  ListItemText,
+  Paper,
+  Typography,
+  alpha,
   useMediaQuery,
   useTheme,
-  Box,
-  Paper,
-  alpha,
-  Badge,
 } from "@mui/material";
+import { MoreHoriz as MoreIcon } from "@mui/icons-material";
 import { NavLink, useLocation } from "react-router-dom";
 import {
-  Dashboard as DashboardIcon,
-  Translate as TranslateIcon,
-  Book as BookIcon,
-  Explore as ExploreIcon,
-  Home as HomeIcon,
-  Search as SearchIcon,
-} from "@mui/icons-material";
+  MOBILE_MORE,
+  MOBILE_TABS,
+  isNavItemActive,
+} from "./navItems";
 
-const NAV_ACTIONS = [
-  { label: "Home", icon: <DashboardIcon />, to: "/home" },
-  { label: "Translate", icon: <TranslateIcon />, to: "/translation" },
-  { label: "Phrasebook", icon: <BookIcon />, to: "/phrasebook" },
-  { label: "Explore", icon: <ExploreIcon />, to: "/destinations" },
-];
-
-const visuallyHidden = {
-  position: "absolute",
-  width: 1,
-  height: 1,
-  padding: 0,
-  margin: -1,
-  overflow: "hidden",
-  clip: "rect(0 0 0 0)",
-  whiteSpace: "nowrap",
-  border: 0,
-};
+const MORE_VALUE = "more";
 
 export default function BottomNav() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
-  const location = useLocation();
-  const navRef = useRef(null);
-  const actionRefs = useRef([]);
-  const [focusLocked, setFocusLocked] = useState(false);
-  const [rovingIndex, setRovingIndex] = useState(0);
-  const [previousValue, setPreviousValue] = useState(0);
-
-  const activeIndex = (() => {
-    const idx = NAV_ACTIONS.findIndex((item) => item.to === location.pathname);
-    return idx === -1 ? 0 : idx;
-  })();
-
-  useEffect(() => {
-    if (activeIndex !== previousValue) {
-      setRovingIndex(activeIndex);
-      setPreviousValue(activeIndex);
-    }
-  }, [activeIndex, previousValue]);
-
-  const cycleFocus = (direction) => {
-    const count = NAV_ACTIONS.length;
-    const nextIndex = (rovingIndex + direction + count) % count;
-    const nextNode = actionRefs.current[nextIndex];
-    nextNode?.focus();
-    setRovingIndex(nextIndex);
-  };
-
-  const handleKeyDown = (event) => {
-    if (event.key === "Escape") {
-      setFocusLocked(false);
-      actionRefs.current[rovingIndex]?.blur();
-      return;
-    }
-    if (!focusLocked) return;
-    if (event.key === "Tab") {
-      event.preventDefault();
-      cycleFocus(event.shiftKey ? -1 : 1);
-      return;
-    }
-    if (event.key === "ArrowRight") {
-      event.preventDefault();
-      cycleFocus(1);
-    } else if (event.key === "ArrowLeft") {
-      event.preventDefault();
-      cycleFocus(-1);
-    }
-  };
-
-  const handleFocusCapture = () => setFocusLocked(true);
-  const handleBlurCapture = (event) => {
-    if (!navRef.current?.contains(event.relatedTarget)) {
-      setFocusLocked(false);
-    }
-  };
+  const { pathname } = useLocation();
+  const [moreOpen, setMoreOpen] = useState(false);
 
   if (!isMobile) return null;
 
+  const activeTab = MOBILE_TABS.find((item) => isNavItemActive(item, pathname));
+  const moreActive = MOBILE_MORE.some((item) => isNavItemActive(item, pathname));
+  // `null` = nothing selected (e.g. a route that isn't in the nav).
+  const value = activeTab ? activeTab.to : moreActive ? MORE_VALUE : null;
+
   return (
-    <Paper
-      component="nav"
-      elevation={8}
-      aria-label="Primary mobile navigation"
-      ref={navRef}
-      onFocusCapture={handleFocusCapture}
-      onBlurCapture={handleBlurCapture}
-      onKeyDown={handleKeyDown}
-      sx={{
-        position: "fixed",
-        bottom: 0,
-        left: 0,
-        right: 0,
-        zIndex: theme.zIndex.appBar,
-        borderTop: `1px solid ${theme.palette.divider}`,
-        borderTopLeftRadius: 16,
-        borderTopRightRadius: 16,
-        overflow: "hidden",
-        background: alpha(theme.palette.background.paper, 0.95),
-        backdropFilter: "blur(10px)",
-        boxShadow: `0 -4px 20px ${alpha(theme.palette.common.black, 0.1)}`,
-        transition: "transform 0.3s ease, opacity 0.3s ease",
-        transform: focusLocked ? "translateY(-2px)" : "translateY(0)",
-      }}
-    >
-      <Box sx={visuallyHidden} aria-live="polite">
-        {focusLocked &&
-          "Focus is locked inside navigation. Use arrow keys or Tab to move and Escape to exit."}
-      </Box>
-      <BottomNavigation
-        value={activeIndex}
-        showLabels
+    <>
+      <Paper
+        component="nav"
+        elevation={8}
+        aria-label="Primary"
         sx={{
-          "& .MuiBottomNavigationAction-root": {
-            transition: "all 0.3s ease",
-            "&.Mui-selected": {
-              color: theme.palette.primary.main,
-              "& .MuiBottomNavigationAction-label": {
+          position: "fixed",
+          bottom: 0,
+          left: 0,
+          right: 0,
+          zIndex: theme.zIndex.appBar,
+          borderTop: `1px solid ${theme.palette.divider}`,
+          borderTopLeftRadius: `${theme.radius.lg - 4}px`,
+          borderTopRightRadius: `${theme.radius.lg - 4}px`,
+          borderBottomLeftRadius: 0,
+          borderBottomRightRadius: 0,
+          overflow: "hidden",
+          background: alpha(theme.palette.background.paper, 0.95),
+          backdropFilter: "blur(10px)",
+          boxShadow: theme.customShadows.overlay,
+          pb: "env(safe-area-inset-bottom)",
+        }}
+      >
+        <BottomNavigation
+          value={value}
+          showLabels
+          sx={{
+            "& .MuiBottomNavigationAction-root": {
+              minWidth: 0,
+              color: "text.secondary",
+              transition: `color ${theme.motion.duration.fast}ms ease`,
+              "&.Mui-selected": { color: "primary.main" },
+              "&.Mui-selected .MuiBottomNavigationAction-label": {
                 fontWeight: 600,
               },
             },
-            "&:not(.Mui-selected)": {
-              color: theme.palette.text.secondary,
-            },
+          }}
+        >
+          {MOBILE_TABS.map(({ label, to, icon: Icon }) => (
+            <BottomNavigationAction
+              key={to}
+              value={to}
+              component={NavLink}
+              to={to}
+              label={label}
+              icon={<Icon />}
+            />
+          ))}
+          <BottomNavigationAction
+            value={MORE_VALUE}
+            label="More"
+            icon={<MoreIcon />}
+            onClick={() => setMoreOpen(true)}
+            aria-haspopup="dialog"
+            aria-expanded={moreOpen}
+          />
+        </BottomNavigation>
+      </Paper>
+
+      <Drawer
+        anchor="bottom"
+        open={moreOpen}
+        onClose={() => setMoreOpen(false)}
+        PaperProps={{
+          sx: {
+            borderTopLeftRadius: `${theme.radius.lg}px`,
+            borderTopRightRadius: `${theme.radius.lg}px`,
+            pb: "calc(16px + env(safe-area-inset-bottom))",
+            pt: 1,
           },
         }}
       >
-        {NAV_ACTIONS.map((action, index) => (
-          <BottomNavigationAction
-            key={action.to}
-            component={NavLink}
-            to={action.to}
-            label={action.label}
-            icon={
-              <Box sx={{ position: "relative" }}>
-                {action.icon}
-                {action.label === "Phrasebook" && (
-                  <Badge
-                    // badgeContent={3}
-                    color="error"
-                    sx={{
-                      "& .MuiBadge-badge": {
-                        fontSize: 9,
-                        minWidth: 14,
-                        height: 14,
-                        padding: "0 4px",
-                        transform: "translate(50%, -50%)",
-                      },
-                    }}
-                  />
-                )}
-              </Box>
-            }
-            aria-label={`Go to ${action.label}`}
-            ref={(node) => {
-              actionRefs.current[index] = node;
-            }}
-            tabIndex={
-              focusLocked ? (rovingIndex === index ? 0 : -1) : undefined
-            }
-            onFocus={() => setRovingIndex(index)}
-            sx={{
-              transform:
-                focusLocked && rovingIndex === index
-                  ? "translateY(-2px)"
-                  : "translateY(0)",
-              transition: "transform 0.3s ease, color 0.3s ease",
-              "&:active": {
-                transform: "translateY(0)",
-              },
-            }}
-          />
-        ))}
-      </BottomNavigation>
-    </Paper>
+        <Typography
+          component="h2"
+          variant="subtitle2"
+          color="text.secondary"
+          sx={{ px: 3, pt: 1.5, pb: 0.5 }}
+        >
+          More
+        </Typography>
+        <List aria-label="More sections">
+          {MOBILE_MORE.map(({ label, to, icon: Icon }) => {
+            const selected = isNavItemActive({ to }, pathname);
+            return (
+              <ListItemButton
+                key={to}
+                component={NavLink}
+                to={to}
+                selected={selected}
+                onClick={() => setMoreOpen(false)}
+                sx={{ px: 3, py: 1.5 }}
+              >
+                <ListItemIcon
+                  sx={{ minWidth: 40, color: selected ? "primary.main" : "inherit" }}
+                >
+                  <Icon />
+                </ListItemIcon>
+                <ListItemText primary={label} />
+              </ListItemButton>
+            );
+          })}
+        </List>
+      </Drawer>
+    </>
   );
 }

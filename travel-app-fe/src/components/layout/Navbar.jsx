@@ -10,32 +10,27 @@ import {
   Tooltip,
   alpha,
   Divider,
+  Stack,
+  Button,
 } from "@mui/material";
-import { NavLink, Link, useLocation } from "react-router-dom";
+import { NavLink, Link, useLocation, useNavigate } from "react-router-dom";
 import { styled } from "@mui/material/styles";
 import LogoutButton from "../../components/common/LogoutButton";
 import { useSelector } from "react-redux";
 import {
   Brightness4 as DarkIcon,
   Brightness7 as LightIcon,
+  AirplanemodeActive as PlaneIcon,
 } from "@mui/icons-material";
 import { useAppearance } from "../../contexts/AppearanceContext.jsx";
+import { NAV_ITEMS, isNavItemActive } from "./navItems";
 
-const NAV_LINKS = [
-  { label: "Home", to: "/home" },
-  { label: "Translation", to: "/translation" },
-  { label: "Phrasebook", to: "/phrasebook" },
-  { label: "Stays", to: "/stays" },
-  { label: "Emergency", to: "/emergency" },
-  { label: "Culture", to: "/cultural-guide" },
-  { label: "Destinations", to: "/destinations" },
-];
 
 const StyledLink = styled(Link)(({ theme }) => ({
   color: theme.palette.text.primary,
   textDecoration: "none",
-  fontSize: "18px",
-  fontWeight: 700,
+  fontSize: "17px",
+  fontWeight: 800,
   position: "relative",
   paddingRight: theme.spacing(2),
   "&::after": {
@@ -59,9 +54,10 @@ const StyledLink = styled(Link)(({ theme }) => ({
 const StyledNavLink = styled(NavLink)(({ theme }) => ({
   color: theme.palette.text.primary,
   textDecoration: "none",
-  fontWeight: 500,
-  padding: "8px 16px",
-  borderRadius: "4px",
+  fontWeight: 600,
+  fontSize: "0.88rem",
+  padding: "9px 13px",
+  borderRadius: "10px",
   position: "relative",
   transition: "color 150ms ease",
   "&::after": {
@@ -91,17 +87,20 @@ const StyledNavLink = styled(NavLink)(({ theme }) => ({
   },
 }));
 
-export default function Navbar() {
+export default function Navbar({ isLanding = false }) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const location = useLocation();
+  const navigate = useNavigate();
   const user = useSelector((state) => state.auth.user);
   const { mode, toggleMode } = useAppearance();
   const navRefs = useRef([]);
   const [focusedNavIndex, setFocusedNavIndex] = useState(0);
 
   useEffect(() => {
-    const idx = NAV_LINKS.findIndex((item) => item.to === location.pathname);
+    const idx = NAV_ITEMS.findIndex((item) =>
+      isNavItemActive(item, location.pathname)
+    );
     if (idx >= 0) {
       setFocusedNavIndex(idx);
     }
@@ -112,7 +111,7 @@ export default function Navbar() {
     event.preventDefault();
     const delta = event.key === "ArrowRight" ? 1 : -1;
     const nextIndex =
-      (focusedNavIndex + delta + NAV_LINKS.length) % NAV_LINKS.length;
+      (focusedNavIndex + delta + NAV_ITEMS.length) % NAV_ITEMS.length;
     setFocusedNavIndex(nextIndex);
     const nextNode = navRefs.current[nextIndex];
     nextNode?.focus();
@@ -121,8 +120,8 @@ export default function Navbar() {
   return (
     <AppBar
       component="header"
-      position="sticky"
-      elevation={1}
+      position={isLanding ? "absolute" : "sticky"}
+      elevation={isLanding ? 0 : 1}
       sx={{
         backdropFilter: "blur(8px)",
         backgroundColor: alpha(theme.palette.background.paper, 0.8),
@@ -134,26 +133,43 @@ export default function Navbar() {
         component="div"
         role="navigation"
         aria-label="Main site controls"
-        sx={{ gap: 2 }}
+        sx={{ gap: { xs: 1, md: 2 }, minHeight: { xs: 64, md: 72 } }}
       >
         <StyledLink
           to={user ? "/home" : "/"}
           aria-label="VoxTrail home"
         >
-          <Typography
-            variant="h6"
-            component="span"
-            sx={{
-              fontWeight: 800,
-              background: `linear-gradient(90deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent",
-            }}
-          >
-            VoxTrail
-          </Typography>
+          <Stack direction="row" spacing={1.5} alignItems="center">
+            <Box
+              sx={{
+                width: 36,
+                height: 36,
+                borderRadius: 2.5,
+                background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.primary.light})`,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <PlaneIcon fontSize="small" sx={{ color: "primary.contrastText" }} />
+            </Box>
+            <Typography
+              variant="h6"
+              component="span"
+              sx={{
+                fontWeight: 800,
+                letterSpacing: "-0.04em",
+                background: `linear-gradient(90deg, ${theme.palette.primary.dark}, ${theme.palette.primary.main})`,
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+              }}
+            >
+              VoxTrail
+            </Typography>
+          </Stack>
         </StyledLink>
-        {!isMobile && user && (
+
+        {!isMobile && user && !isLanding && (
           <>
             <Divider orientation="vertical" flexItem sx={{ mx: 1 }} />
             <Box
@@ -167,16 +183,18 @@ export default function Navbar() {
               }}
               onKeyDown={handleNavKeyDown}
             >
-              {NAV_LINKS.map((link, index) => (
+              {NAV_ITEMS.map((link, index) => (
                 <StyledNavLink
                   key={link.to}
                   to={link.to}
+                  className={
+                    isNavItemActive(link, location.pathname) ? "active" : undefined
+                  }
                   tabIndex={focusedNavIndex === index ? 0 : -1}
                   ref={(node) => {
                     navRefs.current[index] = node;
                   }}
                   onFocus={() => setFocusedNavIndex(index)}
-                  aria-label={`${link.label} section`}
                 >
                   {link.label}
                 </StyledNavLink>
@@ -184,6 +202,7 @@ export default function Navbar() {
             </Box>
           </>
         )}
+
         <Box
           sx={{
             marginLeft: "auto",
@@ -205,7 +224,7 @@ export default function Navbar() {
               color="inherit"
               sx={{
                 borderRadius: 2,
-                border: "1px solid rgba(94,82,64,0.16)",
+                border: (theme) => `1px solid ${theme.palette.border.subtle}`,
                 backgroundColor: "background.paper",
                 transition: "all 0.3s ease",
                 "&:hover": {
@@ -221,7 +240,19 @@ export default function Navbar() {
               )}
             </IconButton>
           </Tooltip>
-          {user && <LogoutButton />}
+
+          {isLanding ? (
+            <>
+              <Button variant="outlined" onClick={() => navigate("/login")}>
+                Log in
+              </Button>
+              <Button variant="contained" onClick={() => navigate("/register")}>
+                Join free
+              </Button>
+            </>
+          ) : (
+            user && <LogoutButton />
+          )}
         </Box>
       </Toolbar>
     </AppBar>

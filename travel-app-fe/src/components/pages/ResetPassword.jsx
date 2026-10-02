@@ -15,12 +15,12 @@ import {
   Stack,
   TextField,
   Typography,
+  Button,
 } from "@mui/material";
 import {
   Visibility as VisibilityIcon,
   VisibilityOff as VisibilityOffIcon,
 } from "@mui/icons-material";
-import Button from "../common/Button";
 import AuthShell from "../layout/AuthShell";
 import useNotification from "../../hooks/useNotification";
 import {
@@ -300,7 +300,7 @@ export default function ResetPassword() {
               <ListItem
                 key={step.primary}
                 sx={{
-                  border: "1px solid rgba(94,82,64,0.12)",
+                  border: (theme) => `1px solid ${theme.palette.border.subtle}`,
                   borderRadius: 2,
                   alignItems: "flex-start",
                   gap: 2,

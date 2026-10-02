@@ -267,7 +267,7 @@ export default function ResultsList({ items = [], loading }) {
                       <Box
                         sx={{ display: "flex", alignItems: "center", gap: 0.5 }}
                       >
-                        <StarIcon sx={{ fontSize: 16, color: "#ffc107" }} />
+                        <StarIcon sx={{ fontSize: 16, color: "rating.main" }} />
                         <Typography variant="body2" sx={{ fontWeight: 600 }}>
                           {item.rating.toFixed(1)}
                         </Typography>

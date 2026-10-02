@@ -10,6 +10,7 @@ vi.mock("react-router-dom", () => ({
   Link: ({ children, to }) => <a href={to}>{children}</a>,
   NavLink: ({ children, to }) => <a href={to}>{children}</a>,
   useLocation: () => ({ pathname: "/" }),
+  useNavigate: () => () => {},
 }));
 
 describe("Navbar", () => {

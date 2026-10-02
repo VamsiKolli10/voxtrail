@@ -17,6 +17,7 @@ import {
   Skeleton,
   Tooltip,
   useTheme,
+  Button,
 } from "@mui/material";
 import {
   Bookmark as BookmarkFilledIcon,
@@ -29,7 +30,6 @@ import {
 } from "@mui/icons-material";
 import { motion } from "framer-motion";
 import PageContainer from "../layout/PageContainer";
-import Button from "../common/Button";
 import { generatePhrasebook } from "../../services/phrasebook";
 import {
   listSavedPhrases,
@@ -752,8 +752,8 @@ export default function Phrasebook() {
                         flexDirection: "column",
                         borderRadius: 3,
                         borderColor: savedAlready
-                          ? "rgba(33,128,141,0.4)"
-                          : "rgba(94,82,64,0.12)",
+                          ? "primary.light"
+                          : "border.subtle",
                         transition: "all 0.3s ease",
                         "&:hover": {
                           transform: "translateY(-4px)",
@@ -976,7 +976,7 @@ export default function Phrasebook() {
                         display: "flex",
                         flexGrow: "1",
                         flexDirection: "column",
-                        borderColor: "rgba(94,82,64,0.12)",
+                        borderColor: "border.subtle",
                         transition: "all 0.3s ease",
                         "&:hover": {
                           transform: "translateY(-4px)",
@@ -1063,7 +1063,7 @@ export default function Phrasebook() {
                   textAlign: "center",
                   py: 5,
                   px: { xs: 2, md: 4 },
-                  backgroundColor: "rgba(33,128,141,0.06)",
+                  backgroundColor: "surface.tint",
                   borderRadius: 2,
                 }}
               >

@@ -13,6 +13,8 @@ import {
   Typography,
   useMediaQuery,
   useTheme,
+  alpha,
+  Button,
 } from "@mui/material";
 import {
   AirplanemodeActive as PlaneIcon,
@@ -30,7 +32,6 @@ import {
   Groups as GroupsIcon,
 } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
-import Button from "../common/Button";
 import { ModuleCard, ModuleCardGrid } from "../common/ModuleCard";
 import { useAppearance } from "../../contexts/AppearanceContext.jsx";
 import "./Landing.css";
@@ -338,9 +339,9 @@ function SectionWrapper({ surface = false, background = false, children }) {
     <Box
       sx={(theme) => ({
         backgroundColor: surface
-          ? theme.palette.luxury.surface
+          ? theme.palette.marketing.surface
           : background
-          ? theme.palette.luxury.background
+          ? theme.palette.marketing.background
           : "transparent",
         py: { xs: 6, md: 10 },
         my: { xs: "50px", md: "70px" },
@@ -444,7 +445,7 @@ function HeroSection({ metrics, onPrimary, onSecondary, isMdUp }) {
                   label={badge.label}
                   variant="outlined"
                   sx={(theme) => ({
-                    borderRadius: 99,
+                    borderRadius: "999px",
                     fontWeight: 600,
                     borderColor: theme.palette.divider,
                     backgroundColor:
@@ -608,11 +609,8 @@ function HighlightsSection({ cards }) {
             key={card.title}
             sx={{
               border: (theme) => `1px solid ${theme.palette.divider}`,
-              backgroundColor: (theme) => theme.palette.luxury.surface,
-              boxShadow: (theme) =>
-                theme.palette.mode === "dark"
-                  ? "0 30px 80px -48px rgba(2,8,18,0.85)"
-                  : "0 24px 70px -45px rgba(12,32,44,0.45)",
+              backgroundColor: (theme) => theme.palette.marketing.surface,
+              boxShadow: (theme) => theme.customShadows.section,
               backdropFilter: "blur(8px)",
             }}
           >
@@ -625,7 +623,7 @@ function HighlightsSection({ cards }) {
                     width: 52,
                     height: 52,
                     borderRadius: 3,
-                    backgroundColor: "rgba(33,128,141,0.12)",
+                    backgroundColor: (theme) => alpha(theme.palette.primary.main, 0.12),
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
@@ -694,11 +692,8 @@ function ItinerarySection({ itineraries, onPrimary }) {
             interactive
             sx={{
               border: (theme) => `1px solid ${theme.palette.divider}`,
-              backgroundColor: (theme) => theme.palette.luxury.surface,
-              boxShadow: (theme) =>
-                theme.palette.mode === "dark"
-                  ? "0 32px 90px -46px rgba(2,8,18,0.88)"
-                  : "0 24px 70px -45px rgba(12,32,44,0.45)",
+              backgroundColor: (theme) => theme.palette.marketing.surface,
+              boxShadow: (theme) => theme.customShadows.section,
               backdropFilter: "blur(8px)",
             }}
           >
@@ -812,11 +807,8 @@ function TestimonialsSection({ testimonials }) {
                 height: "100%",
                 borderRadius: 3,
                 border: (theme) => `1px solid ${theme.palette.divider}`,
-                backgroundColor: (theme) => theme.palette.luxury.surface,
-                boxShadow: (theme) =>
-                  theme.palette.mode === "dark"
-                    ? "0 30px 80px -50px rgba(2,8,18,0.86)"
-                    : theme.shadows[2],
+                backgroundColor: (theme) => theme.palette.marketing.surface,
+                boxShadow: (theme) => theme.customShadows.section,
                 backdropFilter: "blur(6px)",
               }}
             >
@@ -881,11 +873,8 @@ function SignalsSection({ signals }) {
             key={signal.title}
             sx={(theme) => ({
               border: `1px solid ${theme.palette.divider}`,
-              backgroundColor: theme.palette.luxury.surface,
-              boxShadow:
-                theme.palette.mode === "light"
-                  ? "0 24px 70px -45px rgba(12,32,44,0.45)"
-                  : "0 30px 80px -48px rgba(2,8,18,0.85)",
+              backgroundColor: theme.palette.marketing.surface,
+              boxShadow: theme.customShadows.section,
               backdropFilter: "blur(8px)",
             })}
           >
@@ -897,7 +886,7 @@ function SignalsSection({ signals }) {
                   width: 46,
                   height: 46,
                   borderRadius: 2,
-                  backgroundColor: "rgba(33,128,141,0.14)",
+                  backgroundColor: (theme) => alpha(theme.palette.primary.main, 0.14),
                   display: "grid",
                   placeItems: "center",
                   color: "primary.main",
@@ -927,11 +916,8 @@ function FinalCTA() {
           borderRadius: 4,
           textAlign: "center",
           border: (theme) => `1px solid ${theme.palette.divider}`,
-          backgroundColor: (theme) => theme.palette.luxury.surface,
-          boxShadow: (theme) =>
-            theme.palette.mode === "dark"
-              ? "0 34px 90px -55px rgba(2,8,18,0.9)"
-              : "0 30px 90px -55px rgba(12,32,44,0.45)",
+          backgroundColor: (theme) => theme.palette.marketing.surface,
+          boxShadow: (theme) => theme.customShadows.section,
         }}
       >
         <CardContent

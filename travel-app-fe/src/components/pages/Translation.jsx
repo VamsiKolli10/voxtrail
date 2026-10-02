@@ -20,6 +20,7 @@ import {
   TextField,
   Tooltip,
   Typography,
+  Button,
 } from "@mui/material";
 import {
   SwapHoriz as SwapIcon,
@@ -30,7 +31,6 @@ import {
   Pause as PauseIcon,
   PlayArrow as PlayIcon,
 } from "@mui/icons-material";
-import Button from "../common/Button";
 import PageContainer from "../layout/PageContainer";
 import { ModuleCard, ModuleCardGrid } from "../common/ModuleCard";
 import { translateText } from "../../services/translation";
@@ -454,8 +454,8 @@ function TranslationBody() {
         <Card
           sx={{
             borderRadius: 4,
-            border: "1px solid rgba(94,82,64,0.18)",
-            background: "rgba(255,255,255,0.92)",
+            border: (theme) => `1px solid ${theme.palette.border.subtle}`,
+            backgroundColor: "surface.glass",
             backdropFilter: "blur(12px)",
           }}
         >
@@ -506,7 +506,7 @@ function TranslationBody() {
                 <IconButton
                   onClick={handleSwap}
                   sx={{
-                    border: "1px solid rgba(94,82,64,0.16)",
+                    border: (theme) => `1px solid ${theme.palette.border.subtle}`,
                     borderRadius: 2,
                     backgroundColor: "background.default",
                   }}
@@ -549,10 +549,7 @@ function TranslationBody() {
                       "transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out",
                     "&:hover": {
                       transform: "translateY(-2px)",
-                      boxShadow: (theme) =>
-                        theme.palette.mode === "dark"
-                          ? "0 8px 16px rgba(0,0,0,0.3)"
-                          : "0 8px 16px rgba(0,0,0,0.1)",
+                      boxShadow: (theme) => theme.customShadows.overlay,
                     },
                   }}
                 >
@@ -581,6 +578,8 @@ function TranslationBody() {
                                 : handleStartRecording
                             }
                             color={isRecording ? "error" : "primary"}
+                            aria-label={isRecording ? "Stop recording" : "Start voice input"}
+                            aria-pressed={isRecording}
                             sx={{
                               animation: isRecording
                                 ? "pulse 1.5s infinite"
@@ -609,26 +608,6 @@ function TranslationBody() {
                       }
                       value={source}
                       onChange={(e) => setSource(e.target.value)}
-                      sx={{
-                        "& .MuiOutlinedInput-root": {
-                          "& fieldset": {
-                            borderColor: (theme) =>
-                              theme.palette.mode === "dark"
-                                ? "rgba(255,255,255,0.2)"
-                                : "rgba(0,0,0,0.2)",
-                          },
-                          "&:hover fieldset": {
-                            borderColor: (theme) =>
-                              theme.palette.mode === "dark"
-                                ? "rgba(255,255,255,0.3)"
-                                : "rgba(0,0,0,0.3)",
-                          },
-                          "&.Mui-focused fieldset": {
-                            borderColor: "primary.main",
-                            borderWidth: 2,
-                          },
-                        },
-                      }}
                     />
                     {isRecording && (
                       <Alert
@@ -664,10 +643,7 @@ function TranslationBody() {
                       "transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out",
                     "&:hover": {
                       transform: "translateY(-2px)",
-                      boxShadow: (theme) =>
-                        theme.palette.mode === "dark"
-                          ? "0 8px 16px rgba(0,0,0,0.3)"
-                          : "0 8px 16px rgba(0,0,0,0.1)",
+                      boxShadow: (theme) => theme.customShadows.overlay,
                     },
                   }}
                 >
@@ -695,6 +671,7 @@ function TranslationBody() {
                                   : handlePlayAudio(target, targetLang)
                               }
                               color="primary"
+                              aria-label={isSpeaking && !isPaused ? "Stop audio" : "Play translation"}
                             >
                               {isSpeaking && !isPaused ? (
                                 <StopIcon />
@@ -743,30 +720,7 @@ function TranslationBody() {
                         ) : undefined,
                         sx: {
                           "&.Mui-readOnly": {
-                            backgroundColor: (theme) =>
-                              theme.palette.mode === "dark"
-                                ? "rgba(255,255,255,0.05)"
-                                : "rgba(0,0,0,0.03)",
-                          },
-                        },
-                      }}
-                      sx={{
-                        "& .MuiOutlinedInput-root": {
-                          "& fieldset": {
-                            borderColor: (theme) =>
-                              theme.palette.mode === "dark"
-                                ? "rgba(255,255,255,0.2)"
-                                : "rgba(0,0,0,0.2)",
-                          },
-                          "&:hover fieldset": {
-                            borderColor: (theme) =>
-                              theme.palette.mode === "dark"
-                                ? "rgba(255,255,255,0.3)"
-                                : "rgba(0,0,0,0.3)",
-                          },
-                          "&.Mui-focused fieldset": {
-                            borderColor: "primary.main",
-                            borderWidth: 2,
+                            backgroundColor: "action.hover",
                           },
                         },
                       }}
@@ -916,24 +870,13 @@ function TranslationBody() {
                 sx={{
                   height: "100%",
                   borderRadius: 3,
-                  border: (theme) =>
-                    `1px solid ${
-                      theme.palette.mode === "dark"
-                        ? "rgba(237,242,243,0.12)"
-                        : "rgba(94,82,64,0.12)"
-                    }`,
-                  backgroundColor: (theme) =>
-                    theme.palette.mode === "dark"
-                      ? "rgba(13,24,32,0.95)"
-                      : "rgba(255,255,255,0.92)",
+                  border: (theme) => `1px solid ${theme.palette.border.subtle}`,
+                  backgroundColor: "surface.glass",
                   transition:
                     "transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out",
                   "&:hover": {
                     transform: "translateY(-4px)",
-                    boxShadow: (theme) =>
-                      theme.palette.mode === "dark"
-                        ? "0 12px 20px rgba(0,0,0,0.4)"
-                        : "0 12px 20px rgba(0,0,0,0.1)",
+                    boxShadow: (theme) => theme.customShadows.overlay,
                   },
                 }}
               >
@@ -967,26 +910,6 @@ function TranslationBody() {
                       <FormControl
                         fullWidth
                         size="small"
-                        sx={{
-                          "& .MuiOutlinedInput-root": {
-                            "& fieldset": {
-                              borderColor: (theme) =>
-                                theme.palette.mode === "dark"
-                                  ? "rgba(255,255,255,0.2)"
-                                  : "rgba(0,0,0,0.2)",
-                            },
-                            "&:hover fieldset": {
-                              borderColor: (theme) =>
-                                theme.palette.mode === "dark"
-                                  ? "rgba(255,255,255,0.3)"
-                                  : "rgba(0,0,0,0.3)",
-                            },
-                            "&.Mui-focused fieldset": {
-                              borderColor: "primary.main",
-                              borderWidth: 2,
-                            },
-                          },
-                        }}
                       >
                         <InputLabel>Voice</InputLabel>
                         <Select
@@ -1125,16 +1048,8 @@ function TranslationBody() {
               sx={{
                 height: "100%",
                 borderRadius: 3,
-                border: (theme) =>
-                  `1px solid ${
-                    theme.palette.mode === "dark"
-                      ? "rgba(237,242,243,0.12)"
-                      : "rgba(94,82,64,0.12)"
-                  }`,
-                backgroundColor: (theme) =>
-                  theme.palette.mode === "dark"
-                    ? "rgba(15,26,34,0.95)"
-                    : "rgba(255,255,255,0.92)",
+                border: (theme) => `1px solid ${theme.palette.border.subtle}`,
+                backgroundColor: "surface.glass",
               }}
             >
               <CardContent
@@ -1177,16 +1092,8 @@ function TranslationBody() {
             <ModuleCard
               key={highlight.title}
               sx={{
-                border: (theme) =>
-                  `1px solid ${
-                    theme.palette.mode === "dark"
-                      ? "rgba(237,242,243,0.14)"
-                      : "rgba(94,82,64,0.12)"
-                  }`,
-                backgroundColor: (theme) =>
-                  theme.palette.mode === "dark"
-                    ? "rgba(14,26,33,0.95)"
-                    : "rgba(255,255,255,0.9)",
+                border: (theme) => `1px solid ${theme.palette.border.subtle}`,
+                backgroundColor: "surface.glass",
               }}
             >
               <CardContent

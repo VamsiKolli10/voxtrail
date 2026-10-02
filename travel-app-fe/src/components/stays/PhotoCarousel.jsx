@@ -5,6 +5,7 @@ import {
   Paper,
   Typography,
   useTheme,
+  alpha,
   useMediaQuery,
 } from "@mui/material";
 import {
@@ -153,16 +154,17 @@ export default function PhotoCarousel({ photos = [], maxWidth = 800, height }) {
         <>
           <IconButton
             onClick={handlePrevious}
+            aria-label="Previous photo"
             sx={{
               position: "absolute",
               left: 8,
               top: "50%",
               transform: "translateY(-50%)",
-              backgroundColor: "rgba(255, 255, 255, 0.85)",
+              backgroundColor: "surface.glass",
               color: "text.primary",
-              boxShadow: "0 2px 6px rgba(0,0,0,0.25)",
+              boxShadow: (t) => t.customShadows.overlay,
               "&:hover": {
-                backgroundColor: "rgba(255, 255, 255, 0.95)",
+                backgroundColor: "background.paper",
               },
               zIndex: 2,
             }}
@@ -172,16 +174,17 @@ export default function PhotoCarousel({ photos = [], maxWidth = 800, height }) {
           </IconButton>
           <IconButton
             onClick={handleNext}
+            aria-label="Next photo"
             sx={{
               position: "absolute",
               right: 8,
               top: "50%",
               transform: "translateY(-50%)",
-              backgroundColor: "rgba(255, 255, 255, 0.85)",
+              backgroundColor: "surface.glass",
               color: "text.primary",
-              boxShadow: "0 2px 6px rgba(0,0,0,0.25)",
+              boxShadow: (t) => t.customShadows.overlay,
               "&:hover": {
-                backgroundColor: "rgba(255, 255, 255, 0.95)",
+                backgroundColor: "background.paper",
               },
               zIndex: 2,
             }}
@@ -208,17 +211,33 @@ export default function PhotoCarousel({ photos = [], maxWidth = 800, height }) {
           {photos.map((_, index) => (
             <Box
               key={index}
+              component="button"
+              type="button"
               onClick={() => handleDotClick(index)}
+              aria-label={`Show photo ${index + 1} of ${photos.length}`}
+              aria-current={currentIndex === index ? "true" : undefined}
               sx={{
-                width: currentIndex === index ? 20 : 8,
-                height: 8,
-                borderRadius: 4,
-                backgroundColor:
-                  currentIndex === index
-                    ? theme.palette.primary.main
-                    : "rgba(255, 255, 255, 0.5)",
+                // 24px hit area around an 8px dot
+                p: "8px",
+                m: "-8px 0",
+                border: 0,
+                background: "none",
                 cursor: "pointer",
-                transition: "all 0.3s",
+                display: "flex",
+                alignItems: "center",
+                "&::before": {
+                  content: '""',
+                  display: "block",
+                  width: currentIndex === index ? 20 : 8,
+                  height: 8,
+                  borderRadius: "4px",
+                  backgroundColor:
+                    currentIndex === index
+                      ? theme.palette.primary.main
+                      : alpha(theme.palette.common.white, 0.6),
+                  boxShadow: `0 0 0 1px ${alpha(theme.palette.common.black, 0.25)}`,
+                  transition: `all ${theme.motion.duration.base}ms ${theme.motion.easing.standard}`,
+                },
               }}
             />
           ))}
@@ -234,8 +253,8 @@ export default function PhotoCarousel({ photos = [], maxWidth = 800, height }) {
             right: 8,
             px: 1,
             py: 0.5,
-            backgroundColor: "rgba(0, 0, 0, 0.5)",
-            color: "white",
+            backgroundColor: (t) => alpha(t.palette.common.black, 0.6),
+            color: "common.white",
             zIndex: 2,
           }}
         >

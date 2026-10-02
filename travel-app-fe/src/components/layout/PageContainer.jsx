@@ -1,4 +1,4 @@
-import { Box, Chip, Container, Stack, Typography } from "@mui/material";
+import { Box, Chip, Container, Stack, Typography, alpha } from "@mui/material";
 
 export default function PageContainer({
   eyebrow,
@@ -23,9 +23,10 @@ export default function PageContainer({
           position: "absolute",
           inset: 0,
           background: (theme) =>
-            theme.palette.mode === "dark"
-              ? `radial-gradient(circle at 12% 0%, rgba(50,184,198,0.12), transparent 34%), ${theme.palette.background.default}`
-              : `radial-gradient(circle at 12% 0%, rgba(33,128,141,0.09), transparent 34%), ${theme.palette.background.default}`,
+            `radial-gradient(circle at 12% 0%, ${alpha(
+              theme.palette.primary.main,
+              theme.palette.mode === "dark" ? 0.12 : 0.09
+            )}, transparent 34%), ${theme.palette.background.default}`,
           zIndex: 0,
         },
       }}

@@ -8,8 +8,8 @@ import {
   Stack,
   TextField,
   Typography,
+  Button,
 } from "@mui/material";
-import Button from "../common/Button";
 import AuthShell from "../layout/AuthShell";
 import useNotification from "../../hooks/useNotification";
 import { sendPasswordReset } from "../../services/auth";
@@ -112,7 +112,7 @@ export default function ForgotPassword() {
               <ListItem
                 key={text}
                 sx={{
-                  border: "1px solid rgba(94,82,64,0.12)",
+                  border: (theme) => `1px solid ${theme.palette.border.subtle}`,
                   borderRadius: 2,
                   alignItems: "flex-start",
                   gap: 2,

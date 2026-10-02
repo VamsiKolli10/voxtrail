@@ -10,14 +10,13 @@ import {
   Typography,
   Fade,
   Grow,
-  Button as MuiButton,
+  Button,
   useTheme,
   alpha,
 } from "@mui/material";
 import { styled } from "@mui/material/styles";
 import { motion, AnimatePresence } from "framer-motion";
 import PageContainer from "../layout/PageContainer";
-import Button from "../common/Button";
 import { ModuleCard, ModuleCardGrid } from "../common/ModuleCard";
 import { fetchProfile } from "../../services/user";
 import { setUser } from "../../store/slices/authSlice";
@@ -92,42 +91,42 @@ export default function Dashboard() {
       description: "Quick two‑pane translator with history.",
       icon: "🌐",
       path: "/translation",
-      color: "#21808d",
+      color: theme.palette.accent.teal,
     },
     {
       title: "Phrasebook",
       description: "Curate and organize common phrases by category.",
       icon: "📚",
       path: "/phrasebook",
-      color: "#4a9ba8",
+      color: theme.palette.accent.sky,
     },
     {
       title: "Destinations",
       description: "Explore popular places, trails, and museums.",
       icon: "📍",
       path: "/destinations",
-      color: "#7b1fa2",
+      color: theme.palette.accent.violet,
     },
     {
       title: "Cultural Guide",
       description: "Learn greetings, etiquette, and local customs.",
       icon: "🏛️",
       path: "/cultural-guide",
-      color: "#f57c00",
+      color: theme.palette.accent.amber,
     },
     {
       title: "Stays",
       description: "Browse accommodations with ratings and amenities.",
       icon: "🏨",
       path: "/stays",
-      color: "#388e3c",
+      color: theme.palette.accent.green,
     },
     {
       title: "Emergency",
       description: "Find local emergency contacts and tips.",
       icon: "🚨",
       path: "/emergency",
-      color: "#d32f2f",
+      color: theme.palette.accent.red,
     },
   ];
 
@@ -202,7 +201,8 @@ export default function Dashboard() {
             sx={{
               borderRadius: 3,
               background:
-                "linear-gradient(135deg, rgba(33,128,141,0.08), rgba(94,82,64,0.08))",
+                (theme) =>
+                  `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.08)}, ${alpha(theme.palette.secondary.main, 0.08)})`,
               overflow: "visible",
               position: "relative",
               "&::after": {
@@ -310,12 +310,12 @@ export default function Dashboard() {
                     onClick={() => navigate(card.path)}
                     sx={{
                       backgroundColor: theme.palette.background.paper,
-                      border: "1px solid rgba(94,82,64,0.12)",
+                      border: (theme) => `1px solid ${theme.palette.border.subtle}`,
                       transition: "all 0.3s ease",
                       overflow: "hidden",
                       position: "relative",
                       minHeight: 220,
-                      borderRadius: 24,
+                      borderRadius: "24px",
                       [theme.breakpoints.down("sm")]: {
                         minHeight: 200,
                       },
@@ -398,7 +398,7 @@ export default function Dashboard() {
         >
           <ModuleCard
             sx={{
-              border: "1px solid rgba(94,82,64,0.12)",
+              border: (theme) => `1px solid ${theme.palette.border.subtle}`,
               backgroundColor: theme.palette.background.paper,
               position: "relative",
               overflow: "hidden",
@@ -409,7 +409,8 @@ export default function Dashboard() {
                 left: 0,
                 right: 0,
                 height: 4,
-                background: "linear-gradient(90deg, #21808d, #4a9ba8, #21808d)",
+                background: (theme) =>
+                  `linear-gradient(90deg, ${theme.palette.primary.main}, ${theme.palette.primary.light}, ${theme.palette.primary.main})`,
                 backgroundSize: "200% 200%",
                 animation: "gradient 3s ease infinite",
                 "@keyframes gradient": {
@@ -442,10 +443,10 @@ export default function Dashboard() {
                         sx={{
                           p: 1.5,
                           borderRadius: 2,
-                          backgroundColor: "rgba(33,128,141,0.08)",
+                          backgroundColor: "surface.tint",
                           transition: "all 0.2s ease",
                           "&:hover": {
-                            backgroundColor: "rgba(33,128,141,0.12)",
+                            backgroundColor: (theme) => alpha(theme.palette.primary.main, 0.12),
                             transform: "translateX(4px)",
                           },
                         }}
@@ -482,7 +483,7 @@ export default function Dashboard() {
 
           <ModuleCard
             sx={{
-              border: "1px solid rgba(94,82,64,0.12)",
+              border: (theme) => `1px solid ${theme.palette.border.subtle}`,
               backgroundColor: theme.palette.background.paper,
             }}
           >
@@ -520,11 +521,11 @@ export default function Dashboard() {
                       sx={{
                         p: 1.25,
                         borderRadius: 2,
-                        border: "1px solid rgba(94,82,64,0.12)",
-                        backgroundColor: "rgba(94,82,64,0.04)",
+                        border: (theme) => `1px solid ${theme.palette.border.subtle}`,
+                        backgroundColor: "action.hover",
                         transition: "all 0.2s ease",
                         "&:hover": {
-                          borderColor: "rgba(94,82,64,0.3)",
+                          borderColor: "border.strong",
                           boxShadow: theme.shadows[2],
                           transform: "translateX(4px)",
                         },

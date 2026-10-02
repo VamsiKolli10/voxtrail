@@ -9,7 +9,7 @@ const MAP_STYLE_URL =
 const DEFAULT_CENTER = [0, 20];
 const DEFAULT_ZOOM = 2;
 
-export default function MapView({
+export default function StaysMap({
   items = [],
   loading = false,
   interactive = true,
@@ -158,7 +158,7 @@ export default function MapView({
         sx={{
           width: "100%",
           height: "100%",
-          "& .maplibregl-canvas": { borderRadius: 8 },
+          "& .maplibregl-canvas": { borderRadius: "8px" },
         }}
       />
 
@@ -171,7 +171,7 @@ export default function MapView({
             alignItems: "center",
             justifyContent: "center",
             backdropFilter: "blur(2px)",
-            backgroundColor: "rgba(255,255,255,0.6)",
+            backgroundColor: "surface.glass",
           }}
         >
           <CircularProgress />

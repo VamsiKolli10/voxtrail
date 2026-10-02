@@ -69,7 +69,7 @@ export default function AuthShell({
                 onClick={toggleMode}
                 sx={{
                   borderRadius: 2,
-                  border: "1px solid rgba(94,82,64,0.16)",
+                  border: (theme) => `1px solid ${theme.palette.border.subtle}`,
                   backgroundColor: "background.paper",
                 }}
               >
@@ -82,9 +82,8 @@ export default function AuthShell({
             sx={{
               borderRadius: 3,
               p: { xs: 3, sm: 4 },
-              border: "1px solid rgba(94, 82, 64, 0.12)",
-              boxShadow:
-                "0 15px 30px rgba(33, 128, 141, 0.08), 0 4px 8px rgba(19, 52, 59, 0.05)",
+              border: (theme) => `1px solid ${theme.palette.border.subtle}`,
+              boxShadow: (theme) => theme.customShadows.card,
               backgroundColor: "background.paper",
               color: "text.primary",
             }}

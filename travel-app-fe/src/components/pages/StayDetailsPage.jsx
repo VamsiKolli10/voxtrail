@@ -29,7 +29,7 @@ import {
   Bookmark as BookmarkFilledIcon,
 } from "@mui/icons-material";
 import { getStay } from "../../services/stays";
-import MapView from "../stays/MapView";
+import StaysMap from "../stays/StaysMap";
 import PhotoCarousel from "../stays/PhotoCarousel";
 import { useAnalytics } from "../../contexts/AnalyticsContext.jsx";
 
@@ -257,7 +257,7 @@ export default function StayDetailsPage() {
                     }}
                   >
                     <Box sx={{ flex: 1, minWidth: 0 }}>
-                      <Typography variant="h5" sx={{ fontWeight: 600, mb: 1 }}>
+                      <Typography component="h1" variant="h5" sx={{ mb: 1 }}>
                         {data.name}
                       </Typography>
                       <Box
@@ -289,7 +289,7 @@ export default function StayDetailsPage() {
                             gap: 0.5,
                           }}
                         >
-                          <StarIcon sx={{ fontSize: 18, color: "#ffc107" }} />
+                          <StarIcon sx={{ fontSize: 18, color: "rating.main" }} />
                           <Typography sx={{ fontWeight: 600 }}>
                             {data.rating.toFixed(1)}
                           </Typography>
@@ -394,7 +394,7 @@ export default function StayDetailsPage() {
                                 }}
                               >
                                 <StarIcon
-                                  sx={{ fontSize: 14, color: "#ffc107" }}
+                                  sx={{ fontSize: 14, color: "rating.main" }}
                                 />
                                 <Typography
                                   variant="body2"
@@ -499,7 +499,7 @@ export default function StayDetailsPage() {
                   </Typography>
                   <Card>
                     <Box sx={{ height: 350 }}>
-                      <MapView
+                      <StaysMap
                         items={[{ location: data.location, name: data.name }]}
                         loading={false}
                       />

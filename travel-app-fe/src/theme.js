@@ -1,8 +1,26 @@
 import { alpha, createTheme } from "@mui/material/styles";
 
+/**
+ * VoxTrail theme — single source of truth for design tokens.
+ * See /DESIGN_SYSTEM.md for usage rules.
+ *
+ * Custom (non-MUI) tokens exposed on the theme:
+ *   palette.border.{subtle,strong}         hairlines and card outlines
+ *   palette.surface.{glass,tint,soft}      translucent / tinted surfaces
+ *   palette.marketing.*                    Landing page surfaces
+ *   theme.radius.{sm,md,lg,xl,pill}        px values (use `${theme.radius.md}px`)
+ *   theme.motion.{duration,easing}         transition timing
+ *   theme.customShadows.*                  elevation levels
+ *
+ * shape.borderRadius is 4, so numeric sx radii follow MUI defaults:
+ *   sx={{ borderRadius: 2 }} → 8px, 3 → 12px, 4 → 16px.
+ */
+
+const FONT_STACK =
+  '"DM Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+
 const typography = {
-  fontFamily:
-    '"DM Sans", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+  fontFamily: FONT_STACK,
   h1: {
     fontSize: "2.75rem",
     fontWeight: 800,
@@ -15,46 +33,44 @@ const typography = {
     lineHeight: 1.2,
     letterSpacing: "-0.035em",
   },
-  h3: {
-    fontSize: "1.75rem",
-    fontWeight: 700,
-    lineHeight: 1.25,
+  h3: { fontSize: "1.75rem", fontWeight: 700, lineHeight: 1.25 },
+  h4: { fontSize: "1.5rem", fontWeight: 700, lineHeight: 1.3 },
+  h5: { fontSize: "1.25rem", fontWeight: 700, lineHeight: 1.35 },
+  h6: { fontSize: "1.125rem", fontWeight: 600, lineHeight: 1.4 },
+  body1: { fontSize: "1rem", lineHeight: 1.6 },
+  body2: { fontSize: "0.95rem", lineHeight: 1.55 },
+};
+
+export const radius = { sm: 8, md: 12, lg: 20, xl: 24, pill: 999 };
+
+export const motion = {
+  duration: { fast: 150, base: 250, slow: 400 },
+  easing: {
+    standard: "cubic-bezier(0.16, 1, 0.3, 1)",
+    ease: "ease",
   },
-  h4: {
-    fontSize: "1.5rem",
-    fontWeight: 700,
-    lineHeight: 1.3,
-  },
-  h5: {
-    fontSize: "1.25rem",
-    fontWeight: 700,
-    lineHeight: 1.35,
-  },
-  h6: {
-    fontSize: "1.125rem",
-    fontWeight: 700,
-    lineHeight: 1.4,
-  },
-  body1: {
-    fontSize: "1rem",
-    lineHeight: 1.6,
-  },
-  body2: {
-    fontSize: "0.95rem",
-    lineHeight: 1.55,
-  },
+};
+
+const BRAND = {
+  teal: "#21808D",
+  tealLight: "#32B8C6",
+  tealDark: "#1D7480",
+  warm: "#5E5240",
+  warmLight: "#A37E52",
+  ink: "#13343B",
+  mist: "#EDF2F3",
 };
 
 function buildPalette(mode = "light") {
   const isDark = mode === "dark";
   return {
     mode,
-    luxury: isDark
+    marketing: isDark
       ? {
           background: "#0F1C22",
           backgroundSoft: "#13252E",
           surface: "#162A33",
-          accent: "#32B8C6",
+          accent: BRAND.tealLight,
           textPrimary: "#E6EEF1",
           textSecondary: "#B1C1C6",
         }
@@ -62,20 +78,28 @@ function buildPalette(mode = "light") {
           background: "#F6F9FB",
           backgroundSoft: "#EEF3F6",
           surface: "#FFFFFF",
-          accent: "#21808D",
+          accent: BRAND.teal,
           textPrimary: "#0F1D23",
           textSecondary: "#627079",
         },
-    primary: {
-      main: "#21808D",
-      light: "#32B8C6",
-      dark: "#1D7480",
-      contrastText: "#FCFCF9",
-    },
+    // In dark mode the brand teal is lifted so text/links keep ≥4.5:1 contrast.
+    primary: isDark
+      ? {
+          main: BRAND.tealLight,
+          light: "#6FD3DE",
+          dark: BRAND.teal,
+          contrastText: "#0D1F24",
+        }
+      : {
+          main: BRAND.teal,
+          light: BRAND.tealLight,
+          dark: BRAND.tealDark,
+          contrastText: "#FCFCF9",
+        },
     secondary: {
-      main: "#5E5240",
-      light: "#A37E52",
-      dark: "#1F2121",
+      main: BRAND.warm,
+      light: BRAND.warmLight,
+      dark: "#3F362A",
       contrastText: "#FCFCF9",
     },
     background: {
@@ -83,37 +107,92 @@ function buildPalette(mode = "light") {
       paper: isDark ? "#102027" : "#FFFFFD",
     },
     text: {
-      primary: isDark ? "#EDF2F3" : "#13343B",
-      secondary: isDark ? alpha("#EDF2F3", 0.75) : "#626C71",
+      primary: isDark ? BRAND.mist : BRAND.ink,
+      secondary: isDark ? alpha(BRAND.mist, 0.75) : "#626C71",
     },
-    divider: isDark ? alpha("#EDF2F3", 0.16) : alpha("#21808D", 0.18),
-    error: {
-      main: "#C0152F",
-      light: "#FF5459",
+    divider: isDark ? alpha(BRAND.mist, 0.16) : alpha(BRAND.teal, 0.18),
+    border: {
+      subtle: isDark ? alpha(BRAND.mist, 0.12) : alpha(BRAND.warm, 0.12),
+      strong: isDark ? alpha(BRAND.mist, 0.24) : alpha(BRAND.warm, 0.24),
     },
-    warning: {
-      main: "#A84B2F",
-      light: "#E68161",
+    surface: {
+      glass: isDark ? alpha("#102027", 0.82) : alpha("#FFFFFF", 0.9),
+      tint: isDark ? alpha(BRAND.tealLight, 0.12) : alpha(BRAND.teal, 0.08),
+      soft: isDark ? "#13252E" : "#EEF3F6",
     },
-    success: {
-      main: "#21808D",
-      light: "#32B8C6",
-    },
-    info: {
-      main: "#626C71",
-    },
+    error: isDark
+      ? { main: "#FF6B6F", light: "#FF9A9D", dark: "#C0152F" }
+      : { main: "#C0152F", light: "#FF5459", dark: "#8E0F22" },
+    warning: isDark
+      ? { main: "#E8A23A", light: "#F2C27A", dark: "#9A5B13" }
+      : { main: "#9A5B13", light: "#E8A23A", dark: "#6E400D" },
+    success: isDark
+      ? { main: "#5CC98A", light: "#8FDCAE", dark: "#2E7D4F" }
+      : { main: "#2E7D4F", light: "#5CC98A", dark: "#1F5A38" },
+    info: isDark ? { main: "#A9B6BB" } : { main: "#626C71" },
+    rating: { main: "#F5B301" },
+    // Categorical accents for feature tiles / service types. Not for text on
+    // tinted backgrounds in light mode unless checked for contrast.
+    accent: isDark
+      ? {
+          teal: BRAND.tealLight,
+          sky: "#7CC6D1",
+          violet: "#C792EA",
+          amber: "#F2A65A",
+          green: "#7BC98F",
+          red: "#FF7A7A",
+          blue: "#7AB4F5",
+        }
+      : {
+          teal: BRAND.teal,
+          sky: "#2F7F8C",
+          violet: "#7B1FA2",
+          amber: "#B45309",
+          green: "#2E7D32",
+          red: "#C62828",
+          blue: "#1565C0",
+        },
+  };
+}
+
+function buildShadows(mode) {
+  const isDark = mode === "dark";
+  return {
+    card: isDark
+      ? "0 25px 60px -40px rgba(3, 6, 12, 0.85)"
+      : "0 18px 55px -35px rgba(12, 32, 44, 0.22)",
+    cardHover: isDark
+      ? "0 28px 65px -38px rgba(5, 9, 16, 0.9)"
+      : "0 22px 60px -32px rgba(10, 48, 62, 0.25)",
+    button: `0 12px 24px -14px ${alpha(BRAND.teal, 0.8)}`,
+    buttonHover: `0 22px 45px -18px ${alpha(BRAND.teal, 0.65)}`,
+    appBar: isDark
+      ? "0 18px 55px -30px rgba(2, 8, 18, 0.8)"
+      : "0 18px 45px -30px rgba(12, 32, 44, 0.18)",
+    // Large, soft elevation for marketing/landing panels.
+    section: isDark
+      ? "0 30px 80px -48px rgba(2, 8, 18, 0.85)"
+      : "0 24px 70px -45px rgba(12, 32, 44, 0.45)",
+    overlay: isDark
+      ? "0 8px 24px rgba(0, 0, 0, 0.45)"
+      : "0 8px 24px rgba(12, 32, 44, 0.14)",
   };
 }
 
 export function createAppTheme(mode = "light") {
   const palette = buildPalette(mode);
+  const customShadows = buildShadows(mode);
+  const transition = (props, duration = motion.duration.base) =>
+    props.map((p) => `${p} ${duration}ms ${motion.easing.standard}`).join(", ");
+
   return createTheme({
     palette,
     typography,
-    shape: {
-      borderRadius: 16,
-    },
+    shape: { borderRadius: 4 },
     spacing: 8,
+    radius,
+    motion,
+    customShadows,
     components: {
       MuiCssBaseline: {
         styleOverrides: {
@@ -121,8 +200,18 @@ export function createAppTheme(mode = "light") {
             fontFamily: typography.fontFamily,
             backgroundColor: palette.background.default,
             color: palette.text.primary,
-            transition: "background-color 250ms ease, color 250ms ease",
+            transition: `background-color ${motion.duration.base}ms ease, color ${motion.duration.base}ms ease`,
           },
+        },
+      },
+      MuiPaper: {
+        styleOverrides: {
+          rounded: { borderRadius: radius.lg - 4 },
+        },
+      },
+      MuiAlert: {
+        styleOverrides: {
+          root: { borderRadius: radius.md },
         },
       },
       MuiButton: {
@@ -130,16 +219,14 @@ export function createAppTheme(mode = "light") {
           root: {
             textTransform: "none",
             fontWeight: 700,
-            borderRadius: 999,
+            borderRadius: radius.pill,
             padding: "11px 20px",
-            transition: "all 250ms cubic-bezier(0.16, 1, 0.3, 1)",
+            transition: transition(["all"]),
             fontFamily: typography.fontFamily,
           },
           contained: {
-            boxShadow: "0 12px 24px -14px rgba(33, 128, 141, 0.8)",
-            "&:hover": {
-              boxShadow: "0 22px 45px -18px rgba(33, 128, 141, 0.65)",
-            },
+            boxShadow: customShadows.button,
+            "&:hover": { boxShadow: customShadows.buttonHover },
           },
           outlined: {
             borderColor: palette.divider,
@@ -152,20 +239,14 @@ export function createAppTheme(mode = "light") {
       MuiCard: {
         styleOverrides: {
           root: ({ theme }) => ({
-            borderRadius: 20,
+            borderRadius: radius.lg,
             border: `1px solid ${alpha(theme.palette.divider, 0.9)}`,
-            boxShadow:
-              theme.palette.mode === "dark"
-                ? "0 25px 60px -40px rgba(3, 6, 12, 0.85)"
-                : "0 18px 55px -35px rgba(12, 32, 44, 0.22)",
+            boxShadow: customShadows.card,
             backgroundImage: "none",
-            transition: "transform 200ms ease, box-shadow 200ms ease",
+            transition: `transform ${motion.duration.fast + 50}ms ease, box-shadow ${motion.duration.fast + 50}ms ease`,
             "&:hover": {
               transform: "translateY(-2px)",
-              boxShadow:
-                theme.palette.mode === "dark"
-                  ? "0 28px 65px -38px rgba(5, 9, 16, 0.9)"
-                  : "0 22px 60px -32px rgba(10, 48, 62, 0.25)",
+              boxShadow: customShadows.cardHover,
             },
           }),
         },
@@ -174,7 +255,7 @@ export function createAppTheme(mode = "light") {
         styleOverrides: {
           root: ({ theme }) => ({
             "& .MuiOutlinedInput-root": {
-              borderRadius: 12,
+              borderRadius: radius.md,
               "&:hover .MuiOutlinedInput-notchedOutline": {
                 borderColor: alpha(theme.palette.primary.main, 0.3),
               },
@@ -192,10 +273,7 @@ export function createAppTheme(mode = "light") {
             backgroundColor: alpha(theme.palette.background.paper, 0.95),
             borderBottom: `1px solid ${alpha(theme.palette.divider, 0.8)}`,
             backdropFilter: "blur(16px)",
-            boxShadow:
-              theme.palette.mode === "dark"
-                ? "0 18px 55px -30px rgba(2, 8, 18, 0.8)"
-                : "0 18px 45px -30px rgba(12, 32, 44, 0.18)",
+            boxShadow: customShadows.appBar,
           }),
         },
       },
@@ -209,9 +287,7 @@ export function createAppTheme(mode = "light") {
       },
       MuiTypography: {
         styleOverrides: {
-          root: {
-            fontFamily: typography.fontFamily,
-          },
+          root: { fontFamily: typography.fontFamily },
         },
       },
     },

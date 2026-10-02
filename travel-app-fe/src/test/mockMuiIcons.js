@@ -77,3 +77,6 @@ export const ViewWeek = MockIcon;
 export const Visibility = MockIcon;
 export const VisibilityOff = MockIcon;
 export const VolumeUp = MockIcon;
+export const AccountBalance = MockIcon;
+export const Emergency = MockIcon;
+export const MoreHoriz = MockIcon;

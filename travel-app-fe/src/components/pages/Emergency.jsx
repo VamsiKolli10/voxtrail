@@ -14,6 +14,9 @@ import {
   TextField,
   Tooltip,
   Typography,
+  useTheme,
+  alpha,
+  Button,
 } from "@mui/material";
 import {
   ContentCopy as CopyIcon,
@@ -21,7 +24,6 @@ import {
   Search as SearchIcon,
 } from "@mui/icons-material";
 import PageContainer from "../layout/PageContainer";
-import Button from "../common/Button";
 import emergencyNumbersByCountry from "../../data/emergencyNumbersByCountry";
 import emergencyLocationAliases from "../../data/emergencyLocationAliases";
 import useTravelContext from "../../hooks/useTravelContext";
@@ -51,12 +53,13 @@ const emergencyTips = [
 ];
 
 const SERVICE_META = [
-  { id: "police", label: "Police", icon: "🚓", color: "#1976d2" },
-  { id: "ambulance", label: "Ambulance", icon: "🚑", color: "#d32f2f" },
-  { id: "fire", label: "Fire", icon: "🚒", color: "#ff9800" },
+  { id: "police", label: "Police", icon: "🚓", accent: "blue" },
+  { id: "ambulance", label: "Ambulance", icon: "🚑", accent: "red" },
+  { id: "fire", label: "Fire", icon: "🚒", accent: "amber" },
 ];
 
 export default function Emergency() {
+  const theme = useTheme();
   const [activeCall, setActiveCall] = useState(null);
   const [countryQuery, setCountryQuery] = useState("");
   const [searchError, setSearchError] = useState("");
@@ -415,9 +418,9 @@ export default function Emergency() {
       number: searchedEntry[service.id] || "",
       icon: service.icon,
       description: `${service.label} response in ${searchedEntry.country}`,
-      color: service.color,
+      color: theme.palette.accent[service.accent],
     }));
-  }, [searchedEntry]);
+  }, [searchedEntry, theme]);
 
   const handleCall = (contact) => {
     if (!contact.number) return;
@@ -446,8 +449,8 @@ export default function Emergency() {
           icon={false}
           sx={{
             borderRadius: 3,
-            border: "1px solid rgba(255, 152, 0, 0.3)",
-            background: "rgba(255, 152, 0, 0.12)",
+            border: (t) => `1px solid ${alpha(t.palette.warning.main, 0.3)}`,
+            backgroundColor: (t) => alpha(t.palette.warning.main, 0.12),
           }}
         >
           <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
@@ -472,7 +475,7 @@ export default function Emergency() {
                     sx={{
                       height: "100%",
                       borderRadius: 3,
-                      backgroundColor: "rgba(33,128,141,0.05)",
+                      backgroundColor: "surface.tint",
                     }}
                   >
                     <CardContent
@@ -555,7 +558,9 @@ export default function Emergency() {
                   renderValue: (selected) => {
                     if (!selected) {
                       return (
-                        <span style={{ color: "#999" }}>Select a country</span>
+                        <Box component="span" sx={{ color: "text.secondary" }}>
+                          Select a country
+                        </Box>
                       );
                     }
                     return selected;
@@ -601,7 +606,7 @@ export default function Emergency() {
                 severity="info"
                 sx={{
                   borderRadius: 3,
-                  border: "1px solid rgba(33,128,141,0.2)",
+                  border: (theme) => `1px solid ${theme.palette.divider}`,
                 }}
               >
                 {searchError}
@@ -644,8 +649,8 @@ export default function Emergency() {
                           borderRadius: 3,
                           borderColor:
                             activeCall === contact.id
-                              ? "rgba(33,128,141,0.5)"
-                              : "rgba(94,82,64,0.12)",
+                              ? "primary.light"
+                              : "border.subtle",
                         }}
                       >
                         <CardContent
@@ -717,7 +722,7 @@ export default function Emergency() {
                                   disabled={disabled}
                                   sx={{
                                     borderRadius: 2,
-                                    border: "1px solid rgba(94,82,64,0.12)",
+                                    border: (theme) => `1px solid ${theme.palette.border.subtle}`,
                                   }}
                                 >
                                   <CopyIcon fontSize="small" />

@@ -1,6 +1,27 @@
 import "@testing-library/jest-dom";
 import { vi } from "vitest";
 
+// Render every component under the real app theme so tests see the same
+// design tokens (palette.border, customShadows, radius, …) as production.
+vi.mock("@testing-library/react", async (importOriginal) => {
+  const actual = await importOriginal();
+  const { createElement } = await import("react");
+  const { ThemeProvider } = await import("@mui/material/styles");
+  const { createAppTheme } = await import("../theme.js");
+  const theme = createAppTheme("light");
+  const ThemeWrapper = ({ children }) =>
+    createElement(ThemeProvider, { theme }, children);
+  const render = (ui, options = {}) => {
+    const Inner = options.wrapper;
+    const wrapper = Inner
+      ? ({ children }) =>
+          createElement(ThemeWrapper, null, createElement(Inner, null, children))
+      : ThemeWrapper;
+    return actual.render(ui, { ...options, wrapper });
+  };
+  return { ...actual, render };
+});
+
 const quiet =
   import.meta.env.MODE === "test" && process.env.VERBOSE_TEST_LOGS !== "true";
 

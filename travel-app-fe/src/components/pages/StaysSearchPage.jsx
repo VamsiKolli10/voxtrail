@@ -32,7 +32,7 @@ import {
 import { searchStays } from "../../services/stays";
 import FiltersSidebar from "../stays/FiltersSidebar";
 import ResultsList from "../stays/ResultsList";
-import MapView from "../stays/MapView";
+import StaysMap from "../stays/StaysMap";
 import { useAnalytics } from "../../contexts/AnalyticsContext.jsx";
 import { logRecentActivity } from "../../utils/recentActivity";
 import useTravelContext from "../../hooks/useTravelContext";
@@ -483,7 +483,7 @@ function StaysSearchPageBody() {
           {/* Header */}
           <Grid item xs={12}>
             <Stack spacing={1.5} sx={{ mb: 2 }}>
-              <Typography variant="h4" sx={{ fontWeight: 600 }}>
+              <Typography component="h1" variant="h4">
                 Find Accommodations
               </Typography>
               <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
@@ -776,7 +776,7 @@ function StaysSearchPageBody() {
                 {view === "map" && (
                   <Card>
                     <Box sx={{ height: { xs: 400, sm: 500, md: 600 } }}>
-                      <MapView items={items} loading={loading} />
+                      <StaysMap items={items} loading={loading} />
                     </Box>
                   </Card>
                 )}
@@ -811,7 +811,7 @@ function StaysSearchPageBody() {
                     <Grid item xs={12} md={6}>
                       <Card>
                         <Box sx={{ height: { xs: 400, sm: 500, md: 600 } }}>
-                          <MapView items={items} loading={loading} />
+                          <StaysMap items={items} loading={loading} />
                         </Box>
                       </Card>
                     </Grid>
@@ -870,8 +870,8 @@ function StaysSearchPageBody() {
           sx: {
             width: { xs: "100%", sm: "85%" },
             maxWidth: 420,
-            borderTopLeftRadius: 16,
-            borderBottomLeftRadius: 16,
+            borderTopLeftRadius: "16px",
+            borderBottomLeftRadius: "16px",
             p: 2,
           },
         }}

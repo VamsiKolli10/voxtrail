@@ -1,14 +1,8 @@
-@import url("https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&display=swap");
-
-@font-face {
-  font-family: "FKGroteskNeue";
-  src: url("https://r2cdn.perplexity.ai/fonts/FKGroteskNeue.woff2") format("woff2");
-  font-display: swap;
-}
+@import url("https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap");
 
 :root {
   color-scheme: light;
-  font-family: "DM Sans", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: "DM Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -18,12 +12,13 @@
 * { box-sizing: border-box; }
 html, body, #root { min-height: 100%; }
 html { scroll-behavior: smooth; }
-body { margin: 0; min-width: 320px; background: #f5f8f7; color: #102c32; }
+/* Colors come from the MUI theme (CssBaseline); these are pre-hydration fallbacks matching background.default / text.primary. */
+body { margin: 0; min-width: 320px; background: #fcfcf9; color: #13343b; }
 button, input, textarea, select { font: inherit; }
 a { color: inherit; }
 ::selection { background: rgba(33, 128, 141, 0.2); }
 *:focus-visible { outline: 3px solid rgba(33, 128, 141, 0.42); outline-offset: 3px; }
-.dark body { background: #0b1a1f; color: #edf4f3; }
+.dark body { background: #0d1f24; color: #edf2f3; }
 @media (max-width: 768px) { body { padding-bottom: 76px; } }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: 0.01ms !important; }

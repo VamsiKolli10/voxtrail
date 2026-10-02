@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
-import { Alert, CircularProgress, Stack, Typography } from "@mui/material";
+import { Alert, CircularProgress, Stack, Typography, Button } from "@mui/material";
 import AuthShell from "../layout/AuthShell";
-import Button from "../common/Button";
 
 function extractParams(searchParams, hashString) {
   const base = new URLSearchParams(searchParams);

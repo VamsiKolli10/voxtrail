@@ -554,6 +554,9 @@ export default function DiscoverPage() {
 
   return (
     <Container maxWidth="xl" sx={{ py: 3 }}>
+      <Typography component="h1" variant="h4" sx={{ mb: 2 }}>
+        Explore destinations
+      </Typography>
       <Paper
         sx={{
           p: 2,

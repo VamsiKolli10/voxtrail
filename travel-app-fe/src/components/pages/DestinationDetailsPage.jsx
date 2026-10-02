@@ -33,7 +33,7 @@ import {
   Map as MapIcon,
 } from "@mui/icons-material";
 import PhotoCarousel from "../stays/PhotoCarousel";
-import MapView from "../discover/MapView";
+import DestinationMap from "../discover/DestinationMap";
 import CulturalEtiquette from "./CulturalEtiquette";
 import useTravelContext from "../../hooks/useTravelContext";
 import { getPOIDetails } from "../../services/poi";
@@ -371,7 +371,7 @@ export default function DestinationDetailsPage() {
             Back to results
           </Button>
           <Box>
-            <Typography variant="h4" sx={{ fontWeight: 700, mb: 0.5 }}>
+            <Typography component="h1" variant="h4" sx={{ mb: 0.5 }}>
               {data.name}
             </Typography>
             {data.location?.address && (
@@ -443,7 +443,7 @@ export default function DestinationDetailsPage() {
                   Map & directions
                 </Typography>
                 <Box sx={{ height: 240 }}>
-                  <MapView
+                  <DestinationMap
                     items={[
                       {
                         id: data.id,

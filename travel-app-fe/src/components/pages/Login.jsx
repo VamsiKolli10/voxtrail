@@ -13,6 +13,7 @@ import {
   CircularProgress,
   useTheme,
   alpha,
+  Button,
 } from "@mui/material";
 import {
   Visibility as VisibilityIcon,
@@ -23,7 +24,6 @@ import {
 import { styled } from "@mui/material/styles";
 import { auth } from "../../firebase";
 import { signOut } from "firebase/auth";
-import Button from "../common/Button";
 import AuthShell from "../layout/AuthShell";
 import useNotification from "../../hooks/useNotification";
 import { loginWithEmail, resendEmailVerification } from "../../services/auth";
@@ -325,6 +325,7 @@ export default function Login() {
               {verificationEmail && (
                 <Box sx={{ mt: 1 }}>
                   <Button
+                    variant="contained"
                     size="small"
                     onClick={handleResendVerification}
                     startIcon={

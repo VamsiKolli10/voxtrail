@@ -11,12 +11,12 @@ import {
   Stack,
   TextField,
   Typography,
+  Button,
 } from "@mui/material";
 import {
   Visibility as VisibilityIcon,
   VisibilityOff as VisibilityOffIcon,
 } from "@mui/icons-material";
-import Button from "../common/Button";
 import AuthShell from "../layout/AuthShell";
 import useNotification from "../../hooks/useNotification";
 import { registerWithEmail } from "../../services/auth";
