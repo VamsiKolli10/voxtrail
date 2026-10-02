@@ -13,14 +13,20 @@
 | What | File |
 |------|------|
 | All tokens (palette, type, radius, motion, shadows) + MUI overrides | `src/theme.js` → `createAppTheme(mode)` |
-| Light/dark mode state | `src/contexts/AppearanceContext.jsx` → `useAppearance()` |
+| Light/dark mode state | `src/contexts/AppearanceContext.jsx` → `useAppearance()` (wraps MUI `useColorScheme`) |
+| Pre-load mode script (prevents dark-mode flash) | `public/theme-init.js` |
+| Lint rules | `.eslintrc.cjs` → `npm run lint` |
 | Global CSS (font load, focus ring, reduced motion) | `src/styles/global.css` |
 | Primary navigation items (desktop + mobile) | `src/components/layout/navItems.js` |
 | App-wide toasts | `src/contexts/NotificationContext.jsx` → `useNotify()` |
 | Transition strings from motion tokens | `transitionFor()` exported from `src/theme.js` |
 | Empty / zero-result states | `src/components/common/EmptyState.jsx` |
 
-Mode: `useAppearance()` returns `{ mode, setMode, toggleMode }`. Preference persists in `localStorage["stc:appearance"]`, falling back to `prefers-color-scheme`. **In components, branch on `theme.palette.mode` only** — the `html.dark` class and `html[data-theme]` attribute exist for plain CSS (`global.css`, `Landing.css`) and shouldn't be used from JS.
+Mode: light and dark are MUI **color schemes with CSS variables**. MUI sets `<html data-theme="light|dark">` and emits every palette token as a `--mui-palette-*` variable (e.g. `palette.marketing.glowStrong` → `var(--mui-palette-marketing-glowStrong)`). `useAppearance()` returns `{ mode, setMode, toggleMode }`. The preference persists in `localStorage["stc:appearance"]` and falls back to `prefers-color-scheme`. `public/theme-init.js` applies it before the bundle loads.
+
+- In JS, branch on `theme.palette.mode` (the theme passed to `sx`/`styled` is already the active scheme's).
+- In plain CSS, use `var(--mui-palette-…)`; only `[data-theme="dark"]` selectors if a value isn't a token.
+- Changing the storage key? Update `theme-init.js` too (a test checks they match).
 
 ## Tokens
 
@@ -59,10 +65,14 @@ All text-role pairs above meet WCAG AA (≥ 4.5:1) on their mode's `background.d
 | Token | Use |
 |-------|-----|
 | `marketing.background` / `backgroundSoft` / `surface` | Section bands |
-| `marketing.backdropTop` / `Mid` / `Bottom`, `glowStrong`, `glowSoft` | Page backdrop. Exposed to `Landing.css` as `--landing-*` CSS variables on `.landing-root` |
+| `marketing.backdropTop` / `Mid` / `Bottom`, `glowStrong`, `glowSoft` | Page backdrop; `Landing.css` reads them as `--mui-palette-marketing-*` |
 | `marketing.heroGradient`, `onHero`, `onHeroMuted`, `heroBorder` | The fixed dark-teal hero card (light text in both modes; ≥ 4.9:1) |
 | `marketing.ctaGradient` | Closing call-to-action panel |
 | `marketing.accent`, `textPrimary`, `textSecondary` | Legacy; prefer `primary.main` / `text.*` |
+
+### Color — Cultural Guide hero
+
+`palette.culture.{heroGradient, heroShadow, onHero, onHeroMuted, chipBorder, chipFill}` — fixed deep-blue panel with light text in both modes (muted text 5.8:1).
 
 ### Color — categorical accents
 
@@ -115,6 +125,8 @@ MUI 8px scale (`p: 2` = 16px).
 In `sx`: `borderRadius: 3` or `borderRadius: (t) => \`${t.radius.md}px\``. In `styled()`: `borderRadius: theme.radius.md` (plain px).
 
 ### Elevation — `theme.customShadows`
+
+Values are per scheme (`palette.elevation.*`); `theme.customShadows.*` are the matching CSS variables, so they switch with the mode without a re-render.
 
 | Token | Use for |
 |-------|---------|
@@ -346,13 +358,26 @@ Hardcoded color literals in components: **192 → 82 → 8** (3 white shimmer hi
 - **Components:** `EmptyState`; `PageContainer` `fullBleed` variant and `meta` slot. Stays, Explore and both detail pages now use `PageContainer`. Explore previously showed a blank grid with no results — it now has an empty state that differs before and after a search.
 - **Tests:** 127 passing (new: email verification, `EmptyState`, `PageContainer`).
 
+## Third pass
+
+On `design-system-fixes`:
+- **Lint:** `.eslintrc.cjs` + `npm run lint` (react, react-hooks). 0 errors; 9 `exhaustive-deps` warnings reviewed as intentional.
+- **Login:** the "account isn't verified yet — check <email>" guidance and resend button were never shown (including right after registering). Now an info alert.
+- **Explore:** search failures show an empty state with Try again (they were hidden); location errors are toasts; loading uses card skeletons.
+- **Stay details:** Location map restored (shown when coordinates exist).
+- **Cleanup:** unused imports/state removed; unwired code deleted (natural-language planner handler, reset-email resend handler, pitch setter, hero metrics prop).
+- **Tokens:** `palette.culture` for the Cultural Guide hero (body text was 3.8:1). Components contain no hardcoded colors.
+
+On `css-variables-theme` (branched from the above):
+- Light/dark moved to MUI `colorSchemes` + CSS variables; `AppearanceProvider` uses MUI's color-scheme manager (same storage key). Removed the `html.dark` class, manual storage/attribute effects, and `--landing-*` variables.
+- `theme-init.js` + a dark fallback in `global.css` remove the light flash for dark-mode users.
+- Tests: 156 passing. Test setup uses `createAppTheme("light", { cssVariables: false })` because jsdom can't parse `var()` inside border shorthands.
+
 ## Still open
 
 | Item | Notes |
 |------|-------|
-| Cultural Guide hero | Fixed blue gradient with white text (5 literals); could become a `marketing`-style token pair |
-| 55 `fontWeight: 600` overrides | On `subtitle*`/`body*` — legitimate emphasis, but worth a `subtitle2` weight review |
-| `transition: "all …"` | Now tokenized, but `all` animates layout properties; narrow to `transform`/`box-shadow`/`color` as files are touched |
-| Explore loading | Uses a spinner; should be card-shaped `Skeleton`s like Stays |
-| Three dark-mode mechanisms | Still set together by `AppearanceContext`; MUI CSS variables (`colorSchemes`) would remove the need for the hand-set `--landing-*` variables |
-| Unused code in pages | Lint flags unused imports/state in Discover, Landing, Phrasebook (e.g. `heroMetrics`, `handlePlanFromNL`) — pre-existing |
+| `transition: "all …"` | Tokenized, but `all` animates layout properties; narrow to `transform`/`box-shadow`/`color` |
+| 55 `fontWeight: 600` overrides | Mostly on `subtitle*`/`body*`; consider making 600 the `subtitle2` default |
+| `theme.palette.mode` branches in components | Work, but re-render on toggle. Where a value is a token, prefer `theme.vars` / `theme.applyStyles("dark", …)` so CSS alone switches it |
+| Visual QA | Not yet checked in a browser: Landing, Stays (sticky sidebar), Explore states, stay map, Login after registering, dark-mode load |
