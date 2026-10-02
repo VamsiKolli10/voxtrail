@@ -27,6 +27,7 @@ import {
   Add as AddIcon,
   FilterList as FilterIcon,
   DeleteSweep as DeleteIcon,
+  BookmarkBorder as EmptyBookmarkIcon,
 } from "@mui/icons-material";
 import { motion } from "framer-motion";
 import PageContainer from "../layout/PageContainer";
@@ -49,6 +50,7 @@ import {
 } from "../../constants/languages";
 import { logRecentActivity } from "../../utils/recentActivity";
 import { transitionFor } from "../../theme";
+import EmptyState from "../common/EmptyState";
 
 const COUNT_MARKS = [
   { value: 5, label: "5" },
@@ -1059,26 +1061,16 @@ export default function Phrasebook() {
                 ))}
               </AnimatedGrid>
             ) : (
-              <Box
-                sx={{
-                  textAlign: "center",
-                  py: 5,
-                  px: { xs: 2, md: 4 },
-                  backgroundColor: "surface.tint",
-                  borderRadius: 2,
-                }}
-              >
-                <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-                  {filter
-                    ? "No matching saved phrases"
-                    : "No saved phrases yet"}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  {filter
+              <EmptyState
+                icon={<EmptyBookmarkIcon />}
+                titleComponent="h3"
+                title={filter ? "No matching saved phrases" : "No saved phrases yet"}
+                description={
+                  filter
                     ? `No phrases match your filter "${filter}".`
-                    : "Generate a phrasebook and tap the bookmark icon to keep phrases handy."}
-                </Typography>
-              </Box>
+                    : "Generate a phrasebook and tap the bookmark icon to keep phrases handy."
+                }
+              />
             )}
           </CardContent>
         </AnimatedCard>

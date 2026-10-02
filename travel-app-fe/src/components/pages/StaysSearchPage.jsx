@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
   Box,
-  Container,
   Grid,
   ToggleButton,
   ToggleButtonGroup,
@@ -37,6 +36,7 @@ import { useAnalytics } from "../../contexts/AnalyticsContext.jsx";
 import { logRecentActivity } from "../../utils/recentActivity";
 import useTravelContext from "../../hooks/useTravelContext";
 import ErrorBoundary from "../common/ErrorBoundary";
+import PageContainer from "../layout/PageContainer";
 
 const PAGE_SIZE = 5;
 const BACKEND_FETCH_SIZE = 50; // request a larger page size so we can paginate on the client
@@ -470,318 +470,323 @@ function StaysSearchPageBody() {
   };
 
   return (
-    <Box
-      sx={{
-        backgroundColor: theme.palette.background.default,
-        minHeight: "calc(100vh - 64px)",
-        py: 3,
-        overflow: "auto",
-      }}
+    <PageContainer
+      variant="fullBleed"
+      title="Find Accommodations"
+      meta={
+        <>
+          <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+            <Chip
+              label={
+                destinationMeta?.display ||
+                destinationMeta?.city ||
+                destinationMeta?.query ||
+                (query.dest?.trim() ? query.dest : "All destinations")
+              }
+              color="primary"
+              variant="outlined"
+              sx={{ fontWeight: 600 }}
+            />
+            <Chip
+              label={
+                loading
+                  ? "Searching…"
+                  : totalResults
+                  ? `${totalResults} stays`
+                  : "No filters applied"
+              }
+              variant="outlined"
+            />
+            <Chip
+              label={`Page ${page} / ${totalPages}`}
+              variant="outlined"
+            />
+          </Stack>
+          {destinationMeta?.address && (
+            <Typography variant="body2" color="text.secondary">
+              Centered on {destinationMeta.address}
+            </Typography>
+          )}
+        </>
+      }
     >
-      <Container maxWidth="xl">
-        <Grid container spacing={3} flexDirection="column">
-          {/* Header */}
-          <Grid item xs={12}>
-            <Stack spacing={1.5} sx={{ mb: 2 }}>
-              <Typography component="h1" variant="h4">
-                Find Accommodations
-              </Typography>
-              <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                <Chip
-                  label={
-                    destinationMeta?.display ||
-                    destinationMeta?.city ||
-                    destinationMeta?.query ||
-                    (query.dest?.trim() ? query.dest : "All destinations")
-                  }
-                  color="primary"
-                  variant="outlined"
-                  sx={{ fontWeight: 600 }}
-                />
-                <Chip
-                  label={
-                    loading
-                      ? "Searching…"
-                      : totalResults
-                      ? `${totalResults} stays`
-                      : "No filters applied"
-                  }
-                  variant="outlined"
-                />
-                <Chip
-                  label={`Page ${page} / ${totalPages}`}
-                  variant="outlined"
-                />
-              </Stack>
-              {destinationMeta?.address && (
-                <Typography variant="body2" color="text.secondary">
-                  Centered on {destinationMeta.address}
-                </Typography>
-              )}
-            </Stack>
-          </Grid>
+      <Box
+        sx={{
+          display: "flex",
+          flexDirection: { xs: "column", md: "row" },
+          gap: { xs: 2, md: 3 },
+          alignItems: "flex-start",
+          width: "100%",
+        }}
+      >
+        {/* LEFT SIDEBAR - Filters */}
+        {!isMobile && filtersVisible && (
           <Box
             sx={{
-              display: "flex",
-              flexDirection: { xs: "column", md: "row" },
-              gap: { xs: 2, md: 3 },
-              alignItems: "flex-start",
-              width: "100%",
+              width: { md: 260, lg: 300 },
+              flexShrink: 0,
+              maxHeight: "calc(100vh - 120px)",
+              position: "sticky",
+              top: 20,
             }}
           >
-            {/* LEFT SIDEBAR - Filters */}
-            {!isMobile && filtersVisible && (
+            <Card>
+              <CardContent sx={{ p: 2.5 }}>
+                {/* Search Bar */}
+                <Box sx={{ mb: 2.5 }}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    placeholder="Destination"
+                    value={query.dest || ""}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setQuery((q) => ({
+                        ...q,
+                        dest: value,
+                        lat: undefined,
+                        lng: undefined,
+                      }));
+                    }}
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <SearchIcon sx={{ fontSize: 20 }} />
+                        </InputAdornment>
+                      ),
+                    }}
+                    variant="outlined"
+                  />
+                </Box>
+
+                {/* Distance */}
+                <Box sx={{ mb: 2.5 }}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    type="number"
+                    label="Distance (km)"
+                    value={query.distance || 3}
+                    onChange={(e) =>
+                      setQuery((q) => ({
+                        ...q,
+                        distance: Number(e.target.value),
+                      }))
+                    }
+                    variant="outlined"
+                  />
+                </Box>
+
+                {/* Action Buttons */}
+                <Box
+                  sx={{
+                    display: "flex",
+                    gap: 1,
+                    mb: 2.5,
+                    flexDirection: "column",
+                  }}
+                >
+                  <Button
+                    fullWidth
+                    variant="contained"
+                    onClick={() => {
+                      setPage(1);
+                      runSearch();
+                    }}
+                    disabled={loading}
+                    startIcon={
+                      loading ? (
+                        <CircularProgress size={20} />
+                      ) : (
+                        <SearchIcon />
+                      )
+                    }
+                  >
+                    Search
+                  </Button>
+                  <Button
+                    fullWidth
+                    variant="outlined"
+                    onClick={useMyLocation}
+                    disabled={loading}
+                    startIcon={<MyLocationIcon />}
+                  >
+                    My Location
+                  </Button>
+                </Box>
+
+                {/* Filters */}
+                <FiltersSidebar
+                  filters={filters}
+                  onChange={handleFilterChange}
+                  onApply={handleFiltersApply}
+                />
+              </CardContent>
+            </Card>
+          </Box>
+        )}
+
+        {/* RIGHT CONTENT */}
+        <Box
+          sx={{
+            flexGrow: 1,
+            width: "100%",
+            minWidth: 0,
+          }}
+        >
+          {/* Mobile Search Bar */}
+          {isMobile && (
+            <Card sx={{ mb: 2 }}>
+              <CardContent sx={{ p: 2 }}>
+                <Box sx={{ display: "flex", gap: 1, mb: 1.5 }}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    placeholder="Destination"
+                    value={query.dest || ""}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setQuery((q) => ({
+                        ...q,
+                        dest: value,
+                        lat: undefined,
+                        lng: undefined,
+                      }));
+                    }}
+                  />
+                  <Button
+                    variant="contained"
+                    onClick={() => {
+                      setPage(1);
+                      runSearch();
+                    }}
+                    disabled={loading}
+                    sx={{ px: 3 }}
+                  >
+                    {loading ? (
+                      <CircularProgress size={20} />
+                    ) : (
+                      <SearchIcon />
+                    )}
+                  </Button>
+                </Box>
+                <Button
+                  fullWidth
+                  variant="outlined"
+                  size="small"
+                  onClick={useMyLocation}
+                  disabled={loading}
+                  startIcon={<MyLocationIcon />}
+                >
+                  Use My Location
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* View Toggle */}
+          <Card sx={{ mb: 2.5 }}>
+            <CardContent
+              sx={{
+                p: 2,
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                flexWrap: "wrap",
+                gap: 2,
+              }}
+            >
+              <ToggleButtonGroup
+                value={view}
+                exclusive
+                onChange={(e, newView) => {
+                  if (newView) {
+                    setView(newView);
+                    syncUrl({ view: newView });
+                  }
+                }}
+                size="small"
+              >
+                <ToggleButton value="list" aria-label="list">
+                  <ListIcon sx={{ mr: 0.5 }} />
+                  List
+                </ToggleButton>
+                <ToggleButton value="map" aria-label="map">
+                  <MapIcon sx={{ mr: 0.5 }} />
+                  Map
+                </ToggleButton>
+              </ToggleButtonGroup>
+              <Button
+                variant={filtersVisible ? "outlined" : "contained"}
+                color="primary"
+                size="small"
+                onClick={() => setFiltersVisible((prev) => !prev)}
+                startIcon={<FilterListIcon sx={{ fontSize: 18 }} />}
+              >
+                {!isMobile
+                  ? filtersVisible
+                    ? "Hide filters"
+                    : `Show filters${
+                        appliedFiltersCount
+                          ? ` (${appliedFiltersCount})`
+                          : ""
+                      }`
+                  : `Filters${
+                      appliedFiltersCount ? ` (${appliedFiltersCount})` : ""
+                    }`}
+              </Button>
+              <Typography variant="body2" color="textSecondary">
+                {loading ? (
+                  <Box
+                    sx={{ display: "flex", alignItems: "center", gap: 1 }}
+                  >
+                    <CircularProgress size={16} />
+                    Searching...
+                  </Box>
+                ) : (
+                  `Page ${page} / ${totalPages}`
+                )}
+              </Typography>
+            </CardContent>
+          </Card>
+
+          {/* Error Alert */}
+          {error && (
+            <Alert
+              severity="error"
+              sx={{ mb: 2.5 }}
+              onClose={() => setError("")}
+            >
+              {error}
+            </Alert>
+          )}
+
+          {/* Content */}
+          <Box sx={{ minHeight: "500px", overflow: "hidden" }} ref={resultsTopRef}>
+            {view === "map" && (
+              <Card>
+                <Box sx={{ height: { xs: 400, sm: 500, md: 600 } }}>
+                  <StaysMap items={items} loading={loading} />
+                </Box>
+              </Card>
+            )}
+
+            {view === "list" && (
               <Box
                 sx={{
-                  width: { md: 260, lg: 300 },
-                  flexShrink: 0,
-                  maxHeight: "calc(100vh - 120px)",
-                  position: "sticky",
-                  top: 20,
+                  width: "100%",
+                  maxWidth: "100%",
+                  overflowX: "hidden",
+                  boxSizing: "border-box",
                 }}
               >
-                <Card>
-                  <CardContent sx={{ p: 2.5 }}>
-                    {/* Search Bar */}
-                    <Box sx={{ mb: 2.5 }}>
-                      <TextField
-                        fullWidth
-                        size="small"
-                        placeholder="Destination"
-                        value={query.dest || ""}
-                        onChange={(e) => {
-                          const value = e.target.value;
-                          setQuery((q) => ({
-                            ...q,
-                            dest: value,
-                            lat: undefined,
-                            lng: undefined,
-                          }));
-                        }}
-                        InputProps={{
-                          startAdornment: (
-                            <InputAdornment position="start">
-                              <SearchIcon sx={{ fontSize: 20 }} />
-                            </InputAdornment>
-                          ),
-                        }}
-                        variant="outlined"
-                      />
-                    </Box>
-
-                    {/* Distance */}
-                    <Box sx={{ mb: 2.5 }}>
-                      <TextField
-                        fullWidth
-                        size="small"
-                        type="number"
-                        label="Distance (km)"
-                        value={query.distance || 3}
-                        onChange={(e) =>
-                          setQuery((q) => ({
-                            ...q,
-                            distance: Number(e.target.value),
-                          }))
-                        }
-                        variant="outlined"
-                      />
-                    </Box>
-
-                    {/* Action Buttons */}
-                    <Box
-                      sx={{
-                        display: "flex",
-                        gap: 1,
-                        mb: 2.5,
-                        flexDirection: "column",
-                      }}
-                    >
-                      <Button
-                        fullWidth
-                        variant="contained"
-                        onClick={() => {
-                          setPage(1);
-                          runSearch();
-                        }}
-                        disabled={loading}
-                        startIcon={
-                          loading ? (
-                            <CircularProgress size={20} />
-                          ) : (
-                            <SearchIcon />
-                          )
-                        }
-                      >
-                        Search
-                      </Button>
-                      <Button
-                        fullWidth
-                        variant="outlined"
-                        onClick={useMyLocation}
-                        disabled={loading}
-                        startIcon={<MyLocationIcon />}
-                      >
-                        My Location
-                      </Button>
-                    </Box>
-
-                    {/* Filters */}
-                    <FiltersSidebar
-                      filters={filters}
-                      onChange={handleFilterChange}
-                      onApply={handleFiltersApply}
-                    />
-                  </CardContent>
-                </Card>
+                <ResultsList items={items} loading={loading} />
               </Box>
             )}
 
-            {/* RIGHT CONTENT */}
-            <Box
-              sx={{
-                flexGrow: 1,
-                width: "100%",
-                minWidth: 0,
-              }}
-            >
-              {/* Mobile Search Bar */}
-              {isMobile && (
-                <Card sx={{ mb: 2 }}>
-                  <CardContent sx={{ p: 2 }}>
-                    <Box sx={{ display: "flex", gap: 1, mb: 1.5 }}>
-                      <TextField
-                        fullWidth
-                        size="small"
-                        placeholder="Destination"
-                        value={query.dest || ""}
-                        onChange={(e) => {
-                          const value = e.target.value;
-                          setQuery((q) => ({
-                            ...q,
-                            dest: value,
-                            lat: undefined,
-                            lng: undefined,
-                          }));
-                        }}
-                      />
-                      <Button
-                        variant="contained"
-                        onClick={() => {
-                          setPage(1);
-                          runSearch();
-                        }}
-                        disabled={loading}
-                        sx={{ px: 3 }}
-                      >
-                        {loading ? (
-                          <CircularProgress size={20} />
-                        ) : (
-                          <SearchIcon />
-                        )}
-                      </Button>
-                    </Box>
-                    <Button
-                      fullWidth
-                      variant="outlined"
-                      size="small"
-                      onClick={useMyLocation}
-                      disabled={loading}
-                      startIcon={<MyLocationIcon />}
-                    >
-                      Use My Location
-                    </Button>
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* View Toggle */}
-              <Card sx={{ mb: 2.5 }}>
-                <CardContent
-                  sx={{
-                    p: 2,
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    flexWrap: "wrap",
-                    gap: 2,
-                  }}
-                >
-                  <ToggleButtonGroup
-                    value={view}
-                    exclusive
-                    onChange={(e, newView) => {
-                      if (newView) {
-                        setView(newView);
-                        syncUrl({ view: newView });
-                      }
-                    }}
-                    size="small"
-                  >
-                    <ToggleButton value="list" aria-label="list">
-                      <ListIcon sx={{ mr: 0.5 }} />
-                      List
-                    </ToggleButton>
-                    <ToggleButton value="map" aria-label="map">
-                      <MapIcon sx={{ mr: 0.5 }} />
-                      Map
-                    </ToggleButton>
-                  </ToggleButtonGroup>
-                  <Button
-                    variant={filtersVisible ? "outlined" : "contained"}
-                    color="primary"
-                    size="small"
-                    onClick={() => setFiltersVisible((prev) => !prev)}
-                    startIcon={<FilterListIcon sx={{ fontSize: 18 }} />}
-                  >
-                    {!isMobile
-                      ? filtersVisible
-                        ? "Hide filters"
-                        : `Show filters${
-                            appliedFiltersCount
-                              ? ` (${appliedFiltersCount})`
-                              : ""
-                          }`
-                      : `Filters${
-                          appliedFiltersCount ? ` (${appliedFiltersCount})` : ""
-                        }`}
-                  </Button>
-                  <Typography variant="body2" color="textSecondary">
-                    {loading ? (
-                      <Box
-                        sx={{ display: "flex", alignItems: "center", gap: 1 }}
-                      >
-                        <CircularProgress size={16} />
-                        Searching...
-                      </Box>
-                    ) : (
-                      `Page ${page} / ${totalPages}`
-                    )}
-                  </Typography>
-                </CardContent>
-              </Card>
-
-              {/* Error Alert */}
-              {error && (
-                <Alert
-                  severity="error"
-                  sx={{ mb: 2.5 }}
-                  onClose={() => setError("")}
-                >
-                  {error}
-                </Alert>
-              )}
-
-              {/* Content */}
-              <Box sx={{ minHeight: "500px", overflow: "hidden" }} ref={resultsTopRef}>
-                {view === "map" && (
-                  <Card>
-                    <Box sx={{ height: { xs: 400, sm: 500, md: 600 } }}>
-                      <StaysMap items={items} loading={loading} />
-                    </Box>
-                  </Card>
-                )}
-
-                {view === "list" && (
+            {view === "split" && (
+              <Grid container spacing={2} sx={{ overflowX: "hidden" }}>
+                <Grid item xs={12} md={6}>
                   <Box
                     sx={{
                       width: "100%",
@@ -792,76 +797,59 @@ function StaysSearchPageBody() {
                   >
                     <ResultsList items={items} loading={loading} />
                   </Box>
-                )}
-
-                {view === "split" && (
-                  <Grid container spacing={2} sx={{ overflowX: "hidden" }}>
-                    <Grid item xs={12} md={6}>
-                      <Box
-                        sx={{
-                          width: "100%",
-                          maxWidth: "100%",
-                          overflowX: "hidden",
-                          boxSizing: "border-box",
-                        }}
-                      >
-                        <ResultsList items={items} loading={loading} />
-                      </Box>
-                    </Grid>
-                    <Grid item xs={12} md={6}>
-                      <Card>
-                        <Box sx={{ height: { xs: 400, sm: 500, md: 600 } }}>
-                          <StaysMap items={items} loading={loading} />
-                        </Box>
-                      </Card>
-                    </Grid>
-                  </Grid>
-                )}
-              </Box>
-
-              {/* Pagination */}
-              {!loading && items.length > 0 && (
-                <Box
-                  sx={{
-                    mt: 3,
-                    display: "flex",
-                    justifyContent: "center",
-                    gap: 2,
-                    alignItems: "center",
-                    flexWrap: "wrap",
-                  }}
-                >
-                  <Button
-                    variant="outlined"
-                    disabled={page === 1}
-                    onClick={() => {
-                      const newPage = Math.max(1, page - 1);
-                      applyPage(newPage, allItems, query, filters, { scrollToTop: true });
-                    }}
-                  >
-                    Previous
-                  </Button>
-                  <Paper sx={{ px: 2, py: 1 }}>
-                    <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                      Page {page} / {totalPages}
-                    </Typography>
-                  </Paper>
-                  <Button
-                    variant="outlined"
-                    disabled={page >= totalPages}
-                    onClick={() => {
-                      const newPage = page + 1;
-                      applyPage(newPage, allItems, query, filters, { scrollToTop: true });
-                    }}
-                  >
-                    Next
-                  </Button>
-                </Box>
-              )}
-            </Box>
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <Card>
+                    <Box sx={{ height: { xs: 400, sm: 500, md: 600 } }}>
+                      <StaysMap items={items} loading={loading} />
+                    </Box>
+                  </Card>
+                </Grid>
+              </Grid>
+            )}
           </Box>
-        </Grid>
-      </Container>
+
+          {/* Pagination */}
+          {!loading && items.length > 0 && (
+            <Box
+              sx={{
+                mt: 3,
+                display: "flex",
+                justifyContent: "center",
+                gap: 2,
+                alignItems: "center",
+                flexWrap: "wrap",
+              }}
+            >
+              <Button
+                variant="outlined"
+                disabled={page === 1}
+                onClick={() => {
+                  const newPage = Math.max(1, page - 1);
+                  applyPage(newPage, allItems, query, filters, { scrollToTop: true });
+                }}
+              >
+                Previous
+              </Button>
+              <Paper sx={{ px: 2, py: 1 }}>
+                <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                  Page {page} / {totalPages}
+                </Typography>
+              </Paper>
+              <Button
+                variant="outlined"
+                disabled={page >= totalPages}
+                onClick={() => {
+                  const newPage = page + 1;
+                  applyPage(newPage, allItems, query, filters, { scrollToTop: true });
+                }}
+              >
+                Next
+              </Button>
+            </Box>
+          )}
+        </Box>
+      </Box>
       <Drawer
         anchor="right"
         open={isMobile && filtersVisible}
@@ -887,6 +875,6 @@ function StaysSearchPageBody() {
           />
         </Stack>
       </Drawer>
-    </Box>
+    </PageContainer>
   );
 }

@@ -1,39 +1,54 @@
 import { Box, Chip, Container, Stack, Typography, alpha } from "@mui/material";
 
+/**
+ * Standard frame for in-app pages: one <h1>, consistent padding and width.
+ *
+ * variant="default"   Content pages (Home, Translate, Phrasebook…): lg width,
+ *                     roomy padding, soft brand glow behind the header.
+ * variant="fullBleed" Tool/detail pages (Stays, Explore, details): xl width,
+ *                     tighter padding, no decoration, overflow visible so
+ *                     sticky sidebars and maps work.
+ */
 export default function PageContainer({
   eyebrow,
   title,
   subtitle,
+  meta,
   actions,
-  maxWidth = "lg",
+  variant = "default",
+  maxWidth,
   children,
   gap = 3,
   ...rest
 }) {
+  const fullBleed = variant === "fullBleed";
+  const hasHeader = eyebrow || title || subtitle || meta || actions;
+
   return (
     <Box
       sx={{
         width: "100%",
         position: "relative",
-        py: { xs: 4, md: 6 },
-        px: { xs: 0, md: 0 },
-        overflow: "hidden",
-        "&::before": {
-          content: '""',
-          position: "absolute",
-          inset: 0,
-          background: (theme) =>
-            `radial-gradient(circle at 12% 0%, ${alpha(
-              theme.palette.primary.main,
-              theme.palette.mode === "dark" ? 0.12 : 0.09
-            )}, transparent 34%), ${theme.palette.background.default}`,
-          zIndex: 0,
-        },
+        py: fullBleed ? { xs: 2, md: 3 } : { xs: 4, md: 6 },
+        overflow: fullBleed ? "visible" : "hidden",
+        ...(!fullBleed && {
+          "&::before": {
+            content: '""',
+            position: "absolute",
+            inset: 0,
+            background: (theme) =>
+              `radial-gradient(circle at 12% 0%, ${alpha(
+                theme.palette.primary.main,
+                theme.palette.mode === "dark" ? 0.12 : 0.09
+              )}, transparent 34%), ${theme.palette.background.default}`,
+            zIndex: 0,
+          },
+        }),
       }}
       {...rest}
     >
       <Container
-        maxWidth={maxWidth}
+        maxWidth={maxWidth ?? (fullBleed ? "xl" : "lg")}
         sx={{
           display: "flex",
           flexDirection: "column",
@@ -43,39 +58,38 @@ export default function PageContainer({
           zIndex: 1,
         }}
       >
-        {(eyebrow || title || subtitle || actions) && (
+        {hasHeader && (
           <Stack
             direction={{ xs: "column", md: "row" }}
             spacing={2}
             alignItems={{ xs: "flex-start", md: "center" }}
             justifyContent="space-between"
           >
-            <Box>
-              <Stack spacing={1}>
-                {eyebrow && (
-                  <Chip
-                    label={eyebrow}
-                    color="primary"
-                    variant="outlined"
-                    sx={{ alignSelf: "flex-start", fontWeight: 600 }}
-                  />
-                )}
-                {title && (
-                  <Typography
-                    component="h1"
-                    variant="h4"
-                    sx={{ fontWeight: 800, mb: subtitle ? 0.5 : 0, maxWidth: 720 }}
-                  >
-                    {title}
-                  </Typography>
-                )}
-                {subtitle && (
-                  <Typography variant="body1" color="text.secondary">
-                    {subtitle}
-                  </Typography>
-                )}
-              </Stack>
-            </Box>
+            <Stack spacing={1} sx={{ minWidth: 0 }}>
+              {eyebrow && (
+                <Chip
+                  label={eyebrow}
+                  color="primary"
+                  variant="outlined"
+                  sx={{ alignSelf: "flex-start", fontWeight: 600 }}
+                />
+              )}
+              {title && (
+                <Typography
+                  component="h1"
+                  variant="h4"
+                  sx={{ fontWeight: 800, mb: subtitle ? 0.5 : 0, maxWidth: 720 }}
+                >
+                  {title}
+                </Typography>
+              )}
+              {subtitle && (
+                <Typography variant="body1" color="text.secondary">
+                  {subtitle}
+                </Typography>
+              )}
+              {meta}
+            </Stack>
             {actions && (
               <Box
                 sx={{

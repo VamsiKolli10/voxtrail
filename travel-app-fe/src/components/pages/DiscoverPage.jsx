@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import {
   Box,
-  Container,
   Grid,
   Paper,
   TextField,
@@ -32,10 +31,13 @@ import {
   AccessTime as AccessTimeIcon,
   Public as PublicIcon,
   Launch as LaunchIcon,
+  TravelExplore as TravelExploreIcon,
 } from "@mui/icons-material";
 import { searchPOIs } from "../../services/poi";
 import { useAnalytics } from "../../contexts/AnalyticsContext.jsx";
 import useTravelContext from "../../hooks/useTravelContext";
+import EmptyState from "../common/EmptyState";
+import PageContainer from "../layout/PageContainer";
 
 const CATEGORY_CHIPS = [
   { key: "museum", label: "Museum", icon: "🖼️" },
@@ -553,10 +555,7 @@ export default function DiscoverPage() {
   // Inline itinerary generation removed
 
   return (
-    <Container maxWidth="xl" sx={{ py: 3 }}>
-      <Typography component="h1" variant="h4" sx={{ mb: 2 }}>
-        Explore destinations
-      </Typography>
+    <PageContainer variant="fullBleed" title="Explore destinations" gap={0}>
       <Paper
         sx={{
           p: 2,
@@ -822,6 +821,16 @@ export default function DiscoverPage() {
         <Box sx={{ py: 6, textAlign: "center" }}>
           <CircularProgress />
         </Box>
+      ) : results.length === 0 ? (
+        <EmptyState
+          icon={<TravelExploreIcon />}
+          title={hasSearched ? "No places found" : "Find places to explore"}
+          description={
+            hasSearched
+              ? "Try a different city or attraction, or remove some filters."
+              : "Search for a city, country, or attraction, or use your location to see what's nearby."
+          }
+        />
       ) : (
         <Box
           sx={{
@@ -933,6 +942,6 @@ export default function DiscoverPage() {
           ))}
         </Box>
       )}
-    </Container>
+    </PageContainer>
   );
 }

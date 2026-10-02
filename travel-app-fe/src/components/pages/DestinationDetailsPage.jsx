@@ -5,7 +5,6 @@ import {
   Box,
   Button,
   Chip,
-  Container,
   Divider,
   Grid,
   Link,
@@ -37,6 +36,7 @@ import DestinationMap from "../discover/DestinationMap";
 import CulturalEtiquette from "./CulturalEtiquette";
 import useTravelContext from "../../hooks/useTravelContext";
 import { getPOIDetails } from "../../services/poi";
+import PageContainer from "../layout/PageContainer";
 
 const titleCase = (value = "") =>
   value
@@ -274,7 +274,7 @@ export default function DestinationDetailsPage() {
 
   if (loading) {
     return (
-      <Container maxWidth="lg" sx={{ py: 4 }}>
+      <PageContainer variant="fullBleed" maxWidth="lg" gap={0}>
         <Skeleton variant="rounded" height={360} sx={{ mb: 3 }} />
         <Grid container spacing={3}>
           <Grid item xs={12} md={8}>
@@ -285,13 +285,13 @@ export default function DestinationDetailsPage() {
             <Skeleton variant="rounded" height={320} />
           </Grid>
         </Grid>
-      </Container>
+      </PageContainer>
     );
   }
 
   if (error) {
     return (
-      <Container maxWidth="sm" sx={{ py: 6 }}>
+      <PageContainer variant="fullBleed" maxWidth="sm" gap={0}>
         <Alert
           severity="error"
           sx={{ mb: 2 }}
@@ -310,7 +310,7 @@ export default function DestinationDetailsPage() {
         <Button startIcon={<ArrowBackIcon />} onClick={handleBack}>
           Go back
         </Button>
-      </Container>
+      </PageContainer>
     );
   }
 
@@ -326,7 +326,7 @@ export default function DestinationDetailsPage() {
   };
 
   return (
-    <Container maxWidth="lg" sx={{ py: 4 }}>
+    <PageContainer variant="fullBleed" maxWidth="lg" gap={0}>
       <Box
         sx={{
           position: "relative",
@@ -637,6 +637,6 @@ export default function DestinationDetailsPage() {
           </Paper>
         </Grid>
       </Grid>
-    </Container>
+    </PageContainer>
   );
 }

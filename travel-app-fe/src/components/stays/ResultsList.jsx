@@ -20,11 +20,13 @@ import {
   Navigation as NavigationIcon,
   BookmarkBorder as BookmarkIcon,
   Bookmark as BookmarkFilledIcon,
+  Hotel as HotelIcon,
 } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
 import { useState } from "react";
 import PhotoCarousel from "./PhotoCarousel";
 import { transitionFor } from "../../theme";
+import EmptyState from "../common/EmptyState";
 
 export default function ResultsList({ items = [], loading }) {
   const nav = useNavigate();
@@ -64,17 +66,11 @@ export default function ResultsList({ items = [], loading }) {
 
   if (!items?.length) {
     return (
-      <Card>
-        <CardContent sx={{ textAlign: "center", py: 4 }}>
-          {/* <MapPinIcon sx={{ fontSize: 40, color: "text.disabled", mb: 1 }} /> */}
-          <Typography variant="h6" color="textSecondary" sx={{ mb: 1 }}>
-            No accommodations found
-          </Typography>
-          <Typography variant="body2" color="textDisabled">
-            Try adjusting your search criteria or distance
-          </Typography>
-        </CardContent>
-      </Card>
+      <EmptyState
+        icon={<HotelIcon />}
+        title="No stays found"
+        description="Try another destination, a wider distance, or fewer filters."
+      />
     );
   }
 
