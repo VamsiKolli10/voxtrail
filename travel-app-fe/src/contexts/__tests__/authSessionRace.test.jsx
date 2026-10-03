@@ -58,4 +58,21 @@ describe("AuthProvider account changes", () => {
     await waitFor(() => expect(auth.current.user).toBeNull());
     expect(queryClient.getQueryData(["savedPhrases", "list", "alice"])).toBeUndefined();
   });
+  it("keeps the saved session when offline (ADR-006)", async () => {
+    const offline = Object.assign(new Error("offline"), { code: "auth/network-request-failed" });
+    const alice = user("alice");
+    alice.reload.mockRejectedValue(offline);
+    alice.getIdToken.mockRejectedValue(offline);
+    state.user = alice;
+    const { auth } = setup();
+    await waitFor(() => expect(auth.current.user?.uid).toBe("alice"));
+    expect(signOut).not.toHaveBeenCalled();
+  });
+  it("still signs out when the token is revoked", async () => {
+    const alice = user("alice");
+    alice.getIdToken.mockRejectedValue(Object.assign(new Error("revoked"), { code: "auth/user-token-expired" }));
+    state.user = alice;
+    setup();
+    await waitFor(() => expect(signOut).toHaveBeenCalled());
+  });
 });

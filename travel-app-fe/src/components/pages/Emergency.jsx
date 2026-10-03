@@ -25,7 +25,7 @@ import {
 } from "@mui/icons-material";
 import PageContainer from "../layout/PageContainer";
 import emergencyNumbersByCountry from "../../data/emergencyNumbersByCountry";
-import emergencyLocationAliases from "../../data/emergencyLocationAliases";
+import { loadEmergencyAliases } from "../../services/emergencyAliases";
 import useTravelContext from "../../hooks/useTravelContext";
 import { resolveLocation } from "../../services/location";
 
@@ -67,6 +67,9 @@ export default function Emergency() {
   const [selectedCountry, setSelectedCountry] = useState("");
   const [isManualEditing, setIsManualEditing] = useState(false);
   const [locationLoading, setLocationLoading] = useState(false);
+  // Place-name aliases load on first use (ADR-006): idle | loading | ready | error
+  const [aliasesStatus, setAliasesStatus] = useState("idle");
+  const aliasesRef = useRef(null);
   const locationCacheRef = useRef(new Map());
   const inflightResolveRef = useRef(new Set());
   const fallbackNumber = "911";
@@ -124,16 +127,25 @@ export default function Emergency() {
     return Array.from(unique).sort((a, b) => a.localeCompare(b));
   }, []);
 
-  const aliasLookup = useMemo(() => {
-    const map = new Map();
-    emergencyLocationAliases.forEach(({ name, country }) => {
-      if (!name || !country) return;
-      const key = name.trim().toLowerCase();
-      if (!key || map.has(key)) return;
-      map.set(key, country);
-    });
-    return map;
-  }, []);
+  // Resolves to the alias index, or null if it can't be loaded (e.g. offline
+  // before the service worker has cached it); search then falls back to
+  // country names and geocoding.
+  const ensureAliases = async () => {
+    if (aliasesRef.current) return aliasesRef.current;
+    setAliasesStatus("loading");
+    try {
+      aliasesRef.current = await loadEmergencyAliases();
+      setAliasesStatus("ready");
+      return aliasesRef.current;
+    } catch (error) {
+      console.warn("Emergency place names unavailable", error);
+      setAliasesStatus("error");
+      return null;
+    }
+  };
+
+  const findExactCountry = (value = "") =>
+    countryLookup.get(value.trim().toLowerCase()) || null;
 
   const getCachedLocation = (q) => {
     const key = q.trim().toLowerCase();
@@ -155,7 +167,7 @@ export default function Emergency() {
     });
   };
 
-  const findCountryEntry = (value) => {
+  const findCountryEntry = (value, aliases) => {
     const normalized = value.trim().toLowerCase();
     if (!normalized) return null;
 
@@ -173,14 +185,14 @@ export default function Emergency() {
       return direct ? countryLookup.get(direct) : null;
     };
 
-    const aliasCountry = aliasLookup.get(normalized);
+    const aliasCountry = aliases?.lookup.get(normalized);
     if (aliasCountry) {
       const found = resolveCountry(aliasCountry);
       if (found) return found;
     }
 
-    const partialAlias = emergencyLocationAliases.find((alias) =>
-      alias.name.toLowerCase().includes(normalized)
+    const partialAlias = aliases?.list.find((alias) =>
+      alias.nameLower.includes(normalized)
     );
     if (partialAlias) {
       const found = resolveCountry(partialAlias.country);
@@ -207,8 +219,15 @@ export default function Emergency() {
     const trimmedValue = rawValue.trim();
     setSearchError("");
 
-    // If the input directly matches a country/alias, prefer that and skip geocoding to avoid noisy street hits
-    const directMatch = findCountryEntry(trimmedValue);
+    // Numbers first (ADR-006): an exact country name, or the travel
+    // context's country, resolves without downloading the place-name list.
+    // Otherwise load the aliases. A direct country/alias match skips
+    // geocoding to avoid noisy street hits.
+    const exactMatch =
+      findExactCountry(trimmedValue) ||
+      (options.contextCountry ? findExactCountry(options.contextCountry) : null);
+    const aliases = exactMatch ? null : await ensureAliases();
+    const directMatch = exactMatch || findCountryEntry(trimmedValue, aliases);
     if (directMatch) {
       setSearchedEntry(directMatch);
       const canonical = directMatch.country?.trim() || trimmedValue;
@@ -272,8 +291,8 @@ export default function Emergency() {
     }
 
     const match =
-      (resolvedCountry && findCountryEntry(resolvedCountry)) ||
-      findCountryEntry(trimmedValue);
+      (resolvedCountry && findCountryEntry(resolvedCountry, aliases)) ||
+      findCountryEntry(trimmedValue, aliases);
 
     if (!match) {
       setSearchedEntry(null);
@@ -357,6 +376,7 @@ export default function Emergency() {
         skipManualReset: true,
         existingCity: contextCity || primaryLocation,
         existingDisplay: primaryLocation,
+        contextCountry: fallbackCountry,
       });
       return;
     }
@@ -528,6 +548,10 @@ export default function Emergency() {
                   setIsManualEditing(true);
                   setCountryQuery(e.target.value);
                 }}
+                onFocus={() => {
+                  // Start loading place names before the first search.
+                  ensureAliases();
+                }}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
                     setIsManualEditing(false);
@@ -535,7 +559,13 @@ export default function Emergency() {
                   }
                 }}
                 placeholder="Search a country or city"
-                helperText='Examples: "Paris", "New York City"'
+                helperText={
+                  aliasesStatus === "loading"
+                    ? "Loading place names…"
+                    : aliasesStatus === "error"
+                    ? "City search is limited right now: try a country name."
+                    : 'Examples: "Paris", "New York City"'
+                }
                 fullWidth
                 InputProps={{
                   startAdornment: (

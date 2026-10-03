@@ -33,6 +33,10 @@ const DiscoverPage = lazy(() => import("./components/pages/DiscoverPage"));
 const DestinationDetailsPage = lazy(() =>
   import("./components/pages/DestinationDetailsPage")
 );
+// The service worker only exists in production builds (ADR-006).
+const UpdatePrompt = import.meta.env.PROD
+  ? lazy(() => import("./components/common/UpdatePrompt.jsx"))
+  : null;
 
 function RouteFallback() {
   return (
@@ -63,6 +67,11 @@ export default function App() {
               <FeatureFlagsProvider>
                 <AnalyticsProvider>
                   <RouteNavigation />
+                  {UpdatePrompt && (
+                    <Suspense fallback={null}>
+                      <UpdatePrompt />
+                    </Suspense>
+                  )}
                   <Suspense fallback={<RouteFallback />}>
                     <Routes>
                     {/* 🌐 Public routes */}

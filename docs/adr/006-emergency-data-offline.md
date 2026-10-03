@@ -1,6 +1,6 @@
 # ADR-006: Emergency data — split, lazy-load, and precache for offline use
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-10-02
 **Deciders:** Vamsi Kolli
 
@@ -61,11 +61,31 @@ The Emergency page should be fastest when the network is worst, so B moves in th
 - **Harder:** releases now involve cache versioning. Test the "new version available" flow, and never cache `/api/*` responses in the service worker without an explicit decision (auth and user data).
 - **Revisit when:** alias data changes often (then version the JSON by hash); or Option D's spike shows aliases can shrink below ~50 kB gzip, making precache-everything trivial.
 
+## Results (2026-10-03)
+
+| | Before | After |
+|---|---:|---:|
+| Emergency route chunk | 1.56 MB (269 kB gzip) | **50 kB (13 kB gzip)** |
+| Place-name data | inside the chunk | `public/data/emergency-aliases.v1.json`, 694 kB (230 kB gzip), fetched on first city search |
+| Offline | none | whole app shell after one online visit (map bundle excluded) |
+
+## Implementation notes
+
+- **Conversion:** a one-time script turned `src/data/emergencyLocationAliases.js` into `public/data/emergency-aliases.v1.json` (`{ version, countries, aliases: [name, countryIndex][] }`, 37,426 aliases, one case-insensitive duplicate dropped, order kept so partial matching behaves as before). The JSON is now the source of truth, so the 2.2 MB module is deleted and no build script is kept; `src/services/__tests__/emergencyAliasesData.test.js` checks the file's shape. Change it → bump the file name (`v2`), since it's served `immutable`.
+- **Numbers first:** an exact country name, or the travel context's country, resolves from `emergencyNumbersByCountry` with no download. Otherwise `services/emergencyAliases.js` fetches the JSON once (memoized; a failure can be retried) and the original alias → partial alias → country matching runs. Focusing the search box starts the download early; the helper text says "Loading place names…". If the file can't be loaded, search falls back to country names and geocoding and says city search is limited.
+- **Service worker:** `vite-plugin-pwa` (Workbox, `registerType: "prompt"`, `manifest: false`). It precaches 46 files (2.2 MB raw, roughly 700 kB over the wire) and excludes the 1 MB map bundle. The ADR planned to precache only the Emergency chunk; that was widened to the whole app shell because the Emergency route also needs the entry, vendor and shared chunks, and precaching one consistent version avoids missing old chunks after a deploy. **No runtime caching** at all; navigation fallback skips `/api/` and Firebase's reserved `/__/` paths (sign-in handlers). `components/common/UpdatePrompt.jsx` (production builds only) shows "A new version is available · Reload", and switches to the waiting version if a lazy chunk from the old one fails to load.
+- **Offline sign-in:** `AuthContext` used to sign users out when `reload()`/`getIdToken(true)` failed, which happens whenever the device is offline, so the Emergency page was unreachable offline even with the page cached. Network errors (`auth/network-request-failed`, or `navigator.onLine === false`) now keep the saved session; other token errors still sign out.
+- **Hosting headers** (`travel-app-be/firebase.json`): `/assets/**` and `/data/**` are `public, max-age=31536000, immutable`; `/sw.js` is `no-cache`.
+- **Verified** with Playwright against the production build: the service worker installs and precaches 46 entries; offline, a reload serves the app, `/emergency` loads from cache, the alias JSON is served (37,426 entries), `/api/*` is not cached, and `/__/auth/handler` is not intercepted.
+- **Option D spike:** with `Intl.DisplayNames` in 37 locales, 212 of 252 countries map to a region code, but only 2,576 of 37,426 aliases (7%) are browser-generated country names; the rest are cities and regions. The file would shrink from 230 to 212 kB gzip. Not worth the extra code; the aliases stay as data.
+
 ## Action Items
 
-1. [ ] Add `scripts/build-emergency-aliases.mjs` that writes `public/data/emergency-aliases.v1.json` from the current module; delete the 2.2 MB JS module.
-2. [ ] In `Emergency.jsx`, `fetch` the aliases on first search input (memoize; show "Loading place names…" if a search starts before they arrive); keep numbers imported statically.
-3. [ ] Add `vite-plugin-pwa` (`registerType: "prompt"`, precache the Emergency chunk and `data/emergency-aliases.*.json`; no runtime caching for `/api/**`); add an "Update available" toast using the existing `NotificationProvider`.
-4. [ ] Add a Hosting header for `/data/**`: `Cache-Control: public, max-age=31536000, immutable` (file names are versioned).
-5. [ ] Test: offline reload of `/emergency` after one visit (Playwright `context.setOffline(true)`).
-6. [ ] Spike Option D and record the result here.
+1. [x] Convert the aliases to `public/data/emergency-aliases.v1.json`; delete the 2.2 MB module (one-time conversion; see notes).
+2. [x] Fetch aliases on first search (memoized, with a loading hint); numbers stay static.
+3. [x] `vite-plugin-pwa` with the update prompt; no runtime caching for `/api/**`.
+4. [x] Hosting `Cache-Control` for `/data/**` (and `/assets/**`, `/sw.js`).
+5. [x] Offline reload of `/emergency` checked with Playwright against the production build (manual script; the e2e suite doesn't exist yet). Unit tests cover the lazy loading and offline sign-in.
+6. [x] Option D spike (see notes): rejected.
+7. [ ] Product decision: Emergency still requires sign-in. Consider making it a public route so travellers can reach numbers without an account.
+8. [ ] Optional: add a web app manifest with PNG icons so the app can be installed.

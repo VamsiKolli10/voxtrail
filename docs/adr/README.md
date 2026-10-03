@@ -10,7 +10,7 @@ Short records of significant technical decisions: the context, the options consi
 | [003](003-ai-provider-strategy.md) | AI provider strategy: paid low-cost default with a budget | Accepted (console steps pending) | 2026-10-02 |
 | [004](004-place-photos-and-places-skus.md) | Google Places: no Atmosphere by default, cached geocoding, signed photo URLs | Accepted (console steps pending) | 2026-10-02 |
 | [005](005-frontend-server-state.md) | Frontend server state with TanStack Query | Accepted | 2026-10-02 |
-| [006](006-emergency-data-offline.md) | Emergency data: split, lazy-load, precache offline | Proposed | 2026-10-02 |
+| [006](006-emergency-data-offline.md) | Emergency data: split, lazy-load, precache offline | Accepted | 2026-10-02 |
 
 ## Process
 

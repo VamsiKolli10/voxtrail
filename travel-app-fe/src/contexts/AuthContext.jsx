@@ -38,6 +38,16 @@ function authReducer(state, action) {
   }
 }
 
+// Offline, Firebase can't reload the user or refresh the token. That must not
+// sign the traveller out: the persisted session stays valid, and offline pages
+// such as Emergency still need it (ADR-006).
+function isNetworkError(error) {
+  return (
+    error?.code === "auth/network-request-failed" ||
+    (typeof navigator !== "undefined" && navigator.onLine === false)
+  );
+}
+
 function extractActionParams(urlString) {
   try {
     const url = new URL(urlString);
@@ -171,19 +181,28 @@ export function AuthProvider({ children }) {
         }
 
         if (firebaseUser) {
-          await firebaseUser.reload();
+          try {
+            await firebaseUser.reload();
+          } catch (reloadError) {
+            if (!isNetworkError(reloadError)) throw reloadError;
+          }
           if (!active) return;
           try {
             // Force-refresh token to detect revocation (e.g., password reset elsewhere)
             await firebaseUser.getIdToken(true);
           } catch (tokenError) {
             if (!active) return;
-            console.warn("Token refresh failed, forcing logout", tokenError);
-            await signOut(auth);
-            if (!active) return;
-            dispatch(clearUser());
-            setStatusMessage("Session expired. Please sign in again.");
-            return;
+            if (isNetworkError(tokenError)) {
+              // Revocation is re-checked on the next online start.
+              console.info("Offline: keeping the saved session");
+            } else {
+              console.warn("Token refresh failed, forcing logout", tokenError);
+              await signOut(auth);
+              if (!active) return;
+              dispatch(clearUser());
+              setStatusMessage("Session expired. Please sign in again.");
+              return;
+            }
           }
           if (!active) return;
 
