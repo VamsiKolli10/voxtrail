@@ -1,6 +1,6 @@
 # ADR-003: AI provider strategy — machine translation for /translate, budgeted paid LLM for generation
 
-**Status:** Proposed
+**Status:** Accepted (console steps pending)
 **Date:** 2026-10-02
 **Deciders:** Vamsi Kolli
 
@@ -68,12 +68,34 @@ Option A fails the "real users" constraint by design. B is the quickest fix, but
 - **Harder:** two provider integrations and two sets of limits to monitor.
 - **Revisit when:** translation volume nears 500K chars/month; or a single LLM becomes cheap and fast enough that one provider beats two.
 
+## Verification (2026-10-02)
+
+Checked against OpenRouter's public model endpoints API (no key needed):
+
+| Model ID | Result |
+|----------|--------|
+| `x-ai/grok-4.1-fast:free` (old `.env.example` default) | Listed, but **no endpoints**: every request fails |
+| `gpt-4o-mini` (old implicit fallback) | **Not found**: IDs must be vendor-prefixed, so this always returned 404 |
+| `openai/gpt-4o-mini` | Available; $0.15 input / $0.60 output per million tokens |
+| `google/gemini-2.5-flash-lite` | Available; about $0.10 / $0.40 per million tokens; supports `response_format` |
+
+So with the old defaults, every AI call in production most likely failed: the primary had no endpoints and the fallback did not exist. Prices change; check before choosing.
+
+## Implementation notes
+
+- `src/lib/openrouterClient.js`: no built-in model. `getModelChain()` reads `OPENROUTER_MODEL_CHAIN` (and legacy `OPENROUTER_MODEL` as the primary), drops IDs without a vendor prefix, and drops `:free` IDs outside development/test unless `OPENROUTER_ALLOW_FREE_MODELS=true`. An empty chain throws `AiNotConfiguredError`; routes answer **503 `SERVICE_UNAVAILABLE`** (itineraries fall back to the POI-backed plan, culture briefs to cache/static content), and the API logs one error at boot.
+- The chain falls through only on 404/408/429/5xx and network errors; 400/401/402/403 stop it.
+- `max_tokens` per feature: translation 400, quick culture Q&A and contextual tips 600, phrasebook 1,500, culture brief 2,000, itinerary 2,500 (default `OPENROUTER_MAX_TOKENS` 1,500).
+- `src/lib/googleTranslate.js` calls the Cloud Translation v2 REST API with `google-auth-library` (already in the tree through `firebase-admin`) instead of `@google-cloud/translate`, which would add a gRPC stack for one call. `TRANSLATION_PROVIDER` (`google` default, or `openrouter`) and `TRANSLATION_FALLBACK` (`openrouter` default, or `none`) select the providers; responses report `provider: "google" | "openrouter" | "cache"`.
+- The language list grew from 4 to 15 (every pair: 210), in `src/config/translationLanguages.js` and the SPA's `constants/languages.js`.
+
 ## Action Items
 
-1. [ ] **Verify** the fallback: call OpenRouter with model `gpt-4o-mini` and with `openai/gpt-4o-mini` and record the responses in this ADR.
-2. [ ] Set a paid default (`OPENROUTER_MODEL_CHAIN=<paid-model>,<second-paid-model>`, vendor-prefixed). Change `FALLBACK_MODEL` to a valid ID, or drop the implicit fallback and require the chain explicitly. Keep `:free` only in `.env.example` for development.
-3. [ ] Add `max_tokens` per feature in `openrouterClient` callers; stop treating 403 (bad key/permission) as retryable.
-4. [ ] Set a credit limit on the OpenRouter key (see ADR-002 action 1).
-5. [ ] Add a `providers/googleTranslate.js` used by `translationController` (`@google-cloud/translate` v2 client, default credentials). Keep the OpenRouter path behind a flag for one release as a fallback.
-6. [ ] Enable the Cloud Translation API in the project; add the durable translation quota from ADR-002.
-7. [ ] Expand the language list in the SPA once NMT is live.
+1. [x] **Verify** the fallback (see Verification above).
+2. [x] Drop the implicit fallback and require `OPENROUTER_MODEL_CHAIN`; `:free` models are for development only.
+3. [x] Add `max_tokens` per feature; stop treating 403 (bad key/permission) as retryable.
+4. [ ] **Console:** set a credit limit on the OpenRouter key (see ADR-002 action 1).
+5. [x] Add `lib/googleTranslate.js` used by `translationController`, with OpenRouter as a fallback behind `TRANSLATION_FALLBACK`.
+6. [ ] **Console:** enable the Cloud Translation API and grant the function's service account `roles/cloudtranslate.user`. (The durable translation quota shipped with ADR-002.)
+7. [x] Expand the language list in the SPA. Works before step 6 too: OpenRouter handles these languages while Cloud Translation is off.
+8. [ ] After one release on Cloud Translation with no fallbacks logged, consider `TRANSLATION_FALLBACK=none`.

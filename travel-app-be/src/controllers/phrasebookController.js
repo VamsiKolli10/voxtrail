@@ -3,6 +3,8 @@ const {
   createErrorResponse,
   ERROR_CODES,
   logError,
+  isAiNotConfigured,
+  aiNotConfiguredResponse,
 } = require("../utils/errorHandler");
 const { enforceQuota } = require("../utils/quota");
 const { trackExternalCall } = require("../utils/monitoring");
@@ -230,6 +232,7 @@ async function generatePhrases(req, res) {
       user,
       temperature: 0.4,
       response_format: "json_object",
+      max_tokens: 1500,
     });
     trackExternalCall({
       service: "openrouter-phrasebook",
@@ -314,6 +317,9 @@ async function generatePhrases(req, res) {
     });
   } catch (err) {
     logError(err, { endpoint: "/api/phrasebook/generate" });
+    if (isAiNotConfigured(err)) {
+      return res.status(503).json(aiNotConfiguredResponse());
+    }
     return res
       .status(500)
       .json(

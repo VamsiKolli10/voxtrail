@@ -20,6 +20,9 @@ const envSchema = z
     OPENROUTER_API_KEY: z.string().optional(),
     OPENROUTER_MODEL: z.string().optional(),
     OPENROUTER_MODEL_CHAIN: z.string().optional(),
+    OPENROUTER_ALLOW_FREE_MODELS: z.string().optional(),
+    TRANSLATION_PROVIDER: z.enum(["google", "openrouter"]).optional(),
+    TRANSLATION_FALLBACK: z.enum(["openrouter", "none"]).optional(),
     GOOGLE_PLACES_API_KEY: z.string().optional(),
     RATE_LIMIT_WINDOW_MS: z
       .preprocess(toNumber, z.number().int().positive().optional()),
@@ -64,7 +67,6 @@ const normalizeList = (raw = "") =>
 const env = {
   ...parsed,
   CORS_ALLOWED_ORIGIN_LIST: normalizeList(parsed.CORS_ALLOWED_ORIGINS),
-  OPENROUTER_MODEL_CHAIN_LIST: normalizeList(parsed.OPENROUTER_MODEL_CHAIN),
 };
 
 module.exports = env;

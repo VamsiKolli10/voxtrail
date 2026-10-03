@@ -44,6 +44,17 @@ const createErrorResponse = (status, code, message, details = null) => {
   return response;
 };
 
+// No usable AI model configured (openrouterClient throws AI_NOT_CONFIGURED).
+// This is an operator problem, not a client error: answer 503 so clients
+// show "temporarily unavailable" and retry later (ADR-003).
+const isAiNotConfigured = (error) => error?.code === "AI_NOT_CONFIGURED";
+const aiNotConfiguredResponse = () =>
+  createErrorResponse(
+    503,
+    ERROR_CODES.SERVICE_UNAVAILABLE,
+    "AI features are temporarily unavailable"
+  );
+
 // Error logging with context
 const logError = (error, context = {}) => {
   const errorContext = {
@@ -123,5 +134,7 @@ module.exports = {
   ERROR_CODES,
   createErrorResponse,
   logError,
+  isAiNotConfigured,
+  aiNotConfiguredResponse,
   expressErrorHandler,
 };

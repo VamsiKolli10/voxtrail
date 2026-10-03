@@ -500,6 +500,7 @@ async function generateItinerary(req, res) {
         user,
         temperature: 0.4,
         response_format: "json_object",
+        max_tokens: 2500,
       });
       trackExternalCall({
         service: "openrouter-itinerary",
@@ -515,7 +516,8 @@ async function generateItinerary(req, res) {
         status === 403 ||
         status === 429 ||
         (status != null && status >= 500) ||
-        aiErr.code === "ETIMEDOUT";
+        aiErr.code === "ETIMEDOUT" ||
+        aiErr.code === "AI_NOT_CONFIGURED";
 
       logError(aiErr, {
         endpoint: "/api/itinerary/generate",

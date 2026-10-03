@@ -36,4 +36,4 @@ At low, bursty traffic most requests hit a cold instance, so cold-start cost dom
 ## Action Items
 
 1. [x] Remove the in-function model (done).
-2. [ ] Change the code comment in `translationController.js` from "ADR-EVAL-1" to `docs/adr/000-translation-via-hosted-api.md`.
+2. [x] Change the code comment in `translationController.js` from "ADR-EVAL-1" to `docs/adr/000-translation-via-hosted-api.md`.

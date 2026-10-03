@@ -5,41 +5,52 @@ const {
   logError,
 } = require("../utils/errorHandler");
 const { getCached, setCached } = require("../utils/cache");
-const { chatComplete } = require("../lib/openrouterClient");
-
-const SUPPORTED_PAIRS = new Set([
-  "en-es",
-  "en-fr",
-  "en-de",
-  "es-en",
-  "es-fr",
-  "es-de",
-  "fr-en",
-  "fr-es",
-  "fr-de",
-  "de-en",
-  "de-es",
-  "de-fr",
-]);
+const {
+  chatComplete,
+  AiNotConfiguredError,
+} = require("../lib/openrouterClient");
+const { translateWithGoogle } = require("../lib/googleTranslate");
+const {
+  TRANSLATION_LANGUAGES,
+  SUPPORTED_PAIRS,
+} = require("../config/translationLanguages");
 
 const MAX_TEXT_LENGTH = Number(process.env.MAX_TRANSLATION_CHARS || 500);
 const TRANSLATION_CACHE_TTL_MS = Number(
   process.env.TRANSLATION_CACHE_TTL_MS || 10 * 60 * 1000
 );
-// Historically this bounded local model inference before falling back to
-// OpenRouter. OpenRouter is now the only translation path, so this simply
-// bounds how long we wait on the provider before treating it as a failure.
+// Upper bound on one provider call before it counts as a failure.
 const TRANSLATION_REQUEST_TIMEOUT_MS = Number(
   process.env.TRANSLATION_INFERENCE_TIMEOUT_MS || 20000
 );
-const CAN_TRANSLATE = Boolean(process.env.OPENROUTER_API_KEY);
+const GOOGLE_TRANSLATE_TIMEOUT_MS = Number(
+  process.env.GOOGLE_TRANSLATE_TIMEOUT_MS || 8000
+);
 
-const LANG_LABELS = {
-  en: "English",
-  es: "Spanish",
-  fr: "French",
-  de: "German",
-};
+// Provider selection (ADR-003). Read per request so config changes apply
+// without a code change and tests can switch providers.
+//   TRANSLATION_PROVIDER = google (default) | openrouter
+//   TRANSLATION_FALLBACK = openrouter (default) | none
+function getProviderPlan() {
+  const primary =
+    (process.env.TRANSLATION_PROVIDER || "google").toLowerCase() ===
+    "openrouter"
+      ? "openrouter"
+      : "google";
+  const fallbackSetting = (
+    process.env.TRANSLATION_FALLBACK || "openrouter"
+  ).toLowerCase();
+  const hasOpenRouter = Boolean(process.env.OPENROUTER_API_KEY);
+  const chain = [primary];
+  if (
+    primary === "google" &&
+    fallbackSetting === "openrouter" &&
+    hasOpenRouter
+  ) {
+    chain.push("openrouter");
+  }
+  return chain.filter((p) => p !== "openrouter" || hasOpenRouter);
+}
 
 function getTranslationCacheKey(text, langPair) {
   return `${langPair}::${text}`;
@@ -47,7 +58,7 @@ function getTranslationCacheKey(text, langPair) {
 
 function getLangLabel(code = "") {
   const normalized = String(code || "").toLowerCase();
-  return LANG_LABELS[normalized] || normalized || "unknown";
+  return TRANSLATION_LANGUAGES[normalized] || normalized || "unknown";
 }
 
 async function withTimeout(operation, timeoutMs, label) {
@@ -72,14 +83,10 @@ async function withTimeout(operation, timeoutMs, label) {
   }
 }
 
-// Translation runs entirely through OpenRouter. A prior version of this
-// service also ran a local Hugging Face/Xenova translation model inside the
-// Cloud Function, but that fought the serverless execution model: loading a
-// model into memory added ~29s to every cold start and consumed far more of
-// the Functions free tier (billed by memory x duration) than a fast,
-// stateless API call does. See ADR-EVAL-1 for the full reasoning -- for a
-// low-traffic, cost-sensitive deployment a lightweight proxy call is both
-// simpler and cheaper than keeping a model warm.
+// Translation goes through hosted APIs, never an in-function model:
+// docs/adr/000-translation-via-hosted-api.md explains why a local model was
+// removed (cold starts and memory cost). Cloud Translation is the primary
+// provider; OpenRouter is the fallback (docs/adr/003-ai-provider-strategy.md).
 async function translateViaOpenRouter(text, langPair) {
   const [source, target] = (langPair || "").split("-");
   const system = `You are a precise translation engine. Translate strictly from ${getLangLabel(
@@ -90,7 +97,8 @@ async function translateViaOpenRouter(text, langPair) {
   const user = `Text to translate:\n"""${text}"""`;
 
   const raw = await withTimeout(
-    (signal) => chatComplete({ system, user, temperature: 0, signal }),
+    (signal) =>
+      chatComplete({ system, user, temperature: 0, max_tokens: 400, signal }),
     TRANSLATION_REQUEST_TIMEOUT_MS,
     "Translation request"
   );
@@ -104,17 +112,52 @@ async function translateViaOpenRouter(text, langPair) {
   return cleaned;
 }
 
+async function translateViaGoogle(text, langPair) {
+  const [source, target] = langPair.split("-");
+  return withTimeout(
+    (signal) => translateWithGoogle({ text, source, target, signal }),
+    Math.min(GOOGLE_TRANSLATE_TIMEOUT_MS, TRANSLATION_REQUEST_TIMEOUT_MS),
+    "Translation request"
+  );
+}
+
+const PROVIDERS = {
+  google: translateViaGoogle,
+  openrouter: translateViaOpenRouter,
+};
+
+async function translateWithFallback(text, langPair) {
+  const plan = getProviderPlan();
+  let lastError;
+  for (const [index, provider] of plan.entries()) {
+    try {
+      const translation = await PROVIDERS[provider](text, langPair);
+      return { translation, provider };
+    } catch (err) {
+      lastError = err;
+      if (index < plan.length - 1) {
+        logError(err, {
+          endpoint: "/api/translate",
+          provider,
+          fallback: plan[index + 1],
+        });
+      }
+    }
+  }
+  throw lastError;
+}
+
 exports.translateText = async (req, res) => {
   const rawText = req.body?.text;
   const rawLangPair = req.body?.langPair;
 
   try {
-    if (!CAN_TRANSLATE) {
+    if (getProviderPlan().length === 0) {
       return res.status(503).json(
         createErrorResponse(
           503,
           ERROR_CODES.SERVICE_UNAVAILABLE,
-          "Translation is not configured: OPENROUTER_API_KEY is missing"
+          "Translation is not configured: TRANSLATION_PROVIDER=openrouter needs OPENROUTER_API_KEY"
         )
       );
     }
@@ -153,13 +196,13 @@ exports.translateText = async (req, res) => {
       return res.json({ translation: cached, provider: "cache" });
     }
 
-    const translation = await translateViaOpenRouter(
+    const { translation, provider } = await translateWithFallback(
       cleanText.value,
       normalizedPair.value
     );
 
     setCached("translation", cacheKey, translation, TRANSLATION_CACHE_TTL_MS);
-    res.json({ translation, provider: "openrouter" });
+    res.json({ translation, provider });
   } catch (err) {
     const errorContext = {
       endpoint: "/api/translate",
@@ -169,6 +212,16 @@ exports.translateText = async (req, res) => {
       timestamp: new Date().toISOString(),
     };
     logError(err, errorContext);
+
+    if (err instanceof AiNotConfiguredError) {
+      return res.status(503).json(
+        createErrorResponse(
+          503,
+          ERROR_CODES.SERVICE_UNAVAILABLE,
+          "Translation is temporarily unavailable"
+        )
+      );
+    }
 
     if (err.message?.includes("timed out")) {
       return res.status(503).json(
@@ -210,20 +263,24 @@ exports.translateText = async (req, res) => {
 
 // Health check endpoint for translation service
 exports.healthCheck = async (req, res) => {
+  const providers = getProviderPlan();
   const health = {
-    status: CAN_TRANSLATE ? "healthy" : "unhealthy",
+    status: providers.length ? "healthy" : "unhealthy",
     service: "translation",
-    provider: "openrouter",
+    provider: providers[0] || null,
+    fallback: providers[1] || null,
     timestamp: new Date().toISOString(),
   };
 
-  if (!CAN_TRANSLATE) {
+  if (!providers.length) {
     health.error = {
       code: "NOT_CONFIGURED",
-      message: "OPENROUTER_API_KEY is missing",
+      message: "TRANSLATION_PROVIDER=openrouter needs OPENROUTER_API_KEY",
     };
   }
 
   const statusCode = health.status === "healthy" ? 200 : 503;
   res.status(statusCode).json(health);
 };
+
+exports.SUPPORTED_PAIRS = SUPPORTED_PAIRS;

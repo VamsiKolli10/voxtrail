@@ -30,6 +30,18 @@ const { recordTiming, getPerformanceSnapshot } = require("./utils/performance");
 const { validateBody } = require("./middleware/validate");
 const { userWriteSchema } = require("./utils/schemas");
 const { requestContext } = require("./middleware/requestContext");
+const { getModelChain } = require("./lib/openrouterClient");
+
+// ADR-003: there is no built-in model. Say so once at boot instead of
+// failing every AI request silently; AI routes answer 503 until it is set.
+function reportAiConfiguration() {
+  if (["test", "development"].includes(process.env.NODE_ENV)) return;
+  if (process.env.OPENROUTER_API_KEY && getModelChain().length === 0) {
+    console.error(
+      "[config] OPENROUTER_MODEL_CHAIN has no usable model (vendor-prefixed, not :free). AI features will return 503."
+    );
+  }
+}
 
 const defaultAllowedOrigins = [
   "http://localhost",
@@ -57,6 +69,7 @@ const rateLimitAnonymousMax = env.RATE_LIMIT_ANONYMOUS_MAX ?? 30;
 const PHOTO_PATH = "/stays/photo";
 
 function createApp() {
+  reportAiConfiguration();
   const app = express();
   let readinessCache = { checkedAt: 0, ready: false };
   app.disable("x-powered-by");

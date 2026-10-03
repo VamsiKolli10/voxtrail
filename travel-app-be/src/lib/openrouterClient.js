@@ -1,35 +1,72 @@
 const axios = require("axios");
 
 const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
-const FALLBACK_MODEL = "gpt-4o-mini";
+// Model selection is configuration only (docs/adr/003-ai-provider-strategy.md):
+//   OPENROUTER_MODEL_CHAIN="vendor/model-a,vendor/model-b"  (ordered fallbacks)
+//   OPENROUTER_MODEL="vendor/model"                         (legacy primary)
+// There is no built-in fallback: the old implicit "gpt-4o-mini" was not a
+// valid OpenRouter ID (they are vendor-prefixed), so it always 404'd.
+// Free (":free") variants share a small account-wide daily allowance and can
+// lose all endpoints without notice; production skips them unless
+// OPENROUTER_ALLOW_FREE_MODELS=true.
+const isProduction = () =>
+  !["test", "development"].includes(process.env.NODE_ENV);
 
-function buildModelChain() {
-  const chain = [];
+const warned = new Set();
+function warnOnce(message) {
+  if (warned.has(message)) return;
+  warned.add(message);
+  console.warn(`[OpenRouter] ${message}`);
+}
 
-  // Preferred: comma-separated chain
-  const configuredChain = (process.env.OPENROUTER_MODEL_CHAIN || "")
+function getModelChain() {
+  const configured = (process.env.OPENROUTER_MODEL_CHAIN || "")
     .split(",")
     .map((s) => s.trim())
     .filter(Boolean);
-  chain.push(...configuredChain);
-
-  // Legacy: single primary model
   const legacyPrimary = (process.env.OPENROUTER_MODEL || "").trim();
-  if (legacyPrimary && !chain.includes(legacyPrimary)) {
-    chain.unshift(legacyPrimary);
+  if (legacyPrimary) {
+    // OPENROUTER_MODEL is the primary; the chain supplies fallbacks.
+    const index = configured.indexOf(legacyPrimary);
+    if (index !== -1) configured.splice(index, 1);
+    configured.unshift(legacyPrimary);
   }
 
-  // Preserve the legacy fallback. This model can incur provider charges.
-  if (!chain.includes(FALLBACK_MODEL)) {
-    chain.push(FALLBACK_MODEL);
-  }
+  const allowFree =
+    !isProduction() || process.env.OPENROUTER_ALLOW_FREE_MODELS === "true";
 
-  return chain;
+  return configured.filter((model) => {
+    if (!model.includes("/")) {
+      warnOnce(
+        `Ignoring model "${model}": OpenRouter IDs are vendor-prefixed (e.g. "openai/${model}").`
+      );
+      return false;
+    }
+    if (model.endsWith(":free") && !allowFree) {
+      warnOnce(
+        `Ignoring free model "${model}" in production (shared daily cap). Set OPENROUTER_ALLOW_FREE_MODELS=true to override.`
+      );
+      return false;
+    }
+    return true;
+  });
 }
 
-const MODEL_CHAIN = buildModelChain();
-// Treat model unavailability/permission errors as retryable so we fall back
-const RETRYABLE_STATUS = new Set([403, 404, 429, 500, 502, 503, 504]);
+// Auth/permission errors (401/403) and bad requests won't succeed on another
+// model, so they stop the chain. Unavailable/removed models and transient
+// provider errors fall through to the next model.
+const RETRYABLE_STATUS = new Set([404, 408, 429, 500, 502, 503, 504]);
+const DEFAULT_MAX_TOKENS = Number(process.env.OPENROUTER_MAX_TOKENS || 1500);
+
+class AiNotConfiguredError extends Error {
+  constructor() {
+    super(
+      "No usable AI model configured. Set OPENROUTER_MODEL_CHAIN to vendor-prefixed model IDs."
+    );
+    this.name = "AiNotConfiguredError";
+    this.code = "AI_NOT_CONFIGURED";
+  }
+}
 
 /**
  * Enhanced error logging with more details
@@ -74,6 +111,7 @@ async function chatComplete({
   user,
   temperature = 0.4,
   response_format = undefined,
+  max_tokens = DEFAULT_MAX_TOKENS,
   signal,
 }) {
   if (!process.env.OPENROUTER_API_KEY) {
@@ -91,6 +129,7 @@ async function chatComplete({
   // Build request body
   const baseBody = {
     temperature,
+    max_tokens,
     messages: [
       { role: "system", content: system },
       { role: "user", content: user },
@@ -110,6 +149,11 @@ async function chatComplete({
     baseBody.response_format = response_format;
   }
   // else: omit response_format entirely
+
+  const MODEL_CHAIN = getModelChain();
+  if (MODEL_CHAIN.length === 0) {
+    throw new AiNotConfiguredError();
+  }
 
   let lastError;
   let attempt = 0;
@@ -171,4 +215,9 @@ async function chatComplete({
   );
 }
 
-module.exports = { chatComplete };
+module.exports = {
+  chatComplete,
+  getModelChain,
+  AiNotConfiguredError,
+  RETRYABLE_STATUS,
+};

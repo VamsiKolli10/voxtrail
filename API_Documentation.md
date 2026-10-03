@@ -66,13 +66,13 @@ Location response includes `query`, `display`, `lat`, `lng`, address/city/state/
 { "text": "Hello, how are you?", "langPair": "en-es" }
 ```
 
-`text`: nonempty, maximum 500 characters. `langPair`: two distinct codes selected from `en`, `es`, `fr`, `de`, separated by a hyphen; all twelve directed pairs are supported. OpenRouter supplies translation. Response:
+`text`: nonempty, maximum 500 characters. `langPair`: two distinct codes separated by a hyphen, from `en`, `es`, `fr`, `de`, `it`, `pt`, `hi`, `zh`, `ja`, `ko`, `ar`, `ru`, `tr`, `th`, `id` (all 210 directed pairs). Google Cloud Translation supplies translations, with OpenRouter as a fallback (ADR-003). Response:
 
 ```json
-{ "translation": "Hola, ¿cómo estás?", "provider": "openrouter" }
+{ "translation": "Hola, ¿cómo estás?", "provider": "google" }
 ```
 
-Cache hits use `provider: "cache"`. A total operation timeout aborts upstream translation requests. Unsupported pairs return 400; provider failure returns a structured error, not translated text.
+`provider` is `google`, `openrouter` (fallback) or `cache`. A total operation timeout aborts upstream translation requests. Unsupported pairs return 400; provider failure returns a structured error, not translated text.
 
 ### Phrasebooks and saved phrases
 

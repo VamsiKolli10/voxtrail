@@ -37,10 +37,15 @@ Managed Firebase Functions/Cloud Run uses Application Default Credentials when e
 | Variable | Default / purpose |
 | --- | --- |
 | `GOOGLE_PLACES_API_KEY` | Required for live location/stays/POI/photo calls |
-| `OPENROUTER_API_KEY` | Required for live translation, phrasebooks, culture and AI itineraries |
-| `OPENROUTER_MODEL` | Optional primary model |
-| `OPENROUTER_MODEL_CHAIN` | Comma-separated ordered fallback models; the configured primary is prepended and legacy `gpt-4o-mini` fallback is appended |
+| `OPENROUTER_API_KEY` | Required for phrasebooks, culture, AI itineraries and the translation fallback |
+| `OPENROUTER_MODEL_CHAIN` | **Required, no default.** Comma-separated vendor-prefixed OpenRouter IDs, tried in order, e.g. `google/gemini-2.5-flash-lite,openai/gpt-4o-mini`. IDs without a vendor prefix are ignored. With no usable model, AI routes return 503 and the API logs an error at boot |
+| `OPENROUTER_MODEL` | Optional legacy primary; placed first in the chain |
+| `OPENROUTER_ALLOW_FREE_MODELS` | `false`. Outside development/test, `:free` models are skipped (shared 50/day account cap; they can lose all endpoints) unless this is `true` |
+| `OPENROUTER_MAX_TOKENS` | 1500 default output cap; each feature also sets its own |
 | `OPENROUTER_TIMEOUT_MS` | 30000 per request |
+| `TRANSLATION_PROVIDER` | `google` (Cloud Translation through the function's service account; needs the API enabled and `roles/cloudtranslate.user`) or `openrouter` |
+| `TRANSLATION_FALLBACK` | `openrouter` (retry there when Cloud Translation fails) or `none` |
+| `GOOGLE_TRANSLATE_TIMEOUT_MS` | 8000 per Cloud Translation call |
 | `MAX_TRANSLATION_CHARS` | 500; UI/schema also cap text at 500 |
 | `TRANSLATION_INFERENCE_TIMEOUT_MS` | 20000, total translation operation deadline; aborts upstream work |
 | `TRANSLATION_CACHE_TTL_MS` | 600000 |
@@ -48,7 +53,7 @@ Managed Firebase Functions/Cloud Run uses Application Default Credentials when e
 | `ITINERARY_ENABLE_FALLBACK` | `true`; allows sample/static fallback plans |
 | `CULTURE_BRIEF_CACHE_VERSION` | `1`; increment to invalidate brief cache namespace |
 
-Model availability/pricing depends on the provider. A primary model labeled free does not make fallback usage free. Review every configured fallback and provider spending cap. The historical Hugging Face model/warmup settings are not used by the current translation implementation.
+Model availability and pricing change; see ADR-003 for the options checked on 2026-10-02, and set a credit limit on the OpenRouter key. The chain falls through to the next model only on 404/408/429/5xx and network errors. Locally, Cloud Translation uses `FB_ADMIN_CREDENTIALS` / `GOOGLE_APPLICATION_CREDENTIALS` or `gcloud auth application-default login`; set `TRANSLATION_PROVIDER=openrouter` to skip it. The historical Hugging Face model/warmup settings are not used by the current translation implementation.
 
 ## Throttles and quotas
 
@@ -69,6 +74,8 @@ Model (ADR-002): every route that calls a paid provider requires sign-in and has
 ## Functions and CI
 
 The API runs as the Cloud Functions **2nd gen** function `apiV2` (`travel-app-be/index.js`, options in `src/config/functionOptions.js`): `us-central1`, 1 vCPU, 512 MiB, concurrency 80, 120 s timeout. `FUNCTION_MIN_INSTANCES` (default 0) and `FUNCTION_MAX_INSTANCES` (default 5) are deploy-time params read from `.env` / `.env.<project>`. Region is fixed to `us-central1` to match the Hosting rewrite. The 1st gen `api` export remains only as a rollback target until it is deleted.
+
+**Plain config.** Non-secret settings such as `OPENROUTER_MODEL_CHAIN` and `TRANSLATION_PROVIDER` go in `travel-app-be/.env.<projectId>`, which `firebase deploy` uploads as environment variables.
 
 **Secrets.** `OPENROUTER_API_KEY` and `GOOGLE_PLACES_API_KEY` are bound with `defineSecret` and must exist in Secret Manager (`firebase functions:secrets:set NAME`, or `travel-app-be/scripts/set-firebase-secrets.sh`). Do **not** also put these names in a deployed `.env` file: the CLI rejects a name that is both an env var and a secret. Local emulator runs read them from `travel-app-be/.secret.local` (git-ignored); local `npm run dev` still reads `.env`.
 

@@ -47,10 +47,10 @@ SECRET_KEYS=(
   FBAPP_APP_ID
   GOOGLE_PLACES_API_KEY
   OPENROUTER_API_KEY
-  OPENROUTER_MODEL
   CORS_ALLOWED_ORIGINS
-  OPENROUTER_MODEL_CHAIN
 )
+# Model names are not secrets (ADR-003): set OPENROUTER_MODEL_CHAIN in
+# travel-app-be/.env.<projectId>, which the Firebase CLI deploys as plain config.
 
 set_secret() {
   local secret_name="$1"

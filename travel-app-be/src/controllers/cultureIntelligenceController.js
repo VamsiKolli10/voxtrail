@@ -4,6 +4,8 @@ const {
   createErrorResponse,
   ERROR_CODES,
   logError,
+  isAiNotConfigured,
+  aiNotConfiguredResponse,
 } = require("../utils/errorHandler");
 const { sanitizeString, sanitizeTextInput } = require("../utils/validation");
 
@@ -282,6 +284,7 @@ async function getBrief(req, res) {
         user: JSON.stringify(userPayload),
         temperature: 0.35,
         response_format: "json_object",
+        max_tokens: 2000,
       });
     } catch (providerError) {
       logError(providerError, {
@@ -458,6 +461,7 @@ async function askQuestion(req, res) {
       user: JSON.stringify(userPayload),
       temperature: 0.4,
       response_format: "json_object",
+      max_tokens: 600,
     });
 
     let parsed;
@@ -510,6 +514,9 @@ async function askQuestion(req, res) {
       endpoint: "/api/culture/qa",
       body: req.body,
     });
+    if (isAiNotConfigured(error)) {
+      return res.status(503).json(aiNotConfiguredResponse());
+    }
     return res
       .status(500)
       .json(
@@ -604,6 +611,7 @@ async function getContextualTips(req, res) {
       user: JSON.stringify(microContext),
       temperature: 0.35,
       response_format: "json_object",
+      max_tokens: 600,
     });
 
     let parsed;
@@ -658,6 +666,9 @@ async function getContextualTips(req, res) {
       endpoint: "/api/culture/contextual",
       body: req.body,
     });
+    if (isAiNotConfigured(error)) {
+      return res.status(503).json(aiNotConfiguredResponse());
+    }
     return res
       .status(500)
       .json(
