@@ -3,8 +3,8 @@
 import api from "./api";
 
 /** GET /api/saved-phrases -> { items: [...] } */
-export async function listSavedPhrases() {
-  const { data } = await api.get("/saved-phrases");
+export async function listSavedPhrases({ signal } = {}) {
+  const { data } = await api.get("/saved-phrases", { signal });
   return data.items;
 }
 

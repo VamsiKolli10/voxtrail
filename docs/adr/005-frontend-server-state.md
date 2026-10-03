@@ -1,6 +1,6 @@
 # ADR-005: Frontend server state with TanStack Query; slim Redux to client state
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-10-02
 **Deciders:** Vamsi Kolli
 
@@ -65,11 +65,22 @@ The pain is server state: races, no caching, repeated loading code. Client state
 - **Harder:** cache invalidation must be thought through for mutations (save/delete phrase → invalidate `["savedPhrases"]`).
 - **Revisit when:** `travelContext` is the only Redux slice left. Then consider moving it to a small context with `localStorage` and removing Redux and redux-persist.
 
+## Implementation notes
+
+- **Client:** `src/services/queryClient.js`, provided in `main.jsx`. Queries: `staleTime` 60 s, `gcTime` 10 min, retry twice except on 4xx, **no refetch on window focus** (most queries are billed Places/AI calls). Mutations **don't retry**: "save phrase" isn't idempotent, so a retry after a lost response could save twice (the ADR's `retry: 1` was dropped for that reason).
+- **Keys:** `src/services/queryKeys.js` (`["poi", "search", params]`, `["stays", "detail", id, lang]`, `["savedPhrases", "list", uid]`, …). Services take `{ signal }` so abandoned requests are cancelled.
+- **Explore and Stays search:** the page keeps the last submitted search in state; `useQuery` with that search as the key and `keepPreviousData`. The `latestSearch` request-ID guards are gone. Side effects of a finished search (travel context, recent activity, analytics) run once per search, not again for cache hits or background refetches. Re-running a failed search retries it; re-running a successful one uses the cache. Stays paging is derived from the cached result instead of copied into state.
+- **Also migrated:** stay and destination details, on-demand reviews (`PlaceReviews`), and the Home profile greeting. Home used to `dispatch(setUser(profile))`, which replaced the signed-in user (dropping `emailVerified`) with the `/profile` payload; it now reads the profile from its own query.
+- **Saved phrases:** `hooks/useSavedPhrases.js`: `useQuery` (`networkMode: "always"`; the query function falls back to the IndexedDB snapshot when offline or on error) plus `useMutation` for add/remove, which update the list immediately and invalidate `["savedPhrases"]`. Coming back online refetches. Translation's "save" invalidates the same key.
+- **`persistQueryClient` evaluated, not adopted:** it would write every cached query to disk, including Google Places responses and their expiring signed photo URLs, which the Maps terms don't allow storing (ADR-004). The account-scoped saved-phrase snapshot stays.
+- **Redux:** only `travelContext` remains. The four stub slices and `authSlice` are deleted; auth state lives in `AuthContext` (`useReducer`), and `Navbar`, `Home` and `LogoutButton` use `useAuth()`. Signing out or switching accounts clears the query cache.
+
 ## Action Items
 
-1. [ ] Add `@tanstack/react-query`; create one `QueryClient` in `App.jsx` (`staleTime` ~60 s, `retry: 1` for mutations, 2 for queries; no retry on 4xx).
-2. [ ] Define query-key factories in `src/services/queryKeys.js` (e.g. `["poi", "search", params]`).
-3. [ ] Migrate Explore (`DiscoverPage.jsx`) and Stays search first; delete their sequence guards; keep tests green.
-4. [ ] Saved phrases: `useQuery` + `useMutation` with invalidation; evaluate `persistQueryClient` to replace the hand-written IndexedDB snapshot in `services/offlineCache.js`.
-5. [ ] Delete `store/slices/{app,translation,phrasebook,accommodation}Slice.js`; replace `useSelector(state => state.auth.user)` with `useAuth()`.
-6. [ ] Update `AGENTS.md` (see ARCHITECTURE M7) to describe the real state model.
+1. [x] Add `@tanstack/react-query`; one `QueryClient` (see notes for the retry change).
+2. [x] Query-key factories in `src/services/queryKeys.js`.
+3. [x] Migrate Explore and Stays search; delete their sequence guards; tests green (plus race and cache tests).
+4. [x] Saved phrases with `useQuery` + `useMutation`; `persistQueryClient` evaluated and rejected (see notes).
+5. [x] Delete the stub slices and `authSlice`; use `useAuth()`.
+6. [ ] Update `AGENTS.md` to describe the real state model (with the agent-docs cleanup).
+7. [ ] Later: migrate the remaining hand-rolled fetches (culture guide, emergency, itinerary panel) as those pages are touched. Then reconsider replacing Redux + redux-persist for `travelContext` with a small context.

@@ -1,19 +1,16 @@
 import { Button } from "@mui/material";
-import { useDispatch } from "react-redux";
 import { useNavigate } from "react-router-dom";
-import { clearUser } from "../../store/slices/authSlice";
 import { logout } from "../../services/auth";
 import { useNotify } from "../../contexts/NotificationContext.jsx";
 
 export default function LogoutButton() {
-  const dispatch = useDispatch();
   const navigate = useNavigate();
   const { notify } = useNotify();
 
   const handleLogout = async () => {
     try {
+      // AuthContext sees the sign-out and clears the user and cached data.
       await logout();
-      dispatch(clearUser());
       notify("Logged out successfully", "success");
       navigate("/");
     } catch (err) {

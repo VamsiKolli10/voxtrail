@@ -16,12 +16,12 @@ import {
 import { NavLink, Link, useLocation, useNavigate } from "react-router-dom";
 import { styled } from "@mui/material/styles";
 import LogoutButton from "../../components/common/LogoutButton";
-import { useSelector } from "react-redux";
 import {
   Brightness4 as DarkIcon,
   Brightness7 as LightIcon,
   AirplanemodeActive as PlaneIcon,
 } from "@mui/icons-material";
+import { useAuth } from "../../contexts/AuthContext.jsx";
 import { useAppearance } from "../../contexts/AppearanceContext.jsx";
 import { NAV_ITEMS, isNavItemActive } from "./navItems";
 import { transitionFor } from "../../theme";
@@ -93,7 +93,7 @@ export default function Navbar({ isLanding = false }) {
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const location = useLocation();
   const navigate = useNavigate();
-  const user = useSelector((state) => state.auth.user);
+  const { user } = useAuth();
   const { mode, toggleMode } = useAppearance();
   const navRefs = useRef([]);
   const [focusedNavIndex, setFocusedNavIndex] = useState(0);

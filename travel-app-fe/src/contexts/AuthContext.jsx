@@ -1,15 +1,42 @@
-import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useReducer,
+  useRef,
+  useState,
+} from "react";
 import { signOut } from "firebase/auth";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { useLocation } from "react-router-dom";
-import { useDispatch, useSelector } from "react-redux";
 import { auth } from "../firebase";
-import { setUser, clearUser, setLoading } from "../store/slices/authSlice";
+import { queryClient } from "../services/queryClient";
 import FullScreenLoader from "../components/common/FullScreenLoader.jsx";
 import { handleEmailVerification } from "../services/auth";
 import { setRecentActivityUser } from "../utils/recentActivity";
 
 const AuthContext = createContext();
+
+// Auth state lives here, not in Redux (ADR-005): AuthContext is its only owner.
+const initialAuthState = { user: null, loading: true };
+const setUser = (user) => ({ type: "setUser", user });
+const clearUser = () => ({ type: "clearUser" });
+const setLoading = (loading) => ({ type: "setLoading", loading });
+function authReducer(state, action) {
+  switch (action.type) {
+    case "setUser":
+      return { user: action.user, loading: false };
+    case "clearUser":
+      return { user: null, loading: false };
+    case "setLoading":
+      return state.loading === action.loading
+        ? state
+        : { ...state, loading: action.loading };
+    default:
+      return state;
+  }
+}
 
 function extractActionParams(urlString) {
   try {
@@ -32,8 +59,7 @@ function extractActionParams(urlString) {
 }
 
 export function AuthProvider({ children }) {
-  const dispatch = useDispatch();
-  const authState = useSelector((state) => state.auth);
+  const [authState, dispatch] = useReducer(authReducer, initialAuthState);
   const location = useLocation();
   const [statusMessage, setStatusMessage] = useState("Securing your session…");
   const [isEmailVerificationInProgress, setIsEmailVerificationInProgress] =
@@ -43,6 +69,17 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     setRecentActivityUser(authState.user?.uid);
+  }, [authState.user?.uid]);
+
+  // Drop cached server data (profile, saved phrases, searches) when the
+  // account signs out or changes, so the next user never sees it.
+  const previousUid = useRef(null);
+  useEffect(() => {
+    const uid = authState.user?.uid || null;
+    if (previousUid.current && previousUid.current !== uid) {
+      queryClient.clear();
+    }
+    previousUid.current = uid;
   }, [authState.user?.uid]);
 
   const isPublicRoute = useMemo(() => {

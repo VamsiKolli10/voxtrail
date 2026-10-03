@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
+import { renderWithQuery as render } from "../../../test/renderWithQuery";
 import userEvent from "@testing-library/user-event";
 import PlaceReviews from "../PlaceReviews.jsx";
 
@@ -10,7 +11,7 @@ describe("PlaceReviews", () => {
         { author_name: "Ana", author_uri: "https://maps.google.com/ana", rating: 5, text: "Lovely stay" },
       ],
     }));
-    render(<PlaceReviews title="Guest Reviews" reviewsCount={1200} loadReviews={loadReviews} />);
+    render(<PlaceReviews title="Guest Reviews" reviewsCount={1200} queryKey={["r", 1]} loadReviews={loadReviews} />);
 
     expect(loadReviews).not.toHaveBeenCalled();
     await userEvent.click(screen.getByRole("button", { name: "Show reviews (1,200)" }));
@@ -26,7 +27,7 @@ describe("PlaceReviews", () => {
       .fn()
       .mockRejectedValueOnce(new Error("502"))
       .mockResolvedValueOnce({ reviews: [] });
-    render(<PlaceReviews loadReviews={loadReviews} />);
+    render(<PlaceReviews queryKey={["r", 2]} loadReviews={loadReviews} />);
 
     await userEvent.click(screen.getByRole("button", { name: "Show reviews" }));
     await userEvent.click(await screen.findByRole("button", { name: "Retry" }));

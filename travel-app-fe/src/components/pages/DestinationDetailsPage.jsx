@@ -34,7 +34,9 @@ import PhotoCarousel from "../stays/PhotoCarousel";
 import DestinationMap from "../discover/DestinationMap";
 import CulturalEtiquette from "./CulturalEtiquette";
 import useTravelContext from "../../hooks/useTravelContext";
+import { useQuery } from "@tanstack/react-query";
 import { getPOIDetails, getPOIReviews } from "../../services/poi";
+import { queryKeys } from "../../services/queryKeys";
 import PlaceReviews from "../common/PlaceReviews";
 import PageContainer from "../layout/PageContainer";
 
@@ -87,9 +89,16 @@ export default function DestinationDetailsPage() {
   const theme = useTheme();
   const isDarkMode = theme.palette.mode === "dark";
 
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const detailsQuery = useQuery({
+    queryKey: queryKeys.poi.detail(id),
+    queryFn: ({ signal }) => getPOIDetails(id, "en", { signal }),
+    enabled: Boolean(id),
+  });
+  const data = detailsQuery.data ?? null;
+  const loading = detailsQuery.isPending;
+  const error = detailsQuery.isError
+    ? "We couldn’t load that destination. Try again in a moment."
+    : "";
   const [isSaved, setIsSaved] = useState(false);
   const [shareNotice, setShareNotice] = useState("");
 
@@ -119,27 +128,6 @@ export default function DestinationDetailsPage() {
     theme.palette.divider,
     isDarkMode ? 0.6 : 0.9
   )}`;
-
-  useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    setError("");
-    getPOIDetails(id)
-      .then((res) => {
-        if (cancelled) return;
-        setData(res);
-        setLoading(false);
-      })
-      .catch((err) => {
-        if (cancelled) return;
-        console.error(err);
-        setError("We couldn’t load that destination. Try again in a moment.");
-        setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [id]);
 
   useEffect(() => {
     if (!data?.name) return;
@@ -518,7 +506,8 @@ export default function DestinationDetailsPage() {
               <PlaceReviews
                 title="Recent reviews"
                 reviewsCount={data.reviewsCount}
-                loadReviews={() => getPOIReviews(id)}
+                queryKey={queryKeys.poi.reviews(id)}
+                loadReviews={({ signal }) => getPOIReviews(id, "en", { signal })}
               />
             </Paper>
           )}

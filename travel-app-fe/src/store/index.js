@@ -10,19 +10,12 @@ import {
   REGISTER,
 } from "redux-persist";
 import storage from "redux-persist/es/storage";
-import app from "./slices/appSlice";
-import translation from "./slices/translationSlice";
-import phrasebook from "./slices/phrasebookSlice";
-import accommodation from "./slices/accommodationSlice";
-import auth from "./slices/authSlice";
 import travelContext from "./slices/travelContextSlice";
 
+// Redux holds only client state shared across pages: the travel context
+// (persisted). Server data lives in TanStack Query and auth in AuthContext
+// (docs/adr/005-frontend-server-state.md).
 const rootReducer = combineReducers({
-  app,
-  translation,
-  phrasebook,
-  accommodation,
-  auth,
   travelContext,
 });
 

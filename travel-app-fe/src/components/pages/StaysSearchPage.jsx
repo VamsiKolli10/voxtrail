@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
 import {
   Box,
@@ -28,6 +29,7 @@ import {
   FilterList as FilterListIcon,
 } from "@mui/icons-material";
 import { searchStays } from "../../services/stays";
+import { queryKeys } from "../../services/queryKeys";
 import FiltersSidebar from "../stays/FiltersSidebar";
 import ResultsList from "../stays/ResultsList";
 import StaysMap from "../stays/StaysMap";
@@ -39,6 +41,18 @@ import PageContainer from "../layout/PageContainer";
 
 const PAGE_SIZE = 5;
 const BACKEND_FETCH_SIZE = 50; // request a larger page size so we can paginate on the client
+
+// Request parameters for one search: only non-empty values, page 1 with a
+// large page size (results are paged on the client).
+function buildSearchParams(query, filters) {
+  const params = { ...query, page: 1, pageSize: BACKEND_FETCH_SIZE };
+  if (filters.type?.length > 0) params.type = filters.type.join(",");
+  if (filters.amenities?.length > 0) params.amenities = filters.amenities.join(",");
+  if (filters.rating !== undefined && filters.rating !== null) {
+    params.rating = filters.rating;
+  }
+  return params;
+}
 
 export default function StaysSearchPage() {
   return (
@@ -93,22 +107,56 @@ function StaysSearchPageBody() {
   });
 
   const [view, setView] = useState(params.get("view") || "list");
-  const [page, setPage] = useState(Number(params.get("page") || 1));
-  const [loading, setLoading] = useState(false);
-  const [allItems, setAllItems] = useState([]);
-  const [items, setItems] = useState([]);
-  const [totalPages, setTotalPages] = useState(1);
-  const [totalResults, setTotalResults] = useState(0);
-  const [destinationMeta, setDestinationMeta] = useState(null);
-  const [error, setError] = useState("");
+  const [requestedPage, setPage] = useState(Number(params.get("page") || 1));
+  // The search the user last ran ({ query, filters }), or null. TanStack Query
+  // owns the request; its key is the search, so a slow response for an older
+  // search can't overwrite a newer one (ADR-005).
+  const [submitted, setSubmitted] = useState(null);
+  const [locating, setLocating] = useState(false);
+  const [localError, setLocalError] = useState("");
+  const [dismissedError, setDismissedError] = useState(null);
   const resultsTopRef = useRef(null);
-  const latestSearch = useRef(0);
-  useEffect(() => () => { latestSearch.current += 1; }, []);
   const { trackModuleView, trackEvent } = useAnalytics();
   const appliedFiltersCount =
     (filters.type?.length || 0) +
     (filters.amenities?.length || 0) +
     (filters.rating ? 1 : 0);
+
+  const searchParams = useMemo(
+    () =>
+      submitted ? buildSearchParams(submitted.query, submitted.filters) : null,
+    [submitted]
+  );
+  const staysQuery = useQuery({
+    queryKey: queryKeys.stays.search(searchParams),
+    queryFn: ({ signal }) => searchStays(searchParams, { signal }),
+    enabled: searchParams !== null,
+    placeholderData: keepPreviousData,
+  });
+
+  const loading = locating || staysQuery.isFetching;
+  const data = submitted && !staysQuery.isError ? staysQuery.data : undefined;
+  const allItems = useMemo(() => data?.items || [], [data]);
+  const totalResults = data ? data.total ?? allItems.length : 0;
+  const destinationMeta = data?.resolvedDestination || null;
+  // Results are fetched once (up to BACKEND_FETCH_SIZE) and paged here.
+  const totalPages = Math.max(1, Math.ceil(allItems.length / PAGE_SIZE));
+  const page = Math.min(Math.max(1, requestedPage || 1), totalPages);
+  const items = useMemo(
+    () => allItems.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
+    [allItems, page]
+  );
+  const queryError =
+    staysQuery.isError && staysQuery.error !== dismissedError
+      ? staysQuery.error?.response?.data?.error?.message ||
+        staysQuery.error?.message ||
+        "Failed to fetch stays"
+      : "";
+  const error = localError || queryError;
+  const dismissError = () => {
+    setLocalError("");
+    setDismissedError(staysQuery.error);
+  };
 
   const scrollResultsToTop = () => {
     // Scroll the full page to the very top after pagination changes
@@ -201,199 +249,146 @@ function StaysSearchPageBody() {
     return normalized;
   };
 
-  const syncUrl = (
-    currentQuery = query,
-    currentFilters = filters,
-    extra = {}
-  ) => {
+  // Keep the URL in step with the search that's on screen.
+  useEffect(() => {
+    if (!submitted) return;
+    const { query: q, filters: f } = submitted;
     const merged = {
-      dest: currentQuery.dest || undefined,
-      distance: currentQuery.distance ?? undefined,
-      lat: currentQuery.lat ?? undefined,
-      lng: currentQuery.lng ?? undefined,
-      type: currentFilters.type?.join(",") || undefined,
-      amenities: currentFilters.amenities?.join(",") || undefined,
-      rating: currentFilters.rating ?? undefined,
+      dest: q.dest || undefined,
+      distance: q.distance ?? undefined,
+      lat: q.lat ?? undefined,
+      lng: q.lng ?? undefined,
+      type: f.type?.join(",") || undefined,
+      amenities: f.amenities?.join(",") || undefined,
+      rating: f.rating ?? undefined,
       view,
       page,
-      ...extra,
     };
+    setParams(
+      Object.fromEntries(
+        Object.entries(merged).filter(([, v]) => v !== undefined && v !== "")
+      ),
+      { replace: true }
+    );
+  }, [submitted, view, page, setParams]);
 
-    const clean = Object.fromEntries(
-      Object.entries(merged).filter(([, v]) => v !== undefined && v !== "")
+  // Side effects of a finished search, once per search (not again for cache
+  // hits or background refetches of the same search).
+  const handledSearch = useRef(null);
+  useEffect(() => {
+    if (!submitted || staysQuery.isFetching || staysQuery.isPlaceholderData) return;
+    if (!staysQuery.isSuccess && !staysQuery.isError) return;
+    const key = `${staysQuery.status}:${JSON.stringify(searchParams)}`;
+    if (handledSearch.current === key) return;
+    handledSearch.current = key;
+
+    const searchQuery = submitted.query;
+    const searchFilters = submitted.filters;
+    const hasCoordinates = Boolean(
+      Number.isFinite(searchQuery.lat) && Number.isFinite(searchQuery.lng)
     );
 
-    setParams(clean, { replace: true });
-  };
-
-  // Fixed: performSearch accepts query and filters as parameters to avoid async state delays
-  const applyPage = (
-    nextPage,
-    sourceItems = allItems,
-    currentQuery = query,
-    currentFilters = filters,
-    options = {}
-  ) => {
-    const total = sourceItems.length;
-    const maxPage = Math.max(1, Math.ceil(total / PAGE_SIZE));
-    const clamped = Math.min(Math.max(1, nextPage || 1), maxPage);
-    const start = (clamped - 1) * PAGE_SIZE;
-    setItems(sourceItems.slice(start, start + PAGE_SIZE));
-    setPage(clamped);
-    setTotalPages(maxPage);
-    syncUrl(currentQuery, currentFilters, { page: clamped });
-    if (options.scrollToTop) {
-      scrollResultsToTop();
-    }
-  };
-
-  const performSearch = async (
-    searchQuery = query,
-    searchFilters = filters,
-    pageOverride = page
-  ) => {
-    const normalizedQuery = normalizeSearchQuery(searchQuery);
-    const requestId = ++latestSearch.current;
-    setLoading(true);
-    setError("");
-    try {
-      const effectivePage =
-        pageOverride === undefined || pageOverride === null
-          ? page
-          : pageOverride;
-      // Build search params - only include non-empty values
-      const searchParams = {
-        ...normalizedQuery,
-        page: 1,
-        pageSize: BACKEND_FETCH_SIZE,
-      };
-
-      // Add type filter only if there are selected types
-      if (searchFilters.type?.length > 0) {
-        searchParams.type = searchFilters.type.join(",");
-      }
-
-      // Add amenities filter only if there are selected amenities
-      if (searchFilters.amenities?.length > 0) {
-        searchParams.amenities = searchFilters.amenities.join(",");
-      }
-
-      // Add rating filter only if it's defined
-      if (searchFilters.rating !== undefined && searchFilters.rating !== null) {
-        searchParams.rating = searchFilters.rating;
-      }
-
-      const data = await searchStays(searchParams);
-      if (requestId !== latestSearch.current) return;
-      const fullItems = data.items || [];
-      const responseTotal = data.total ?? fullItems.length ?? 0;
-      setAllItems(fullItems);
-      setTotalResults(responseTotal);
-      setDestinationMeta(data.resolvedDestination || null);
-      const computedPage = effectivePage || 1;
-      applyPage(computedPage, fullItems, normalizedQuery, searchFilters);
-      const destinationLabel =
-        data.resolvedDestination?.city?.trim() ||
-        data.resolvedDestination?.display ||
-        searchQuery.dest ||
-        (Number.isFinite(searchQuery.lat) && Number.isFinite(searchQuery.lng) ? "Current location" : "Nearby");
-
-      const destinationPayload = data.resolvedDestination
-        ? {
-            display:
-              data.resolvedDestination.city?.trim() ||
-              data.resolvedDestination.display ||
-              destinationLabel,
-            city: data.resolvedDestination.city || "",
-            state: data.resolvedDestination.state || "",
-            country: data.resolvedDestination.country || "",
-            lat: data.resolvedDestination.lat,
-            lng: data.resolvedDestination.lng,
-          }
-        : {
-            display: destinationLabel,
-            city: data.resolvedDestination?.city || searchQuery.dest || "",
-            state: data.resolvedDestination?.state || "",
-            country: data.resolvedDestination?.country || "",
-            lat: searchQuery.lat,
-            lng: searchQuery.lng,
-          };
-
-      if (destinationLabel && setDestinationContext) {
-        setDestinationContext(
-          destinationLabel,
-          {
-            display: destinationPayload.display || destinationLabel,
-            city: destinationPayload.city,
-            state: destinationPayload.state,
-            country: destinationPayload.country,
-            lat: destinationPayload.lat,
-            lng: destinationPayload.lng,
-          },
-          { source: "stays-search" }
-        );
-      }
-      logRecentActivity({
-        type: "stays",
-        title: "Searched stays",
-        description: `${destinationLabel} · ${responseTotal} result${
-          responseTotal === 1 ? "" : "s"
-        }`,
-        meta: {
-          page: effectivePage,
-          total: responseTotal,
-        },
-      });
+    if (staysQuery.isError) {
+      const err = staysQuery.error;
       trackEvent("stays_search", {
         hasDestination: Boolean(searchQuery.dest),
-        hasCoordinates: Boolean(Number.isFinite(searchQuery.lat) && Number.isFinite(searchQuery.lng)),
-        filtersApplied: {
-          type: searchFilters.type?.length || 0,
-          amenities: searchFilters.amenities?.length || 0,
-          rating: Boolean(searchFilters.rating),
-        },
-        results: responseTotal,
-        success: true,
-      });
-      setQuery((prev) => ({
-        ...prev,
-        ...normalizedQuery,
-      }));
-      // applyPage already syncs the URL
-    } catch (e) {
-      if (requestId !== latestSearch.current) return;
-      const apiMsg = e?.response?.data?.error?.message;
-      setError(apiMsg || e?.message || "Failed to fetch stays");
-      setAllItems([]);
-      setItems([]);
-      setTotalResults(0);
-      setDestinationMeta(null);
-      setTotalPages(1);
-      trackEvent("stays_search", {
-        hasDestination: Boolean(searchQuery.dest),
-        hasCoordinates: Boolean(Number.isFinite(searchQuery.lat) && Number.isFinite(searchQuery.lng)),
-        error: apiMsg || e?.message || "unknown",
+        hasCoordinates,
+        error: err?.response?.data?.error?.message || err?.message || "unknown",
         success: false,
       });
-    } finally {
-      if (requestId === latestSearch.current) setLoading(false);
+      return;
     }
+
+    const result = staysQuery.data || {};
+    const resolved = result.resolvedDestination;
+    const responseTotal = result.total ?? result.items?.length ?? 0;
+    const destinationLabel =
+      resolved?.city?.trim() ||
+      resolved?.display ||
+      searchQuery.dest ||
+      (hasCoordinates ? "Current location" : "Nearby");
+    const destinationPayload = resolved
+      ? {
+          display: resolved.city?.trim() || resolved.display || destinationLabel,
+          city: resolved.city || "",
+          state: resolved.state || "",
+          country: resolved.country || "",
+          lat: resolved.lat,
+          lng: resolved.lng,
+        }
+      : {
+          display: destinationLabel,
+          city: searchQuery.dest || "",
+          state: "",
+          country: "",
+          lat: searchQuery.lat,
+          lng: searchQuery.lng,
+        };
+
+    if (destinationLabel && setDestinationContext) {
+      setDestinationContext(destinationLabel, destinationPayload, {
+        source: "stays-search",
+      });
+    }
+    logRecentActivity({
+      type: "stays",
+      title: "Searched stays",
+      description: `${destinationLabel} · ${responseTotal} result${
+        responseTotal === 1 ? "" : "s"
+      }`,
+      meta: { page: 1, total: responseTotal },
+    });
+    trackEvent("stays_search", {
+      hasDestination: Boolean(searchQuery.dest),
+      hasCoordinates,
+      filtersApplied: {
+        type: searchFilters.type?.length || 0,
+        amenities: searchFilters.amenities?.length || 0,
+        rating: Boolean(searchFilters.rating),
+      },
+      results: responseTotal,
+      success: true,
+    });
+  }, [
+    submitted,
+    searchParams,
+    staysQuery.status,
+    staysQuery.data,
+    staysQuery.error,
+    staysQuery.isFetching,
+    staysQuery.isPlaceholderData,
+    staysQuery.isSuccess,
+    staysQuery.isError,
+    setDestinationContext,
+    trackEvent,
+  ]);
+
+  const goToPage = (nextPage) => {
+    setPage(Math.min(Math.max(1, nextPage), totalPages));
+    scrollResultsToTop();
+  };
+
+  const submitSearch = (searchQuery = query, searchFilters = filters) => {
+    const normalizedQuery = normalizeSearchQuery(searchQuery);
+    setQuery((prev) => ({ ...prev, ...normalizedQuery }));
+    setPage(1);
+    setLocalError("");
+    const nextParams = buildSearchParams(normalizedQuery, searchFilters);
+    // Same search again: retry it if it failed; otherwise the cached result stands.
+    if (searchParams && JSON.stringify(nextParams) === JSON.stringify(searchParams)) {
+      if (staysQuery.isError) staysQuery.refetch();
+      return;
+    }
+    setSubmitted({ query: normalizedQuery, filters: searchFilters });
   };
 
   const runSearch = () => {
     // Only search if we have a destination or coordinates
     if (query.dest || (Number.isFinite(query.lat) && Number.isFinite(query.lng))) {
-      const resetPage = 1;
-      const normalized = normalizeSearchQuery(query);
-      setQuery((prev) => ({ ...prev, ...normalized }));
-      setPage(resetPage);
-      performSearch(normalized, filters, resetPage);
+      submitSearch(query, filters);
     } else {
       // No query params, show empty state
-      setItems([]);
-      setLoading(false);
-      setTotalResults(0);
-      setDestinationMeta(null);
+      setSubmitted(null);
     }
   };
 
@@ -404,8 +399,7 @@ function StaysSearchPageBody() {
   const handleFiltersApply = (newFilters, options = {}) => {
     const filtersToApply = newFilters || filters;
     setFilters(filtersToApply);
-    applyPage(1, allItems, query, filtersToApply);
-    performSearch(query, filtersToApply, 1);
+    submitSearch(query, filtersToApply);
     const shouldClose =
       options.closePanel !== false && !(options?.reason === "auto");
     if (isMobile && shouldClose) {
@@ -418,55 +412,45 @@ function StaysSearchPageBody() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Fixed: useMyLocation now properly triggers search with coordinates
   const useMyLocation = () => {
     if (!navigator.geolocation) {
-      setError("Geolocation is not supported by your browser");
+      setLocalError("Geolocation is not supported by your browser");
       return;
     }
 
-    setLoading(true);
-    setError("");
+    setLocating(true);
+    setLocalError("");
 
     navigator.geolocation.getCurrentPosition(
       ({ coords }) => {
-        // Create new query with coordinates
+        setLocating(false);
         const nextQuery = {
           lat: coords.latitude,
           lng: coords.longitude,
           distance: query.distance,
         };
-
-        // Update state for display
         setQuery(nextQuery);
-        setPage(1);
-
-        // Perform search immediately with new query
-        performSearch(nextQuery, filters, 1).catch((err) => {
-          setError(err?.message || "Search failed");
-          setLoading(false);
-        });
+        submitSearch(nextQuery, filters);
         trackEvent("stays_use_location", {
           accuracy: coords.accuracy,
         });
       },
       (error) => {
-        setLoading(false);
-        // Handle geolocation errors properly
+        setLocating(false);
         switch (error.code) {
           case error.PERMISSION_DENIED:
-            setError(
+            setLocalError(
               "Location permission denied. Please enable location access in your browser settings."
             );
             break;
           case error.POSITION_UNAVAILABLE:
-            setError("Location information is unavailable. Please try again.");
+            setLocalError("Location information is unavailable. Please try again.");
             break;
           case error.TIMEOUT:
-            setError("The request to get your location timed out.");
+            setLocalError("The request to get your location timed out.");
             break;
           default:
-            setError("An error occurred while retrieving your location.");
+            setLocalError("An error occurred while retrieving your location.");
         }
         console.error("Geolocation error:", error);
       }
@@ -706,7 +690,6 @@ function StaysSearchPageBody() {
                 onChange={(e, newView) => {
                   if (newView) {
                     setView(newView);
-                    syncUrl({ view: newView });
                   }
                 }}
                 size="small"
@@ -759,7 +742,7 @@ function StaysSearchPageBody() {
             <Alert
               severity="error"
               sx={{ mb: 2.5 }}
-              onClose={() => setError("")}
+              onClose={dismissError}
             >
               {error}
             </Alert>
@@ -830,7 +813,7 @@ function StaysSearchPageBody() {
                 disabled={page === 1}
                 onClick={() => {
                   const newPage = Math.max(1, page - 1);
-                  applyPage(newPage, allItems, query, filters, { scrollToTop: true });
+                  goToPage(newPage);
                 }}
               >
                 Previous
@@ -845,7 +828,7 @@ function StaysSearchPageBody() {
                 disabled={page >= totalPages}
                 onClick={() => {
                   const newPage = page + 1;
-                  applyPage(newPage, allItems, query, filters, { scrollToTop: true });
+                  goToPage(newPage);
                 }}
               >
                 Next

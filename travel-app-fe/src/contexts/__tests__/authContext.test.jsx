@@ -1,9 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook } from "@testing-library/react";
-import { Provider } from "react-redux";
-import { configureStore } from "@reduxjs/toolkit";
 import { MemoryRouter } from "react-router-dom";
-import authReducer from "../../store/slices/authSlice";
 import { AuthProvider, useAuth } from "../AuthContext.jsx";
 import { auth } from "../../firebase";
 import {
@@ -47,13 +44,7 @@ describe("AuthContext", () => {
   it("provides auth state", async () => {
     const wrapper = ({ children }) => (
       <MemoryRouter>
-        <Provider
-          store={configureStore({
-            reducer: { auth: authReducer },
-          })}
-        >
-          <AuthProvider>{children}</AuthProvider>
-        </Provider>
+        <AuthProvider>{children}</AuthProvider>
       </MemoryRouter>
     );
 

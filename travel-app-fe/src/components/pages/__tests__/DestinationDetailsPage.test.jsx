@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
+import { renderWithQuery as render } from "../../../test/renderWithQuery";
 import DestinationDetailsPage from "../DestinationDetailsPage.jsx";
 import { getPOIDetails } from "../../../services/poi";
 import { MemoryRouter, Route, Routes } from "react-router-dom";

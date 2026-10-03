@@ -24,7 +24,7 @@ describe("saved phrases service", () => {
 
     const items = await listSavedPhrases();
 
-    expect(api.get).toHaveBeenCalledWith("/saved-phrases");
+    expect(api.get).toHaveBeenCalledWith("/saved-phrases", { signal: undefined });
     expect(items).toEqual([{ id: "1" }]);
   });
 
@@ -59,7 +59,7 @@ describe("saved phrases service", () => {
     const items = await listSavedPhrases();
 
     expect(items).toEqual([]);
-    expect(api.get).toHaveBeenCalledWith("/saved-phrases");
+    expect(api.get).toHaveBeenCalledWith("/saved-phrases", { signal: undefined });
   });
 
   it("handles API errors when listing phrases", async () => {

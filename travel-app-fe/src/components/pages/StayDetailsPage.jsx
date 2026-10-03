@@ -28,7 +28,9 @@ import {
   Bookmark as BookmarkFilledIcon,
   Hotel as HotelIcon,
 } from "@mui/icons-material";
+import { useQuery } from "@tanstack/react-query";
 import { getStay, getStayReviews } from "../../services/stays";
+import { queryKeys } from "../../services/queryKeys";
 import PlaceReviews from "../common/PlaceReviews";
 import StaysMap from "../stays/StaysMap";
 import PhotoCarousel from "../stays/PhotoCarousel";
@@ -43,9 +45,16 @@ export default function StayDetailsPage() {
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const heroHeight = isMobile ? 260 : 420;
 
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [err, setErr] = useState("");
+  const stayQuery = useQuery({
+    queryKey: queryKeys.stays.detail(id),
+    queryFn: ({ signal }) => getStay(id, {}, { signal }),
+    enabled: Boolean(id),
+  });
+  const data = stayQuery.data ?? null;
+  const loading = Boolean(id) && stayQuery.isPending;
+  const err = stayQuery.isError
+    ? stayQuery.error?.message || "Failed to load stay"
+    : "";
   const [bookmarked, setBookmarked] = useState(false);
   const { trackModuleView, trackEvent } = useAnalytics();
 
@@ -54,29 +63,12 @@ export default function StayDetailsPage() {
   }, [id, trackModuleView]);
 
   useEffect(() => {
-    let on = true;
-
-    (async () => {
-      try {
-        const out = await getStay(id);
-        if (on) {
-          setData(out);
-          trackEvent("stay_view", { stayId: id, name: out?.name });
-        }
-      } catch (e) {
-        if (on) {
-          setErr(e?.message || "Failed to load stay");
-          trackEvent("stay_view_error", { stayId: id, error: e?.message });
-        }
-      } finally {
-        if (on) setLoading(false);
-      }
-    })();
-
-    return () => {
-      on = false;
-    };
-  }, [id, trackEvent]);
+    if (stayQuery.isSuccess) {
+      trackEvent("stay_view", { stayId: id, name: stayQuery.data?.name });
+    } else if (stayQuery.isError) {
+      trackEvent("stay_view_error", { stayId: id, error: stayQuery.error?.message });
+    }
+  }, [id, stayQuery.isSuccess, stayQuery.isError, stayQuery.data, stayQuery.error, trackEvent]);
 
   if (!id) {
     return <Navigate to="/stays" replace />;
@@ -339,7 +331,8 @@ export default function StayDetailsPage() {
                     titleVariant="subtitle2"
                     titleComponent="h6"
                     reviewsCount={data.reviewsCount}
-                    loadReviews={() => getStayReviews(id)}
+                    queryKey={queryKeys.stays.reviews(id)}
+                    loadReviews={({ signal }) => getStayReviews(id, {}, { signal })}
                   />
                 </Box>
               )}

@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { screen, fireEvent, waitFor } from "@testing-library/react";
+import { renderWithQuery as render } from "../../../test/renderWithQuery";
 import { MemoryRouter } from "react-router-dom";
 import StaysSearchPage from "../StaysSearchPage.jsx";
 import { searchStays } from "../../../services/stays";
@@ -69,5 +70,18 @@ describe("StaysSearchPage", () => {
     await waitFor(() => {
       expect(searchStays).toHaveBeenCalled();
     });
+  });
+
+  it("passes an abort signal so abandoned searches can be cancelled", async () => {
+    searchStays.mockResolvedValue({ items: [], total: 0 });
+    render(
+      <MemoryRouter>
+        <StaysSearchPage />
+      </MemoryRouter>
+    );
+    fireEvent.change(screen.getByPlaceholderText(/destination/i), { target: { value: "Paris" } });
+    fireEvent.click(screen.getByRole("button", { name: /search/i }));
+    await waitFor(() => expect(searchStays).toHaveBeenCalled());
+    expect(searchStays.mock.calls[0][1].signal).toBeInstanceOf(AbortSignal);
   });
 });

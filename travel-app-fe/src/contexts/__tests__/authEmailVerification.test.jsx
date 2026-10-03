@@ -1,9 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, waitFor } from "@testing-library/react";
-import { Provider } from "react-redux";
-import { configureStore } from "@reduxjs/toolkit";
 import { MemoryRouter } from "react-router-dom";
-import authReducer from "../../store/slices/authSlice";
 import { AuthProvider } from "../AuthContext.jsx";
 import { handleEmailVerification } from "../../services/auth";
 
@@ -37,11 +34,9 @@ vi.mock("../../services/auth", () => ({
 const renderProvider = (path = "/") =>
   render(
     <MemoryRouter initialEntries={[path]}>
-      <Provider store={configureStore({ reducer: { auth: authReducer } })}>
         <AuthProvider>
           <div>app</div>
         </AuthProvider>
-      </Provider>
     </MemoryRouter>
   );
 

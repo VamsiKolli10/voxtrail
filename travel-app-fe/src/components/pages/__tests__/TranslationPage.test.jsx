@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { screen, fireEvent, waitFor } from "@testing-library/react";
+import { renderWithQuery as render } from "../../../test/renderWithQuery";
 import Translation from "../Translation.jsx";
 import { useAuth } from "../../../contexts/AuthContext.jsx";
 import { useAnalytics } from "../../../contexts/AnalyticsContext.jsx";

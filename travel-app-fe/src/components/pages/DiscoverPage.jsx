@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import {
   Box,
@@ -28,6 +29,7 @@ import {
   ErrorOutline as ErrorOutlineIcon,
 } from "@mui/icons-material";
 import { searchPOIs } from "../../services/poi";
+import { queryKeys } from "../../services/queryKeys";
 import { useAnalytics } from "../../contexts/AnalyticsContext.jsx";
 import useTravelContext from "../../hooks/useTravelContext";
 import EmptyState from "../common/EmptyState";
@@ -85,13 +87,28 @@ export default function DiscoverPage() {
     accessibility: params.get("accessibility") === "true",
   });
 
-  // Map/List views are removed. Always show card list.
-  const latestSearch = useRef(0);
-  useEffect(() => () => { latestSearch.current += 1; }, []);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [results, setResults] = useState([]);
-  const [hasSearched, setHasSearched] = useState(false);
+  // The last search the user ran (null until the first one). TanStack Query
+  // owns the request: the query key is the search, so a slow response for an
+  // older search can't overwrite a newer one (ADR-005).
+  const [submitted, setSubmitted] = useState(null);
+  const searchQuery = useQuery({
+    queryKey: queryKeys.poi.search(submitted),
+    queryFn: ({ signal }) => searchPOIs(submitted, { signal }),
+    enabled: submitted !== null,
+    placeholderData: keepPreviousData,
+  });
+  const loading = searchQuery.isFetching;
+  const results =
+    submitted && !searchQuery.isError ? searchQuery.data?.items || [] : [];
+  const hasSearched = submitted !== null;
+  const searchError = searchQuery.isError ? searchQuery.error : null;
+  const apiErrorMessage =
+    searchError?.response?.data?.error?.message || searchError?.message || "";
+  const error = searchError
+    ? apiErrorMessage
+      ? `Something went wrong: ${apiErrorMessage}`
+      : "Check your connection and try again."
+    : "";
   const { notify } = useNotify();
   const [itineraryMode, setItineraryMode] = useState(false);
   const [nlQuery, setNlQuery] = useState("");
@@ -184,66 +201,46 @@ export default function DiscoverPage() {
     });
   }, [contextDestination, destinationLat, destinationLng]);
 
-  // Helper so we can search with fresh local state right after a click
-  const performSearch = async (localQuery = query, localFilters = filters) => {
+  // Record a successful search in the travel context and analytics once per
+  // search (not again for cache hits or background refetches of the same one).
+  const handledSearch = useRef(null);
+  useEffect(() => {
+    if (!searchQuery.isSuccess || searchQuery.isPlaceholderData || !submitted) return;
+    const key = JSON.stringify(submitted);
+    if (handledSearch.current === key) return;
+    handledSearch.current = key;
+    const { dest, lat, lng } = submitted;
+    const hasCoords = Number.isFinite(lat) && Number.isFinite(lng);
+    const label =
+      dest?.trim() ||
+      (hasCoords ? `Lat ${lat.toFixed(2)}, Lng ${lng.toFixed(2)}` : "");
+    if (label) {
+      setDestinationContext(
+        label,
+        { display: label, city: dest?.trim() || "", lat, lng },
+        { source: "discover-search" }
+      );
+    }
+    track?.("discover_search", submitted);
+  }, [searchQuery.isSuccess, searchQuery.isPlaceholderData, submitted, setDestinationContext, track]);
+
+  const performSearch = (localQuery = query, localFilters = filters) => {
     const normalizedQuery = normalizeDiscoverQuery(localQuery);
     setQuery((prev) => ({ ...prev, ...normalizedQuery }));
-    const requestId = ++latestSearch.current;
-    setHasSearched(true);
-    setLoading(true);
-    setError("");
-    try {
-      const { items } = await searchPOIs({
-        dest: normalizedQuery.dest,
-        lat: normalizedQuery.lat,
-        lng: normalizedQuery.lng,
-        category: localFilters.category.join(","),
-        kidFriendly: localFilters.kidFriendly,
-        accessibility: localFilters.accessibility,
-      });
-      if (requestId !== latestSearch.current) return;
-      setResults(items || []);
-      if (
-        (normalizedQuery.dest && normalizedQuery.dest.trim()) ||
-        (Number.isFinite(normalizedQuery.lat) && Number.isFinite(normalizedQuery.lng))
-      ) {
-        const label =
-          normalizedQuery.dest?.trim() ||
-          (Number.isFinite(normalizedQuery.lat) && Number.isFinite(normalizedQuery.lng)
-            ? `Lat ${normalizedQuery.lat.toFixed(
-                2
-              )}, Lng ${normalizedQuery.lng.toFixed(2)}`
-            : "");
-        if (label) {
-          setDestinationContext(
-            label,
-            {
-              display: label,
-              city: normalizedQuery.dest?.trim() || "",
-              lat: normalizedQuery.lat,
-              lng: normalizedQuery.lng,
-            },
-            { source: "discover-search" }
-          );
-        }
-      }
-      track?.("discover_search", {
-        ...normalizedQuery,
-        ...localFilters,
-      });
-    } catch (e) {
-      if (requestId !== latestSearch.current) return;
-      setResults([]);
-      console.error("Discover search error", e);
-      const apiMsg = e?.response?.data?.error?.message || e?.message || "";
-      setError(
-        apiMsg
-          ? `Something went wrong: ${apiMsg}`
-          : "Check your connection and try again."
-      );
-    } finally {
-      if (requestId === latestSearch.current) setLoading(false);
+    const next = {
+      dest: normalizedQuery.dest,
+      lat: normalizedQuery.lat,
+      lng: normalizedQuery.lng,
+      category: localFilters.category.join(","),
+      kidFriendly: localFilters.kidFriendly,
+      accessibility: localFilters.accessibility,
+    };
+    // Same search again: retry it if it failed; otherwise the cached result stands.
+    if (submitted && JSON.stringify(next) === JSON.stringify(submitted)) {
+      if (searchQuery.isError) searchQuery.refetch();
+      return;
     }
+    setSubmitted(next);
   };
 
   const runSearch = () => {
@@ -270,7 +267,6 @@ export default function DiscoverPage() {
       notify("Location isn't available in this browser. Enter a destination instead.", "warning");
       return;
     }
-    setError("");
     navigator.geolocation.getCurrentPosition((pos) => {
       const nextQuery = {
         lat: pos.coords.latitude,
@@ -549,8 +545,7 @@ export default function DiscoverPage() {
               value={nlQuery}
               onChange={(e) => {
                 setNlQuery(e.target.value);
-                setResults([]);
-                setHasSearched(false);
+                setSubmitted(null);
               }}
               onKeyDown={(e) => {
                 if (e.key === "Enter") generatePlan();

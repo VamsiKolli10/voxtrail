@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { screen, fireEvent, waitFor } from "@testing-library/react";
+import { renderWithQuery as render } from "../../../test/renderWithQuery";
 import { MemoryRouter } from "react-router-dom";
 import DiscoverPage from "../DiscoverPage.jsx";
 import { searchPOIs } from "../../../services/poi";

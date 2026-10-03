@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
   Alert,
   Box,
@@ -26,9 +27,11 @@ const srOnly = {
  * Reviews loaded on request. Google bills reviews at its most expensive
  * Places tier, so pages fetch them only when the user asks (ADR-004).
  *
- * loadReviews: () => Promise<{ reviews: Array }>
+ * queryKey:    TanStack Query key for this place's reviews
+ * loadReviews: ({ signal }) => Promise<{ reviews: Array }>
  */
 export default function PlaceReviews({
+  queryKey,
   loadReviews,
   title = "Reviews",
   titleVariant = "h6",
@@ -36,18 +39,28 @@ export default function PlaceReviews({
   reviewsCount,
   maxItems = 3,
 }) {
-  const [status, setStatus] = useState("idle");
-  const [reviews, setReviews] = useState([]);
+  const [requested, setRequested] = useState(false);
+  const reviewsQuery = useQuery({
+    queryKey,
+    queryFn: ({ signal }) => loadReviews({ signal }),
+    enabled: requested,
+    // Reviews are a paid call; keep them for the session once loaded.
+    staleTime: 15 * 60 * 1000,
+  });
+  const reviews = Array.isArray(reviewsQuery.data?.reviews)
+    ? reviewsQuery.data.reviews
+    : [];
+  const status = !requested && !reviewsQuery.data
+    ? "idle"
+    : reviewsQuery.isError
+    ? "error"
+    : reviewsQuery.isSuccess
+    ? "done"
+    : "loading";
 
-  const handleLoad = async () => {
-    setStatus("loading");
-    try {
-      const data = await loadReviews();
-      setReviews(Array.isArray(data?.reviews) ? data.reviews : []);
-      setStatus("done");
-    } catch {
-      setStatus("error");
-    }
+  const handleLoad = () => {
+    if (!requested) setRequested(true);
+    else reviewsQuery.refetch();
   };
 
   const countLabel =

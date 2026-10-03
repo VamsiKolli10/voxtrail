@@ -31,17 +31,8 @@ import {
 import { motion } from "framer-motion";
 import PageContainer from "../layout/PageContainer";
 import { generatePhrasebook } from "../../services/phrasebook";
-import {
-  listSavedPhrases,
-  addSavedPhrase,
-  removeSavedPhrase,
-} from "../../services/savedPhrases";
-import useConnectivity from "../../hooks/useConnectivity";
+import useSavedPhrases from "../../hooks/useSavedPhrases";
 import useTravelContext from "../../hooks/useTravelContext";
-import {
-  cacheSavedPhrases,
-  readSavedPhrases,
-} from "../../services/offlineCache";
 import {
   getLanguageLabel,
   resolveLanguageCode,
@@ -106,13 +97,16 @@ export default function Phrasebook() {
   const [error, setError] = useState("");
   const [result, setResult] = useState(null);
 
-  const [saved, setSaved] = useState([]);
-  const [loadingSaved, setLoadingSaved] = useState(true);
-  const { isOnline } = useConnectivity();
-  const [usingOfflineSaved, setUsingOfflineSaved] = useState(false);
-  const [savedCacheMissing, setSavedCacheMissing] = useState(false);
+  const {
+    saved,
+    loading: loadingSaved,
+    usingOffline: usingOfflineSaved,
+    cacheMissing: savedCacheMissing,
+    setSaved,
+    savePhrase,
+    removePhrase,
+  } = useSavedPhrases(user?.uid);
   const [filter, setFilter] = useState("");
-  const [filteredSaved, setFilteredSaved] = useState([]);
   const theme = useTheme();
 
   useEffect(() => {
@@ -130,11 +124,6 @@ export default function Phrasebook() {
       setTargetLang(nextTarget);
     }
   }, [targetLanguageName, targetLanguageCode, targetLang]);
-
-  const persistSaved = (items) =>
-    cacheSavedPhrases(items, user?.uid).catch((error) =>
-      console.warn("Failed to persist saved phrases locally", error)
-    );
 
   const updateSourceLanguage = useCallback(
     (value) => {
@@ -168,70 +157,15 @@ export default function Phrasebook() {
     [setLanguagePair]
   );
 
-  useEffect(() => {
-    let active = true;
-    setSaved([]);
-    (async () => {
-      try {
-        setLoadingSaved(true);
-        if (isOnline) {
-          const items = await listSavedPhrases();
-          if (!active) return;
-          setSaved(items || []);
-          setUsingOfflineSaved(false);
-          setSavedCacheMissing(false);
-          await cacheSavedPhrases(items || [], user?.uid);
-          return;
-        }
-        const cached = await readSavedPhrases(user?.uid);
-        if (!active) return;
-        if (cached?.length) {
-          setSaved(cached);
-          setUsingOfflineSaved(true);
-          setSavedCacheMissing(false);
-        } else {
-          setSaved([]);
-          setUsingOfflineSaved(true);
-          setSavedCacheMissing(true);
-        }
-      } catch (e) {
-        const cached = await readSavedPhrases(user?.uid);
-        if (active) {
-          if (cached?.length) {
-            setSaved(cached);
-            setUsingOfflineSaved(true);
-            setSavedCacheMissing(false);
-          } else {
-            setSaved([]);
-            setSavedCacheMissing(true);
-          }
-        }
-        console.warn(
-          "Could not load saved phrases (likely low connectivity):",
-          e?.response?.status || e?.message
-        );
-      } finally {
-        if (active) setLoadingSaved(false);
-      }
-    })();
-    return () => {
-      active = false;
-    };
-  }, [isOnline, user?.uid]);
-
-  useEffect(() => {
-    if (!filter) {
-      setFilteredSaved(saved);
-    } else {
-      setFilteredSaved(
-        saved.filter(
-          (item) =>
-            item.phrase?.toLowerCase().includes(filter.toLowerCase()) ||
-            item.meaning?.toLowerCase().includes(filter.toLowerCase()) ||
-            item.topic?.toLowerCase().includes(filter.toLowerCase())
-        )
-      );
-    }
+  const filteredSaved = useMemo(() => {
+    if (!filter) return saved;
+    const needle = filter.toLowerCase();
+    return saved.filter(
+      (item) =>
+        item.phrase?.toLowerCase().includes(needle) ||
+        item.meaning?.toLowerCase().includes(needle) ||
+        item.topic?.toLowerCase().includes(needle)
+    );
   }, [filter, saved]);
 
   const canSubmit =
@@ -341,12 +275,8 @@ export default function Phrasebook() {
 
     if (existing) {
       try {
-        await removeSavedPhrase(existing.id);
-        setSaved((prev) => {
-          const next = prev.filter((p) => p.id !== existing.id);
-          persistSaved(next);
-          return next;
-        });
+        await removePhrase(existing.id);
+        setSaved((prev) => prev.filter((p) => p.id !== existing.id));
       } catch (e) {
         const msg = e?.response?.data?.error || e?.message;
         setError(msg || "Failed to remove phrase");
@@ -355,7 +285,7 @@ export default function Phrasebook() {
     }
 
     try {
-      const id = await addSavedPhrase({
+      const id = await savePhrase({
         phrase: item.phrase,
         transliteration: item.transliteration || "",
         meaning: item.meaning,
@@ -386,9 +316,7 @@ export default function Phrasebook() {
               normalizeLanguageForApi(entry.sourceLang) === normalizedSourceLang
             )
         );
-        const next = [nextCandidate, ...filtered];
-        persistSaved(next);
-        return next;
+        return [nextCandidate, ...filtered];
       });
     } catch (e) {
       const status = e?.response?.status;
@@ -403,12 +331,8 @@ export default function Phrasebook() {
 
   const removeSaved = async (id) => {
     try {
-      await removeSavedPhrase(id);
-      setSaved((prev) => {
-        const next = prev.filter((p) => p.id !== id);
-        persistSaved(next);
-        return next;
-      });
+      await removePhrase(id);
+      setSaved((prev) => prev.filter((p) => p.id !== id));
     } catch (e) {
       const msg = e?.response?.data?.error || e?.message;
       setError(msg || "Failed to remove saved phrase");

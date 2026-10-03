@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor, fireEvent } from "@testing-library/react";
+import { screen, waitFor, fireEvent } from "@testing-library/react";
+import { renderWithQuery as render } from "../../../test/renderWithQuery";
 import StayDetailsPage from "../StayDetailsPage.jsx";
 import { getStay } from "../../../services/stays";
 import { MemoryRouter, Routes, Route } from "react-router-dom";

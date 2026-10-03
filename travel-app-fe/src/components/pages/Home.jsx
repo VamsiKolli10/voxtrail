@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useDispatch, useSelector } from "react-redux";
+import { useQuery } from "@tanstack/react-query";
+import { useAuth } from "../../contexts/AuthContext.jsx";
+import { queryKeys } from "../../services/queryKeys";
 import {
   Box,
   Card,
@@ -16,7 +18,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import PageContainer from "../layout/PageContainer";
 import { ModuleCard, ModuleCardGrid } from "../common/ModuleCard";
 import { fetchProfile } from "../../services/user";
-import { setUser } from "../../store/slices/authSlice";
 import useTravelContext from "../../hooks/useTravelContext";
 import { formatDestinationLabel } from "../../utils/destination";
 import { readRecentActivity } from "../../utils/recentActivity";
@@ -24,23 +25,19 @@ import { transitionFor } from "../../theme";
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const user = useSelector((state) => state.auth);
-  const dispatch = useDispatch();
+  const { user } = useAuth();
+  // Enriches the greeting; the user is already signed in via AuthContext.
+  const { data: profile } = useQuery({
+    queryKey: queryKeys.profile(),
+    queryFn: ({ signal }) => fetchProfile({ signal }),
+    enabled: Boolean(user?.uid),
+    staleTime: 5 * 60 * 1000,
+  });
   const theme = useTheme();
   const [animationComplete, setAnimationComplete] = useState(false);
   const [recentActivity, setRecentActivity] = useState(() =>
     readRecentActivity(5)
   );
-
-  useEffect(() => {
-    fetchProfile()
-      .then((resp) => dispatch(setUser(resp)))
-      .catch((err) => {
-        // Non-fatal: the user is already authenticated via AuthContext, this
-        // just enriches the profile. Log rather than fail silently.
-        console.error("Failed to refresh profile:", err);
-      });
-  }, [dispatch]);
 
   useEffect(() => {
     const timer = setTimeout(() => setAnimationComplete(true), 500);
@@ -175,7 +172,7 @@ export default function Dashboard() {
 
   return (
     <PageContainer
-      title={`Welcome back, ${user?.user?.name || "traveler"}`}
+      title={`Welcome back, ${profile?.name || user?.displayName || "traveler"}`}
       subtitle="Stay on top of your trip with quick access to every tool."
       actions={
         <Stack direction="row" spacing={1.5}>

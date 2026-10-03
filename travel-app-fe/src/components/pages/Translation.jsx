@@ -34,7 +34,9 @@ import {
 import PageContainer from "../layout/PageContainer";
 import { ModuleCard, ModuleCardGrid } from "../common/ModuleCard";
 import { translateText } from "../../services/translation";
+import { useQueryClient } from "@tanstack/react-query";
 import { addSavedPhrase } from "../../services/savedPhrases";
+import { queryKeys } from "../../services/queryKeys";
 import { useAnalytics } from "../../contexts/AnalyticsContext.jsx";
 import ErrorBoundary from "../common/ErrorBoundary";
 import { logRecentActivity } from "../../utils/recentActivity";
@@ -113,6 +115,7 @@ function TranslationBody() {
   const utteranceRef = useRef(null);
   const { trackModuleView, trackEvent } = useAnalytics();
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const languageOptions = TRANSLATION_LANGUAGES;
 
   useEffect(() => {
@@ -388,6 +391,7 @@ function TranslationBody() {
         targetLang,
       });
 
+      queryClient.invalidateQueries({ queryKey: queryKeys.savedPhrases.all });
       setSaveFeedback({
         open: true,
         severity: "success",
