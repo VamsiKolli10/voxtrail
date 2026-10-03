@@ -31,8 +31,8 @@ const {
 const { __mockEnforceQuota: enforceQuota } = require("../src/utils/quota");
 
 jest.mock("../src/stays/providers/googlePlaces", () => ({
-  fetchById: jest.fn(async () => ({ id: "p1", name: "Paris", location: {} })),
-  geocodeCity: jest.fn(async () => ({ display: "Paris", lat: 1, lng: 2 })),
+  fetchPlaceSummary: jest.fn(async () => ({ id: "p1", name: "Paris", location: null })),
+  geocodeCenter: jest.fn(async () => ({ display: "Paris", lat: 1, lng: 2 })),
 }));
 
 describe("Itinerary routes", () => {
@@ -110,8 +110,8 @@ describe("Itinerary routes", () => {
   });
 
   test("falls back to sample on geocode failure", async () => {
-    const { geocodeCity } = require("../src/stays/providers/googlePlaces");
-    geocodeCity.mockRejectedValueOnce(new Error("Geocode fail"));
+    const { geocodeCenter } = require("../src/stays/providers/googlePlaces");
+    geocodeCenter.mockRejectedValueOnce(new Error("Geocode fail"));
 
     chatComplete.mockResolvedValueOnce(
       JSON.stringify({

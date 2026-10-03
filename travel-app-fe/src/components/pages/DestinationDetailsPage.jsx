@@ -34,7 +34,8 @@ import PhotoCarousel from "../stays/PhotoCarousel";
 import DestinationMap from "../discover/DestinationMap";
 import CulturalEtiquette from "./CulturalEtiquette";
 import useTravelContext from "../../hooks/useTravelContext";
-import { getPOIDetails } from "../../services/poi";
+import { getPOIDetails, getPOIReviews } from "../../services/poi";
+import PlaceReviews from "../common/PlaceReviews";
 import PageContainer from "../layout/PageContainer";
 
 const titleCase = (value = "") =>
@@ -118,7 +119,6 @@ export default function DestinationDetailsPage() {
     theme.palette.divider,
     isDarkMode ? 0.6 : 0.9
   )}`;
-  const reviewBg = alpha(theme.palette.primary.main, isDarkMode ? 0.18 : 0.08);
 
   useEffect(() => {
     let cancelled = false;
@@ -223,7 +223,6 @@ export default function DestinationDetailsPage() {
     [data?.openingHours]
   );
 
-  const reviews = Array.isArray(data?.reviews) ? data.reviews : [];
 
   const mapsUrl =
     data?.provider?.deeplink ||
@@ -514,53 +513,13 @@ export default function DestinationDetailsPage() {
             </Stack>
           </Paper>
 
-          {reviews.length > 0 && (
+          {data.reviewsCount > 0 && (
             <Paper sx={paperStyles}>
-              <Typography variant="h6" sx={{ mb: 2 }}>
-                Recent reviews
-              </Typography>
-              <Stack spacing={2}>
-                {reviews.slice(0, 3).map((review, idx) => (
-                  <Box
-                    key={`${review.author_name}-${idx}`}
-                    sx={{
-                      p: 2,
-                      borderRadius: 2,
-                      bgcolor: reviewBg,
-                      border: `1px solid ${alpha(
-                        theme.palette.primary.main,
-                        isDarkMode ? 0.35 : 0.15
-                      )}`,
-                    }}
-                  >
-                    <Stack
-                      direction="row"
-                      spacing={1}
-                      alignItems="center"
-                      sx={{ mb: 0.5 }}
-                    >
-                      <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
-                        {review.author_name}
-                      </Typography>
-                      {typeof review.rating === "number" && (
-                        <Chip
-                          size="small"
-                          icon={<StarIcon fontSize="small" />}
-                          label={review.rating.toFixed(1)}
-                        />
-                      )}
-                      {review.relative_time_description && (
-                        <Typography variant="caption" color="text.secondary">
-                          {review.relative_time_description}
-                        </Typography>
-                      )}
-                    </Stack>
-                    <Typography variant="body2" color="text.secondary">
-                      {review.text || "No review text provided."}
-                    </Typography>
-                  </Box>
-                ))}
-              </Stack>
+              <PlaceReviews
+                title="Recent reviews"
+                reviewsCount={data.reviewsCount}
+                loadReviews={() => getPOIReviews(id)}
+              />
             </Paper>
           )}
         </Grid>

@@ -106,7 +106,8 @@ function mapPlaceToPoiCard(place, center, language = "en") {
   return {
     id: place.id,
     name: place.displayName?.text || place.displayName || "Attraction",
-    blurb: place.editorialSummary?.text || place.editorialSummary?.overview || "",
+    // No editorialSummary: it moves the call to the Atmosphere SKU (ADR-004).
+    blurb: "",
     rating: place.rating ?? null,
     reviewsCount: place.userRatingCount ?? null,
     photos,
@@ -135,29 +136,10 @@ function mapPlaceToPoiCard(place, center, language = "en") {
   };
 }
 
-async function geocodeText(text, language = "en") {
-  ensureKey();
-  const FIELD_MASK =
-    "places.id,places.displayName,places.shortFormattedAddress,places.formattedAddress,places.location";
-  const { data } = await axios.post(
-    `${PLACES_BASE_URL}/places:searchText`,
-    { textQuery: text, languageCode: language },
-    { headers: placesHeaders(FIELD_MASK) }
-  );
-  const place = data?.places?.[0];
-  if (!place) throw new Error("Unable to geocode text");
-  const lat = Number(place.location?.latitude);
-  const lng = Number(place.location?.longitude);
-  if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
-    throw new Error("Unable to geocode coordinates");
-  }
-  return { lat, lng };
-}
-
 async function searchNearbyPoi({ lat, lng, radiusMeters = 5000, language = "en", categories = [] }) {
   ensureKey();
   const FIELD_MASK =
-    "places.id,places.displayName,places.shortFormattedAddress,places.formattedAddress,places.location,places.types,places.rating,places.userRatingCount,places.photos,places.googleMapsUri,places.currentOpeningHours,places.regularOpeningHours,places.editorialSummary,places.accessibilityOptions";
+    "places.id,places.displayName,places.shortFormattedAddress,places.formattedAddress,places.location,places.types,places.rating,places.userRatingCount,places.photos,places.googleMapsUri,places.currentOpeningHours,places.regularOpeningHours,places.accessibilityOptions";
 
   let includedTypes = [];
   const wanted = Array.isArray(categories) ? categories : String(categories || "").split(",").map((s) => s.trim()).filter(Boolean);
@@ -238,7 +220,6 @@ function applySmartFilters(items, { kidFriendly, accessibility, openNow, timeNee
 }
 
 module.exports = {
-  geocodeText,
   searchNearbyPoi,
   mapPlaceToPoiCard,
   applySmartFilters,

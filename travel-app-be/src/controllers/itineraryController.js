@@ -5,8 +5,8 @@ const {
   logError,
 } = require("../utils/errorHandler");
 const {
-  fetchById: fetchPlaceById,
-  geocodeCity,
+  geocodeCenter,
+  fetchPlaceSummary,
 } = require("../stays/providers/googlePlaces");
 const {
   searchNearbyPoi,
@@ -353,14 +353,15 @@ async function generateItinerary(req, res) {
     if (placeId) {
       let place = null;
       try {
-        place = await fetchPlaceById(placeId, lang);
+        // Name and coordinates only: Place Details Pro, not Enterprise.
+        place = await fetchPlaceSummary(placeId, lang);
       } catch (_e) {}
       destination = place
         ? { id: place.id, name: place.name, location: place.location || null }
         : { id: placeId, name: "Destination", location: null };
     } else if (dest) {
       try {
-        const ge = await geocodeCity(dest, lang);
+        const ge = await geocodeCenter(dest, lang);
         destination = {
           id: `text:${dest}`,
           name: ge.display || dest,

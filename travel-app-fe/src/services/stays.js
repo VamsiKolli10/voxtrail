@@ -29,3 +29,12 @@ export const getStay = async (id, params = {}) => {
     throw error;
   }
 };
+
+/**
+ * Reviews for a stay, loaded only when the user asks (ADR-004).
+ */
+export const getStayReviews = async (id, params = {}) => {
+  if (!id) throw new Error("Missing stay id");
+  const { data } = await api.get(`/stays/${encodeURIComponent(id)}/reviews`, { params });
+  return data; // { id, reviews }
+};

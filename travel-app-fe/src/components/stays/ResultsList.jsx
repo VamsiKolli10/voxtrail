@@ -138,7 +138,6 @@ export default function ResultsList({ items = [], loading }) {
                 <PhotoCarousel
                   photos={photos}
                   height={carouselHeight}
-                  maxWidth={600}
                 />
                 <Box
                   sx={{

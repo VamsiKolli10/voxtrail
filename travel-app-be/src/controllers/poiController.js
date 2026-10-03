@@ -76,6 +76,12 @@ async function search(req, res) {
       page: pageNumber,
     });
 
+    // Check the cache before geocoding so a repeat search costs nothing.
+    const cached = getCached("poi:search", cacheKey);
+    if (cached) {
+      return res.json({ ...cached, cached: true });
+    }
+
     let center;
     let resolvedDestination = null;
     if (Number.isFinite(lat) && Number.isFinite(lng)) {
@@ -107,10 +113,6 @@ async function search(req, res) {
     }
 
     const radius = Math.round((Number(distance) || 5) * 1000);
-    const cached = getCached("poi:search", cacheKey);
-    if (cached) {
-      return res.json({ ...cached, cached: true });
-    }
     const raw = await searchNearbyPoi({
       lat: center.lat,
       lng: center.lng,

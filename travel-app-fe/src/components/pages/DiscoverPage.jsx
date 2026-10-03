@@ -858,6 +858,8 @@ export default function DiscoverPage() {
                   component="img"
                   image={toAbsoluteUrl(item.thumbnail)}
                   alt={item.name}
+                  loading="lazy"
+                  decoding="async"
                   sx={{
                     width: "100%",
                     height: { xs: 180, md: 200 },

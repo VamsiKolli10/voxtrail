@@ -28,7 +28,8 @@ import {
   Bookmark as BookmarkFilledIcon,
   Hotel as HotelIcon,
 } from "@mui/icons-material";
-import { getStay } from "../../services/stays";
+import { getStay, getStayReviews } from "../../services/stays";
+import PlaceReviews from "../common/PlaceReviews";
 import StaysMap from "../stays/StaysMap";
 import PhotoCarousel from "../stays/PhotoCarousel";
 import { useAnalytics } from "../../contexts/AnalyticsContext.jsx";
@@ -195,7 +196,6 @@ export default function StayDetailsPage() {
               <PhotoCarousel
                 photos={data.photos || []}
                 height={heroHeight}
-                maxWidth={1200}
               />
               <Box
                 sx={{
@@ -275,7 +275,7 @@ export default function StayDetailsPage() {
                         </Typography>
                       </Box>
                       <Typography variant="caption" color="textSecondary">
-                        {data.reviewsCount || data.reviews?.length || 0}{" "}
+                        {data.reviewsCount || 0}{" "}
                         reviews
                       </Typography>
                     </Paper>
@@ -331,73 +331,16 @@ export default function StayDetailsPage() {
                 </Box>
               )}
 
-              {/* Reviews */}
-              {!!data.reviews?.length && (
+              {/* Reviews: loaded on request (ADR-004) */}
+              {data.reviewsCount > 0 && (
                 <Box sx={{ mb: 3 }}>
-                  <Typography
-                    variant="subtitle2"
-                    sx={{ fontWeight: 600, mb: 1.5 }}
-                  >
-                    Guest Reviews
-                  </Typography>
-                  <Stack spacing={2}>
-                    {data.reviews.slice(0, 3).map((review, idx) => (
-                      <Paper
-                        key={idx}
-                        sx={{
-                          p: 2,
-                          backgroundColor: theme.palette.action.hover,
-                        }}
-                      >
-                        <Box
-                          sx={{
-                            display: "flex",
-                            justifyContent: "space-between",
-                            alignItems: "center",
-                            mb: 1,
-                            flexWrap: "wrap",
-                            gap: 1,
-                          }}
-                        >
-                          <Typography
-                            variant="body2"
-                            sx={{ fontWeight: 600 }}
-                          >
-                            {review.author_name}
-                          </Typography>
-                          {review.rating && (
-                            <Box
-                              sx={{
-                                display: "flex",
-                                alignItems: "center",
-                                gap: 0.5,
-                              }}
-                            >
-                              <StarIcon
-                                sx={{ fontSize: 14, color: "rating.main" }}
-                              />
-                              <Typography
-                                variant="body2"
-                                sx={{ fontWeight: 600 }}
-                              >
-                                {review.rating}
-                              </Typography>
-                            </Box>
-                          )}
-                        </Box>
-                        <Typography
-                          variant="body2"
-                          color="textSecondary"
-                          sx={{ mb: 1, wordBreak: "break-word" }}
-                        >
-                          {review.text}
-                        </Typography>
-                        <Typography variant="caption" color="textDisabled">
-                          {review.relative_time_description}
-                        </Typography>
-                      </Paper>
-                    ))}
-                  </Stack>
+                  <PlaceReviews
+                    title="Guest Reviews"
+                    titleVariant="subtitle2"
+                    titleComponent="h6"
+                    reviewsCount={data.reviewsCount}
+                    loadReviews={() => getStayReviews(id)}
+                  />
                 </Box>
               )}
 

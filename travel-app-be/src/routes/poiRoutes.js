@@ -7,6 +7,10 @@ const { poiSearchSchema } = require("../utils/schemas");
 const { z } = require("zod");
 const asyncHandler = require("../utils/asyncHandler");
 const { userWindowQuota } = require("../middleware/userQuota");
+const {
+  getPlaceReviews,
+  placeReviewsQuota,
+} = require("../controllers/placeReviewsController");
 
 
 // Per-user quotas on the paid Google Places calls: durable in production,
@@ -30,6 +34,13 @@ router.get(
   validateQuery(poiSearchSchema),
   poiSearchQuota,
   asyncHandler(search)
+);
+router.get(
+  "/:id/reviews",
+  requireAuth({ allowRoles: ["user", "admin"] }),
+  validateParams(z.object({ id: z.string().min(1, "id is required") })),
+  placeReviewsQuota,
+  asyncHandler(getPlaceReviews)
 );
 router.get(
   "/:id",

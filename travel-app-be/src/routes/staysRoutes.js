@@ -24,6 +24,11 @@ const { validateQuery, validateParams } = require("../middleware/validate");
 const { staysSearchSchema } = require("../utils/schemas");
 const { z } = require("zod");
 const asyncHandler = require("../utils/asyncHandler");
+const { verifyPhotoQuery } = require("../lib/photoUrls");
+const {
+  getPlaceReviews,
+  placeReviewsQuota,
+} = require("../controllers/placeReviewsController");
 
 
 const userQuotaLimit = Number(process.env.STAYS_PER_USER_PER_HOUR || 60);
@@ -56,29 +61,32 @@ const encodePlacePath = (name) =>
     .map((segment) => encodeURIComponent(segment))
     .join("/");
 
-// Photo endpoint is public - no authentication required
+// Photos load through <img>, which can't send a Bearer token, so this route
+// has no auth header check. Instead it serves only signed, unexpired URLs,
+// which are handed out in authenticated search/details responses (ADR-004).
 router.get("/photo", async (req, res) => {
-  const { name, ref, maxWidth, maxHeight } = req.query;
+  const verified = verifyPhotoQuery(req.query);
+  if (!verified.ok) {
+    return res
+      .status(403)
+      .json(
+        createErrorResponse(
+          403,
+          ERROR_CODES.FORBIDDEN,
+          verified.reason === "expired"
+            ? "Photo link expired; reload the page"
+            : "Photo link is not valid"
+        )
+      );
+  }
 
   try {
     ensureKey();
 
-    const photoName = name || ref;
-    if (!photoName) {
-      return res
-        .status(400)
-        .json(
-          createErrorResponse(
-            400,
-            ERROR_CODES.BAD_REQUEST,
-            "Place photo name is required"
-          )
-        );
-    }
-
+    const photoName = verified.name;
     const params = {};
-    if (maxWidth) params.maxWidthPx = Number(maxWidth);
-    if (maxHeight) params.maxHeightPx = Number(maxHeight);
+    if (verified.maxWidth) params.maxWidthPx = verified.maxWidth;
+    if (verified.maxHeight) params.maxHeightPx = verified.maxHeight;
     if (!params.maxWidthPx && !params.maxHeightPx) {
       params.maxWidthPx = 640;
     }
@@ -111,9 +119,12 @@ router.get("/photo", async (req, res) => {
     if (upstream.headers["content-type"]) {
       res.setHeader("Content-Type", upstream.headers["content-type"]);
     }
+    // Browser-only caching: no CDN/shared cache, since the Maps terms don't
+    // list photo bytes among the content that may be cached (ADR-004).
+    const secondsLeft = Math.floor((verified.exp - Date.now()) / 1000);
     res.setHeader(
       "Cache-Control",
-      "public, max-age=3600, stale-while-revalidate=3600"
+      `private, max-age=${Math.max(0, Math.min(3600, secondsLeft))}`
     );
 
     return upstream.data.pipe(res);
@@ -313,6 +324,14 @@ router.get(
       );
   }
   })
+);
+
+router.get(
+  "/:id/reviews",
+  requireAuth({ allowRoles: ["user", "admin"] }),
+  validateParams(z.object({ id: z.string().min(1, "id is required") })),
+  placeReviewsQuota,
+  asyncHandler(getPlaceReviews)
 );
 
 router.get(

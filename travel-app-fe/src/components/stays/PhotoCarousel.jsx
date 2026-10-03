@@ -13,7 +13,7 @@ import {
   ChevronRight as ChevronRightIcon,
 } from "@mui/icons-material";
 
-export default function PhotoCarousel({ photos = [], maxWidth = 800, height }) {
+export default function PhotoCarousel({ photos = [], height }) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
@@ -59,18 +59,8 @@ export default function PhotoCarousel({ photos = [], maxWidth = 800, height }) {
       return `${cleanBase}${photo.url}`;
     }
 
-    // Fallback: construct from name/reference
-    if (photo.reference || photo.name) {
-      const baseURL =
-        import.meta.env.VITE_API_URL || "http://localhost:8000/api";
-      const cleanBase = baseURL.replace(/\/api$/, "");
-      const params = new URLSearchParams({
-        name: photo.reference || photo.name,
-      });
-      if (maxWidth) params.set("maxWidth", String(maxWidth));
-      return `${cleanBase}/api/stays/photo?${params.toString()}`;
-    }
-
+    // The API serves only signed photo URLs from search/details responses
+    // (ADR-004), so a URL can't be rebuilt from the photo name here.
     return null;
   };
 
@@ -104,7 +94,11 @@ export default function PhotoCarousel({ photos = [], maxWidth = 800, height }) {
       {photoUrl ? (
         <Box
           component="img"
+          // Remount per photo so a failed image doesn't hide the next one.
+          key={photoUrl}
           src={photoUrl}
+          loading="lazy"
+          decoding="async"
           alt={`Photo ${currentIndex + 1} of ${photos.length}`}
           sx={{
             width: "100%",

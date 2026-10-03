@@ -52,9 +52,9 @@ Production also enforces durable Firestore quotas, including phrasebooks 20/day,
 | `GET /readyz`, `/api/readyz` | Firestore readiness, cached briefly; 200 ready or 503 unready |
 | `GET /api/translate/health` | Translation configuration status; does not exercise live inference |
 | `GET /api/location/resolve` | Text destination geocoding; query aliases `query`, `q`, `dest` (1–200 characters), optional `lang` (max 12) |
-| `GET /api/stays/photo` | Places photo proxy; provider photo resource and size parameters |
+| `GET /api/stays/photo` | Places photo proxy. Serves only the signed, expiring URLs (`name`, `maxWidth`/`maxHeight`, `exp`, `sig`) returned in search/details responses; anything else gets 403 `FORBIDDEN`. `Cache-Control: private` (ADR-004) |
 
-Location response includes `query`, `display`, `lat`, `lng`, address/city/state/country and optional `cached`. Repeated/non-string query or language parameters are rejected. The photo proxy requires a configured provider key. There is no translation warmup route in the current API.
+Location response includes `query`, `display`, `lat`, `lng`, address/city/state/country and optional `cached`. Repeated/non-string query or language parameters are rejected. The photo proxy requires a configured provider key. Photo URLs expire after 3–6 hours; a page left open longer needs a reload to show images. There is no translation warmup route in the current API.
 
 ## Protected travel endpoints
 
@@ -90,7 +90,7 @@ Persistence uses `users/{uid}/saved_phrases`. Browser clients use the API instea
 
 `GET /api/stays/search`: supply `dest` (max 200 characters) or both `lat` (-90 to 90) and `lng` (-180 to 180). Optional `distance` (positive km, max 500), `rating` (0–5), `type`, `amenities`, `lang`, `page` (1–200, default 1), `pageSize` (1–50), `checkInDate`, `checkOutDate`, `adults` (1–12).
 
-Returns `items`, pagination metadata and, when destination text is resolved, `resolvedDestination`. Items include ID/name, provider rating/photos, location and provider links. `GET /api/stays/:id` returns provider details.
+Returns `items`, pagination metadata and, when destination text is resolved, `resolvedDestination`. Items include ID/name, provider rating/photos, location and provider links. `GET /api/stays/:id` returns provider details; `reviews` is always empty and `description` is empty (both are Atmosphere-tier fields, ADR-004). `GET /api/stays/:id/reviews?lang=en` returns `{ id, reviews }` (up to 5, each with `author_name`, `author_uri`, `rating`, `text`, `relative_time_description`) and shares a per-user quota (`PLACE_REVIEWS_PER_HOUR`, default 30) with the POI version.
 
 Google Places supplies accommodation discovery, not real-time inventory or bookings. Dates/guest count do not establish availability; price level is not a verified nightly price. Radius may be clamped by the provider. Page size is part of the result cache key.
 
@@ -98,9 +98,9 @@ Google Places supplies accommodation discovery, not real-time inventory or booki
 
 `GET /api/poi/search`: same destination/coordinate requirement, optional `distance` (max 200 km), `category` (comma-separated museum, hike, viewpoint, food), `kidFriendly`, `accessibility`, `openNow`, `timeNeeded`, `cost`, `lang`, `page` (default 1).
 
-Returns `items`, pagination metadata and optional `resolvedDestination`. Cards include `name`, `blurb`, `rating`, `reviewsCount`, `categories`, `photos`, `openingHours`, `openNow`, `suggestedDuration`, `badges`, `location`, `provider`, `sourceLang` and nullable `wheelchairAccessibleEntrance`.
+Returns `items`, pagination metadata and optional `resolvedDestination`. Cards include `name`, `blurb` (currently always empty: editorial summaries cost an extra Places tier), `rating`, `reviewsCount`, `categories`, `photos`, `openingHours`, `openNow`, `suggestedDuration`, `badges`, `location`, `provider`, `sourceLang` and nullable `wheelchairAccessibleEntrance`.
 
-`accessibility=true` selects only confirmed wheelchair-accessible entrances; false/unknown values are excluded. It does not certify full venue accessibility. `kidFriendly` excludes bars/nightclubs; cost and suggested duration are heuristics. `openNow=true` selects reported open places. `GET /api/poi/:id?lang=en` returns details.
+`accessibility=true` selects only confirmed wheelchair-accessible entrances; false/unknown values are excluded. It does not certify full venue accessibility. `kidFriendly` excludes bars/nightclubs; cost and suggested duration are heuristics. `openNow=true` selects reported open places. `GET /api/poi/:id?lang=en` returns details (description from Wikipedia when available). `GET /api/poi/:id/reviews?lang=en` returns reviews on demand, as for stays.
 
 ### Itineraries
 

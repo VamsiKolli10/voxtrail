@@ -1,6 +1,6 @@
 # ADR-004: Google Places — no Atmosphere by default, cached geocoding, signed photo URLs
 
-**Status:** Proposed
+**Status:** Accepted (console steps pending)
 **Date:** 2026-10-02
 **Deciders:** Vamsi Kolli
 
@@ -69,10 +69,23 @@ C removes the cost that adds nothing (Atmosphere fields nobody sees until they a
 - **Harder:** photo URLs expire, so a page left open for hours needs a refresh to reload images (pick an expiry of about 1–6 hours). Reviews cost an extra call when opened.
 - **Revisit when:** monthly volume passes the free caps (then compare a lodging-specific data provider); or Google changes field → SKU mapping.
 
+## Implementation notes
+
+- **Geocoding.** `geocodeCity` (`stays/providers/googlePlaces.js`) calls the Geocoding API (`lib/geocoding.js`) and falls back to Places Text Search on `ZERO_RESULTS` (fuzzy or landmark queries) or `REQUEST_DENIED` (API not enabled for the key, logged once). Other errors such as `OVER_QUERY_LIMIT` are not retried on the pricier SKU. `GEOCODER=places` restores Text Search only.
+- **What the cache can hold.** The terms allow caching lat/lng (≤ 30 days) and place IDs, not addresses or names. So the Firestore `geocodeCache` stores `{ lat, lng, placeId, expireAt }` under a hash of the query (29-day TTL, since TTL deletion can lag a day), and only callers that need coordinates use it (`geocodeCenter`, used by itineraries). Location resolve, stays and Explore searches still need city and country for the travel context, so they call Geocoding each time, behind the existing short in-memory caches. The saving there comes from the cheaper SKU ($5 vs $32 per 1,000; 10,000 vs 5,000 free).
+- **Explore** now checks its result cache *before* geocoding.
+- **Itinerary grounding** by place ID uses a name+location mask (Place Details Pro) instead of the full details call.
+- **Details** drop `reviews` and `editorialSummary` (Enterprise instead of Enterprise + Atmosphere). Stays lose their "About" text; destinations keep theirs from Wikipedia. Explore cards lose `blurb`.
+- **Reviews** load on demand from `GET /api/stays/:id/reviews` and `GET /api/poi/:id/reviews` (mask `id,reviews`, shared per-user quota `PLACE_REVIEWS_PER_HOUR`, 15-minute in-memory cache). The SPA shows a "Show reviews" button (`components/common/PlaceReviews.jsx`), with author links and "Reviews from Google" attribution.
+- **Signed photo URLs** (`lib/photoUrls.js`): HMAC over name, size and expiry. The key is derived from `GOOGLE_PLACES_API_KEY` (already a server-only secret on every instance) unless `PHOTO_URL_SECRET` is set, so no new secret has to be created or bound. Expiry snaps to half-TTL steps so a photo keeps the same URL for a while and browser caching works; URLs live 3–6 hours by default. Size is capped at 1,600 px.
+- **Caching:** photo responses are `Cache-Control: private, max-age ≤ 3600`. Images use `loading="lazy"`; the carousel already renders one photo at a time.
+- **TTL policies** for `usageQuotas.expireAt` and `geocodeCache.expireAt` are declared in `firestore.indexes.json`, so they deploy with the indexes rather than as a console step.
+
 ## Action Items
 
-1. [ ] Add `providers/geocoding.js` (Geocoding API) and a `geocodeCache` Firestore collection keyed by normalized query + language, with `expireAt` (TTL ≤ 30 days) storing lat/lng and place ID only. Switch `geocodeCity` callers to it.
-2. [ ] Remove `places.editorialSummary` from `googlePlacesPoi.js:159` and `reviews*`/`editorialSummary` from `googlePlaces.js:601`; add `GET /api/stays/:id/reviews` (authenticated, durable quota) and a "Show reviews" control on stay details.
-3. [ ] Add `signPhotoUrl(name, { maxWidth, expiresAt })` / `verifyPhotoUrl(query)` using a new `PHOTO_URL_SECRET` (Secret Manager, ADR-001). Build signed URLs in `googlePlaces.js` and `googlePlacesPoi.js`; reject unsigned or expired requests in `staysRoutes.js:79`.
-4. [ ] Change the photo response to `Cache-Control: private, max-age=3600` until caching terms are confirmed; add `loading="lazy"` to `PhotoCarousel` and Explore card images.
-5. [ ] Record actual SKU usage for a week in the Google Cloud console and update the cost table in `ARCHITECTURE.md`.
+1. [x] Geocoding API + `geocodeCache` (lat/lng and place ID only, see notes). [ ] *(you)* Enable the **Geocoding API** and allow it on the Places key.
+2. [x] Remove Atmosphere fields from Explore search and details; add the on-demand reviews endpoints and "Show reviews".
+3. [x] Signed, expiring photo URLs; unsigned or expired requests get 403. (Key derived from the Places key instead of a new `PHOTO_URL_SECRET`.)
+4. [x] `Cache-Control: private`; `loading="lazy"` on the carousel and Explore cards.
+5. [ ] *(you)* Record actual SKU usage for a week in the Google Cloud console and update the cost table in `ARCHITECTURE.md`.
+6. [ ] *(you)* `firebase deploy --only firestore:indexes` to create the TTL policies.

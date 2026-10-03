@@ -36,7 +36,11 @@ Managed Firebase Functions/Cloud Run uses Application Default Credentials when e
 
 | Variable | Default / purpose |
 | --- | --- |
-| `GOOGLE_PLACES_API_KEY` | Required for live location/stays/POI/photo calls |
+| `GOOGLE_PLACES_API_KEY` | Required for live location/stays/POI/photo calls. The key must allow **Places API (New)** and **Geocoding API** |
+| `GEOCODER` | `geocoding` (default: Geocoding API, falling back to Places Text Search on `ZERO_RESULTS`/`REQUEST_DENIED`) or `places` (Text Search only) |
+| `GEOCODE_CACHE_TTL_DAYS` | 29, maximum 29. Firestore `geocodeCache` keeps only lat/lng and place ID (Maps terms allow ≤ 30 days) |
+| `PHOTO_URL_TTL_MS` | 21600000 (6 h). Signed photo URLs stay valid for half to all of this |
+| `PHOTO_URL_SECRET` | Optional. Photo URLs are signed with a key derived from `GOOGLE_PLACES_API_KEY` unless this is set (it would then need its own Secret Manager binding) |
 | `OPENROUTER_API_KEY` | Required for phrasebooks, culture, AI itineraries and the translation fallback |
 | `OPENROUTER_MODEL_CHAIN` | **Required, no default.** Comma-separated vendor-prefixed OpenRouter IDs, tried in order, e.g. `google/gemini-2.5-flash-lite,openai/gpt-4o-mini`. IDs without a vendor prefix are ignored. With no usable model, AI routes return 503 and the API logs an error at boot |
 | `OPENROUTER_MODEL` | Optional legacy primary; placed first in the chain |
@@ -64,12 +68,13 @@ Model availability and pricing change; see ADR-003 for the options checked on 20
 | `LOCATION_RESOLVE_PER_HOUR` | 60 city lookups per user per hour (sign-in required) |
 | `STAYS_PER_USER_PER_HOUR` / `STAYS_PER_USER_WINDOW_MS` | 60 / 3600000 |
 | `POI_PER_USER_PER_HOUR` / `POI_PER_USER_WINDOW_MS` | 120 / 3600000 |
+| `PLACE_REVIEWS_PER_HOUR` | 30 on-demand review loads per user per hour (stays and destinations combined) |
 | `PHRASEBOOK_MAX_REQUESTS_PER_HOUR` / `PHRASEBOOK_DAILY_QUOTA` | 25 / 20 |
 | `ITINERARY_MAX_REQUESTS_PER_HOUR` / `ITINERARY_DAILY_QUOTA` | 20 / 25 |
 | `CULTURE_DAILY_QUOTA` | 30 shared daily generations |
 | `USAGE_ALERT_FALLBACK` | 500 external usage alert threshold |
 
-Model (ADR-002): every route that calls a paid provider requires sign-in and has a **per-user quota** (`middleware/userQuota.js`). In production these are durable Firestore counters in `usageQuotas` (shared by all instances; each document has `expireAt` for a TTL policy); in development/test the same limits are kept in memory. On top, one in-memory flood guard per instance limits bursts. Photo requests (`/api/stays/photo`) use their own 300/min per-IP bucket. Phrasebook and itinerary controllers also keep short hourly in-memory limits. Cache hits are per process.
+Model (ADR-002): every route that calls a paid provider requires sign-in and has a **per-user quota** (`middleware/userQuota.js`). In production these are durable Firestore counters in `usageQuotas` (shared by all instances; each document has `expireAt`; the TTL policy is declared in `travel-app-be/firestore.indexes.json`); in development/test the same limits are kept in memory. On top, one in-memory flood guard per instance limits bursts. Photo requests (`/api/stays/photo`) use their own 300/min per-IP bucket and must carry a valid signature (ADR-004). Phrasebook and itinerary controllers also keep short hourly in-memory limits. Cache hits are per process.
 
 ## Functions and CI
 
