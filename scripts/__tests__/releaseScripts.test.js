@@ -44,9 +44,11 @@ exit 7
     const duringRun = fs.readFileSync(trace, 'utf8');
     const [envPart, secretPart] = duringRun.split('--- secrets');
     // Provider keys are secrets on apiV2: they must be in .secret.local only.
-    assert.match(secretPart, /REQUEST_SIGNING_SECRET=emulator-signing-secret-only/);
     assert.match(secretPart, /OPENROUTER_API_KEY=""/);
-    assert.doesNotMatch(envPart, /OPENROUTER_API_KEY|GOOGLE_PLACES_API_KEY|REQUEST_SIGNING_SECRET/);
+    assert.match(secretPart, /GOOGLE_PLACES_API_KEY=""/);
+    assert.doesNotMatch(envPart, /OPENROUTER_API_KEY|GOOGLE_PLACES_API_KEY/);
+    // Request signing was removed (ADR-002).
+    assert.doesNotMatch(duringRun, /REQUEST_SIGNING_SECRET/);
     assert.doesNotMatch(duringRun, /preserve-me-too/);
     assert.match(duringRun, /firestore.emulator.rules/);
     assert.doesNotMatch(duringRun, /preserve-me/);

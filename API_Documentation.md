@@ -4,9 +4,9 @@ Updated October 2, 2026. Base URL: `/api` on Firebase Hosting or `http://localho
 
 ## Authentication, validation and errors
 
-Protected routes require `Authorization: Bearer <Firebase ID token>`. Tokens are verified for expiry and revocation. Users need the `user` or `admin` role for travel tools; `/profile` accepts any authenticated role and user administration requires `admin`.
+Protected routes require `Authorization: Bearer <Firebase ID token>`. Tokens are verified for expiry on every request and for revocation on writes and admin routes. `/location/resolve` and `/translate` require sign-in and have per-user quotas (429 `RATE_LIMIT_EXCEEDED` when exhausted). Users need the `user` or `admin` role for travel tools; `/profile` accepts any authenticated role and user administration requires `admin`.
 
-Bearer requests bypass HMAC validation and still undergo route authentication. Unsigned sensitive requests require `x-timestamp` and `x-request-signature`, but a signature alone does not grant access to user-only routes. Do not distribute signing secrets to browsers.
+Optional header: `X-Firebase-AppCheck` (Firebase App Check token). The API logs requests without a valid token and rejects them only when `APP_CHECK_ENFORCE=true`. Request signatures (`x-request-signature`) are no longer used.
 
 JSON bodies use `Content-Type: application/json`. Query validation applies parsed types/defaults and strips unknown fields. Numeric latitude/longitude may be zero; blank or repeated numeric parameters are rejected. Boolean filters accept the strings `true` and `false` (or JSON booleans). Validation failures return 400.
 

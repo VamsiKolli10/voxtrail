@@ -62,7 +62,7 @@ cp travel-app-fe/.env.example travel-app-fe/.env
 cp travel-app-be/.env.example travel-app-be/.env
 ```
 
-Configure the Firebase values, `VITE_API_URL`, `REQUEST_SIGNING_SECRET`, and provider keys for Google Places and OpenRouter. Local backend development also needs either `FB_ADMIN_CREDENTIALS` or `GOOGLE_APPLICATION_CREDENTIALS`; managed Firebase Functions use Application Default Credentials. Never commit `.env` files, API keys, service-account JSON, or other secrets.
+Configure the Firebase values, `VITE_API_URL`, and provider keys for Google Places and OpenRouter. Local backend development also needs either `FB_ADMIN_CREDENTIALS` or `GOOGLE_APPLICATION_CREDENTIALS`; managed Firebase Functions use Application Default Credentials. Never commit `.env` files, API keys, service-account JSON, or other secrets.
 
 ### 3. Start both apps with one command
 
@@ -151,7 +151,7 @@ See [docs/adr/001-api-runtime-2nd-gen.md](docs/adr/001-api-runtime-2nd-gen.md).
 
 ## Security
 
-VoxTrail includes Firebase token verification, role-aware access control, request validation, CORS allowlisting, Helmet headers, request IDs, HMAC validation for unsigned sensitive requests, endpoint throttles, and durable production quotas for AI generation.
+VoxTrail requires a Firebase sign-in for every route that calls a paid provider, enforces durable per-user quotas on those routes, verifies tokens (with revocation checks on writes), validates requests, and applies CORS allowlisting, Helmet headers, request IDs, a single API flood guard, and optional Firebase App Check. Spend is also capped at the providers (budgets, API quotas, credit limits). See [docs/adr/002-abuse-and-cost-protection.md](docs/adr/002-abuse-and-cost-protection.md).
 
 Review [ENVIRONMENT_VARIABLES.md](ENVIRONMENT_VARIABLES.md) and [travel-app-be/firestore.rules](travel-app-be/firestore.rules) before production configuration.
 

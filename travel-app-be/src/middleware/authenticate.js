@@ -30,7 +30,20 @@ function extractRoles(decodedToken = {}) {
   return Array.from(roles);
 }
 
-async function resolveUserFromRequest(req, { enforceHeader = true } = {}) {
+// Revocation checks cost a round-trip to Firebase Auth, so they run only
+// where a revoked session could do harm: writes and admin routes (ADR-002).
+// Reads accept a valid, unexpired ID token (tokens live about 1 hour).
+const WRITE_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+
+function needsRevocationCheck(req, allowRoles) {
+  const adminOnly = allowRoles.length > 0 && allowRoles.every((r) => r === "admin");
+  return adminOnly || WRITE_METHODS.has(String(req.method).toUpperCase());
+}
+
+async function resolveUserFromRequest(
+  req,
+  { enforceHeader = true, checkRevoked = false } = {}
+) {
   const authHeader = req.headers.authorization || "";
   if (!authHeader.startsWith("Bearer ")) {
     if (enforceHeader) {
@@ -40,7 +53,9 @@ async function resolveUserFromRequest(req, { enforceHeader = true } = {}) {
   }
 
   const token = authHeader.slice("Bearer ".length);
-  const decoded = await adminAuth.verifyIdToken(token, true);
+  const decoded = checkRevoked
+    ? await adminAuth.verifyIdToken(token, true)
+    : await adminAuth.verifyIdToken(token);
   const roles = extractRoles(decoded);
 
   if (decoded.exp * 1000 < Date.now()) {
@@ -61,11 +76,12 @@ async function resolveUserFromRequest(req, { enforceHeader = true } = {}) {
     throw err;
   }
 
-  return { decoded, roles };
+  return { decoded, roles, revocationChecked: checkRevoked };
 }
 
-function hydrateRequestWithUser(req, decoded, roles) {
+function hydrateRequestWithUser(req, decoded, roles, revocationChecked = false) {
   req.user = decoded;
+  req.tokenRevocationChecked = revocationChecked;
   req.userRoles = roles;
   req.userId = decoded.uid;
   req.userVerified = true;
@@ -108,16 +124,21 @@ function requireAuth(options = {}) {
       let decoded = null;
       let roles = [];
 
-      if (req.userVerified && req.user) {
+      const checkRevoked = needsRevocationCheck(req, allowRoles);
+      const canReuse =
+        req.userVerified && req.user && (!checkRevoked || req.tokenRevocationChecked);
+
+      if (canReuse) {
         decoded = req.user;
         roles = req.userRoles || extractRoles(decoded);
       } else {
         const result = await resolveUserFromRequest(req, {
           enforceHeader: true,
+          checkRevoked,
         });
         decoded = result.decoded;
         roles = result.roles;
-        hydrateRequestWithUser(req, decoded, roles);
+        hydrateRequestWithUser(req, decoded, roles, result.revocationChecked);
       }
 
       const allowed = roles.some((role) => {

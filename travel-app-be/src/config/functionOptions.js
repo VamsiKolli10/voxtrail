@@ -10,11 +10,7 @@ const REGION = "us-central1";
 // Provider keys live in Secret Manager (`firebase functions:secrets:set NAME`)
 // and are injected as environment variables at runtime, so config/env.js and
 // the provider modules keep reading process.env unchanged.
-const SECRET_NAMES = [
-  "OPENROUTER_API_KEY",
-  "GOOGLE_PLACES_API_KEY",
-  "REQUEST_SIGNING_SECRET",
-];
+const SECRET_NAMES = ["OPENROUTER_API_KEY", "GOOGLE_PLACES_API_KEY"];
 const secrets = SECRET_NAMES.map((name) => defineSecret(name));
 
 // Instance bounds are deploy-time params (override in .env / .env.<project>).

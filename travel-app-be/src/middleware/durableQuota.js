@@ -1,6 +1,10 @@
 const { db } = require("../config/firebaseAdmin");
 const { createErrorResponse, ERROR_CODES, logError } = require("../utils/errorHandler");
 
+// Quota documents carry `expireAt`; enable a Firestore TTL policy on
+// usageQuotas.expireAt so old counters delete themselves (ADR-002).
+const DAY_MS = 24 * 60 * 60 * 1000;
+
 function durableDailyQuota({ name, userLimit, adminLimit = userLimit * 5 }) {
   if (!name || !userLimit) throw new Error("Quota name and userLimit are required");
 
@@ -30,6 +34,7 @@ function durableDailyQuota({ name, userLimit, adminLimit = userLimit * 5 }) {
             endpoint: safeName,
             userId: req.user.uid,
             updatedAt: Date.now(),
+            expireAt: new Date(Date.parse(`${day}T00:00:00Z`) + 2 * DAY_MS),
           },
           { merge: true }
         );
@@ -91,6 +96,7 @@ function durableWindowedQuota({ name, userLimit, adminLimit = userLimit * 5, win
             endpoint: safeName,
             userId: req.user.uid,
             updatedAt: Date.now(),
+            expireAt: new Date((bucket + 1) * windowMs + DAY_MS),
           },
           { merge: true }
         );

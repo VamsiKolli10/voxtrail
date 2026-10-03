@@ -35,9 +35,18 @@ describe("Location routes", () => {
     __clearCache();
   });
 
+  test("requires sign-in (each lookup is a billed Places call)", async () => {
+    const res = await request(app)
+      .get("/api/location/resolve?q=Paris")
+      .set("user-agent", "jest");
+    expect(res.statusCode).toBe(401);
+    expect(geocodeCity).not.toHaveBeenCalled();
+  });
+
   test("requires query parameter for location resolve", async () => {
     const res = await request(app)
       .get("/api/location/resolve")
+      .set("Authorization", "Bearer valid-user-token")
       .set("user-agent", "jest");
 
     expect(res.statusCode).toBe(400);
@@ -57,16 +66,19 @@ describe("Location routes", () => {
 
     const res1 = await request(app)
       .get("/api/location/resolve?q=Paris")
+      .set("Authorization", "Bearer valid-user-token")
       .set("user-agent", "jest");
     expect(res1.statusCode).toBe(200);
 
     const res2 = await request(app)
       .get("/api/location/resolve?query=Paris")
+      .set("Authorization", "Bearer valid-user-token")
       .set("user-agent", "jest");
     expect(res2.statusCode).toBe(200);
 
     const res3 = await request(app)
       .get("/api/location/resolve?dest=Paris")
+      .set("Authorization", "Bearer valid-user-token")
       .set("user-agent", "jest");
     expect(res3.statusCode).toBe(200);
   });
@@ -84,6 +96,7 @@ describe("Location routes", () => {
 
     const res = await request(app)
       .get("/api/location/resolve?q=Paris")
+      .set("Authorization", "Bearer valid-user-token")
       .set("user-agent", "jest");
 
     expect(res.statusCode).toBe(200);
@@ -112,6 +125,7 @@ describe("Location routes", () => {
 
     const res = await request(app)
       .get("/api/location/resolve?q=Paris")
+      .set("Authorization", "Bearer valid-user-token")
       .set("user-agent", "jest");
 
     expect(res.statusCode).toBe(200);
@@ -127,6 +141,7 @@ describe("Location routes", () => {
 
     const res = await request(app)
       .get("/api/location/resolve?q=InvalidPlace")
+      .set("Authorization", "Bearer valid-user-token")
       .set("user-agent", "jest");
 
     expect(res.statusCode).toBe(502);
@@ -146,6 +161,7 @@ describe("Location routes", () => {
 
     const res = await request(app)
       .get("/api/location/resolve?q=Paris&lang=es")
+      .set("Authorization", "Bearer valid-user-token")
       .set("user-agent", "jest");
 
     expect(res.statusCode).toBe(200);
@@ -161,6 +177,7 @@ describe("Location routes", () => {
 
     const res = await request(app)
       .get("/api/location/resolve?q=Paris")
+      .set("Authorization", "Bearer valid-user-token")
       .set("user-agent", "jest");
 
     expect(res.statusCode).toBe(200);
@@ -170,13 +187,14 @@ describe("Location routes", () => {
   test("handles empty query string gracefully", async () => {
     const res = await request(app)
       .get("/api/location/resolve?q=   ")
+      .set("Authorization", "Bearer valid-user-token")
       .set("user-agent", "jest");
 
     expect(res.statusCode).toBe(400);
     expect(res.body.error.code).toBe("BAD_REQUEST");
   });
 
-  test("applies rate limiting to location resolve", async () => {
+  test("applies the per-user hourly quota to location resolve", async () => {
     geocodeCity.mockResolvedValue({
       display: "Test",
       lat: 0,
@@ -189,6 +207,7 @@ describe("Location routes", () => {
       .map(() =>
         request(app)
           .get("/api/location/resolve?q=Test")
+          .set("Authorization", "Bearer valid-user-token")
           .set("user-agent", "jest")
       );
 
@@ -200,9 +219,10 @@ describe("Location routes", () => {
   });
 
   test("rejects repeated query parameters without calling geocoding", async () => {
+    // A different user: the quota above is per user, not per IP.
     const res = await request(app).get("/api/location/resolve?q=Paris&q=London")
-      .set("user-agent", "jest").set("X-Forwarded-For", "192.0.2.99")
-      .set("Authorization", "Bearer valid-user-token");
+      .set("user-agent", "jest")
+      .set("Authorization", "Bearer valid-admin-token");
     expect(res.statusCode).toBe(400);
     expect(geocodeCity).not.toHaveBeenCalled();
   });

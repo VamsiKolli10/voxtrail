@@ -22,7 +22,7 @@ The previously documented `VITE_API_TIMEOUT`, generic offline/analytics/error-re
 | --- | --- |
 | `APP_PORT` | 8000 for standalone development |
 | `NODE_ENV` | Set `development` locally; production/staging enable durable quotas and culture authentication. Only `test` and `development` bypass those production-specific gates. |
-| `REQUEST_SIGNING_SECRET` | Required; at least 16 characters, use a strong per-environment random secret |
+| `APP_CHECK_ENFORCE` | `false` (monitor mode: log missing/invalid App Check tokens). `true` rejects API requests without a valid `X-Firebase-AppCheck` token. See ADR-002 |
 | `CORS_ALLOWED_ORIGINS` | Comma-separated exact origins; set explicitly for deployed environments |
 | `REQUEST_BODY_LIMIT` | `256kb` |
 | `READINESS_TIMEOUT_MS` | 3000, maximum 10000 |
@@ -54,9 +54,9 @@ Model availability/pricing depends on the provider. A primary model labeled free
 
 | Variable | Default |
 | --- | --- |
-| `RATE_LIMIT_WINDOW_MS` / `RATE_LIMIT_MAX` | 60000 / 60 (additional global controls) |
-| `STAYS_SEARCH_MAX_PER_IP` / `STAY_DETAIL_MAX_PER_IP` | 15 / 30 per minute |
-| `POI_SEARCH_MAX_PER_IP` / `POI_DETAIL_MAX_PER_IP` | 30 / 60 per minute |
+| `RATE_LIMIT_WINDOW_MS` / `RATE_LIMIT_MAX` / `RATE_LIMIT_ANONYMOUS_MAX` | 60000 / 120 per signed-in user / 30 per anonymous IP: the single API-wide flood guard |
+| `TRANSLATION_DAILY_QUOTA` | 200 translations per user per day |
+| `LOCATION_RESOLVE_PER_HOUR` | 60 city lookups per user per hour (sign-in required) |
 | `STAYS_PER_USER_PER_HOUR` / `STAYS_PER_USER_WINDOW_MS` | 60 / 3600000 |
 | `POI_PER_USER_PER_HOUR` / `POI_PER_USER_WINDOW_MS` | 120 / 3600000 |
 | `PHRASEBOOK_MAX_REQUESTS_PER_HOUR` / `PHRASEBOOK_DAILY_QUOTA` | 25 / 20 |
@@ -64,16 +64,16 @@ Model availability/pricing depends on the provider. A primary model labeled free
 | `CULTURE_DAILY_QUOTA` | 30 shared daily generations |
 | `USAGE_ALERT_FALLBACK` | 500 external usage alert threshold |
 
-Route throttles layer with global/method/role limits; the strictest reached limit wins. Production durable quotas use Firestore `usageQuotas`, while minute throttles and cache hits are per process. See route code for detail/search quota separation and cache TTL overrides.
+Model (ADR-002): every route that calls a paid provider requires sign-in and has a **per-user quota** (`middleware/userQuota.js`). In production these are durable Firestore counters in `usageQuotas` (shared by all instances; each document has `expireAt` for a TTL policy); in development/test the same limits are kept in memory. On top, one in-memory flood guard per instance limits bursts. Photo requests (`/api/stays/photo`) use their own 300/min per-IP bucket. Phrasebook and itinerary controllers also keep short hourly in-memory limits. Cache hits are per process.
 
 ## Functions and CI
 
 The API runs as the Cloud Functions **2nd gen** function `apiV2` (`travel-app-be/index.js`, options in `src/config/functionOptions.js`): `us-central1`, 1 vCPU, 512 MiB, concurrency 80, 120 s timeout. `FUNCTION_MIN_INSTANCES` (default 0) and `FUNCTION_MAX_INSTANCES` (default 5) are deploy-time params read from `.env` / `.env.<project>`. Region is fixed to `us-central1` to match the Hosting rewrite. The 1st gen `api` export remains only as a rollback target until it is deleted.
 
-**Secrets.** `OPENROUTER_API_KEY`, `GOOGLE_PLACES_API_KEY` and `REQUEST_SIGNING_SECRET` are bound with `defineSecret` and must exist in Secret Manager (`firebase functions:secrets:set NAME`, or `travel-app-be/scripts/set-firebase-secrets.sh`). Do **not** also put these names in a deployed `.env` file: the CLI rejects a name that is both an env var and a secret. Local emulator runs read them from `travel-app-be/.secret.local` (git-ignored); local `npm run dev` still reads `.env`.
+**Secrets.** `OPENROUTER_API_KEY` and `GOOGLE_PLACES_API_KEY` are bound with `defineSecret` and must exist in Secret Manager (`firebase functions:secrets:set NAME`, or `travel-app-be/scripts/set-firebase-secrets.sh`). Do **not** also put these names in a deployed `.env` file: the CLI rejects a name that is both an env var and a secret. Local emulator runs read them from `travel-app-be/.secret.local` (git-ignored); local `npm run dev` still reads `.env`.
 
 CI uses dummy provider configuration for mocked tests. Deployment requires `FIREBASE_SERVICE_ACCOUNT`, `FIREBASE_PROJECT_ID` and the frontend variables named in `.github/workflows/deploy.yml`. Runtime backend secrets need separate configuration; successful frontend build/deploy does not prove they exist in Functions. Legacy `firebase functions:config:set` values are not read by this code.
 
-A bearer token bypasses HMAC validation and is verified by authentication middleware. A signature alone does not authorize endpoints requiring a user. Keep the signing secret exclusively on trusted servers, never in frontend bundles.
+Request signing (`REQUEST_SIGNING_SECRET`, `x-request-signature`) was removed in ADR-002: no client could hold the secret, and every covered route already required sign-in. ID tokens are checked for revocation on writes and admin routes; reads accept any valid, unexpired token.
 
 Troubleshoot configuration with the current source contracts (`src/config/env.js`, `src/config/firebaseAdmin.js`, provider wrappers), health/readiness, request IDs and provider logs. Avoid printing tokens, signing secrets or credential JSON during diagnostics.

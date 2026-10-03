@@ -35,7 +35,6 @@ try {
     "",
   ].join("\n"), { mode: 0o600 });
   fs.writeFileSync(localSecretPath, [
-    "REQUEST_SIGNING_SECRET=emulator-signing-secret-only",
     'GOOGLE_PLACES_API_KEY=""',
     'OPENROUTER_API_KEY=""',
     "",
@@ -57,7 +56,6 @@ try {
       env: {
         ...process.env,
         NODE_ENV: "production",
-        REQUEST_SIGNING_SECRET: "emulator-signing-secret-only",
         CORS_ALLOWED_ORIGINS: "http://127.0.0.1:5500",
         GOOGLE_PLACES_API_KEY: "",
         OPENROUTER_API_KEY: "",

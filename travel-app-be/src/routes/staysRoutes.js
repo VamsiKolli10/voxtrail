@@ -18,26 +18,13 @@ const {
 } = require("../utils/errorHandler");
 const { getCached, setCached } = require("../utils/cache");
 const { requireAuth } = require("../middleware/authenticate");
-const { createCustomLimiter } = require("../utils/rateLimiter");
-const { enforceQuota } = require("../utils/quota");
-const { durableWindowedQuota } = require("../middleware/durableQuota");
+const { userWindowQuota } = require("../middleware/userQuota");
 const { trackExternalCall } = require("../utils/monitoring");
 const { validateQuery, validateParams } = require("../middleware/validate");
 const { staysSearchSchema } = require("../utils/schemas");
 const { z } = require("zod");
 const asyncHandler = require("../utils/asyncHandler");
 
-const searchLimiter = createCustomLimiter({
-  windowMs: Number(process.env.STAYS_SEARCH_WINDOW_MS || 60_000),
-  max: Number(process.env.STAYS_SEARCH_MAX_PER_IP || 15),
-  message: "Too many stay searches from this IP. Please slow down.",
-});
-
-const detailLimiter = createCustomLimiter({
-  windowMs: Number(process.env.STAY_DETAIL_WINDOW_MS || 60_000),
-  max: Number(process.env.STAY_DETAIL_MAX_PER_IP || 30),
-  message: "Too many stay lookups from this IP. Try again shortly.",
-});
 
 const userQuotaLimit = Number(process.env.STAYS_PER_USER_PER_HOUR || 60);
 const userQuotaWindow = Number(
@@ -50,24 +37,18 @@ const detailCacheTtl = Number(
   process.env.STAY_DETAIL_CACHE_TTL_MS || 15 * 60 * 1000
 );
 
-// The in-process quota above is per-instance only, so it does not hold under
-// multiple Functions instances. These durable, Firestore-backed quotas
-// enforce the real per-user cap on the paid Google Places/Hotels calls.
-const isProduction = !["test", "development"].includes(process.env.NODE_ENV);
-const staysSearchQuota = isProduction
-  ? durableWindowedQuota({
-      name: "stays-search",
-      userLimit: userQuotaLimit,
-      windowMs: userQuotaWindow,
-    })
-  : (_req, _res, next) => next();
-const staysDetailQuota = isProduction
-  ? durableWindowedQuota({
-      name: "stays-detail",
-      userLimit: Math.max(20, Math.floor(userQuotaLimit / 2)),
-      windowMs: userQuotaWindow,
-    })
-  : (_req, _res, next) => next();
+// Per-user quotas on the paid Google Places calls: durable in production,
+// in-memory in development/test (middleware/userQuota.js, ADR-002).
+const staysSearchQuota = userWindowQuota({
+  name: "stays-search",
+  limit: userQuotaLimit,
+  windowMs: userQuotaWindow,
+});
+const staysDetailQuota = userWindowQuota({
+  name: "stays-detail",
+  limit: Math.max(20, Math.floor(userQuotaLimit / 2)),
+  windowMs: userQuotaWindow,
+});
 
 const encodePlacePath = (name) =>
   String(name)
@@ -154,7 +135,6 @@ router.get(
   "/search",
   requireAuth({ allowRoles: ["user", "admin"] }),
   validateQuery(staysSearchSchema),
-  searchLimiter,
   staysSearchQuota,
   asyncHandler(async (req, res) => {
     try {
@@ -196,24 +176,6 @@ router.get(
       lang,
     });
 
-    const quotaResult = enforceQuota({
-      identifier: req.user?.uid || req.userId || req.ip,
-      key: "stays:search",
-      limit: userQuotaLimit,
-      windowMs: userQuotaWindow,
-    });
-    if (!quotaResult.allowed) {
-      return res
-        .status(429)
-        .json(
-          createErrorResponse(
-            429,
-            ERROR_CODES.RATE_LIMIT_EXCEEDED,
-            "Stay search quota exceeded",
-            { resetAt: quotaResult.resetAt }
-          )
-        );
-    }
 
     const cached = getCached("stays:search", cacheKey);
     if (cached) {
@@ -361,28 +323,9 @@ router.get(
       id: z.string().min(1, "id is required"),
     })
   ),
-  detailLimiter,
   staysDetailQuota,
   asyncHandler(async (req, res) => {
     try {
-      const quotaResult = enforceQuota({
-        identifier: req.user?.uid || req.ip,
-        key: "stays:detail",
-        limit: Math.max(20, Math.floor(userQuotaLimit / 2)),
-        windowMs: userQuotaWindow,
-      });
-      if (!quotaResult.allowed) {
-        return res
-          .status(429)
-          .json(
-            createErrorResponse(
-              429,
-              ERROR_CODES.RATE_LIMIT_EXCEEDED,
-              "Stay detail quota exceeded",
-              { resetAt: quotaResult.resetAt }
-            )
-          );
-      }
 
       const cacheKey = JSON.stringify({
         id: req.params.id,

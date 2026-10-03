@@ -1,6 +1,6 @@
 # ADR-002: Abuse and cost protection — identity, durable quotas, provider caps
 
-**Status:** Proposed
+**Status:** Accepted — code implemented on branch `css-variables-theme`; console steps (action 1, TTL policy) pending
 **Date:** 2026-10-02
 **Deciders:** Vamsi Kolli
 
@@ -86,11 +86,11 @@ The question is "what stops a surprise bill or a scripted user?" Only identity, 
 
 ## Action Items
 
-1. [ ] **Console, 15 min:** add a Google Cloud budget with alerts at, say, $5 / $20 / $50; set per-day request quotas for Places API (New) in Google Cloud quotas; set a credit limit on the OpenRouter API key.
-2. [ ] Add `durableDailyQuota({ name: "translation", userLimit: … })` to `routes/translationRoutes.js`.
-3. [ ] Require auth plus a `durableWindowedQuota` on `routes/locationRoutes.js`.
-4. [ ] Add `expireAt` to quota docs in `middleware/durableQuota.js`; enable a TTL policy on `usageQuotas.expireAt`.
-5. [ ] Delete `validateRequestSignature` usage and the `REQUEST_SIGNING_SECRET` requirement (`app.js`, `config/env.js`, docs, emulator config).
-6. [ ] Delete `enhancedAuthorization` UA/header heuristics, the role- and method-based limiters, and the in-memory `enforceQuota` duplicate in `staysRoutes.js`; keep one per-IP limiter.
-7. [ ] Change `attachUserContext` to `verifyIdToken(token)` and use `checkRevoked: true` only in `requireAuth` for write and admin routes.
-8. [ ] Phase 2: add Firebase App Check (reCAPTCHA) in the SPA and an `X-Firebase-AppCheck` verification middleware (`getAppCheck().verifyToken`) in monitor-only mode; enforce once metrics look clean.
+1. [ ] *(you)* **Console, 15 min:** add a Google Cloud budget with alerts at, say, $5 / $20 / $50; set per-day request quotas for Places API (New) in Google Cloud quotas; set a credit limit on the OpenRouter API key.
+2. [x] Add a translation daily quota (`TRANSLATION_DAILY_QUOTA`, default 200) to `routes/translationRoutes.js`.
+3. [x] Require auth plus a per-user hourly quota on `routes/locationRoutes.js` (`LOCATION_RESOLVE_PER_HOUR`, default 60).
+4. [x] Add `expireAt` to quota docs in `middleware/durableQuota.js`. [ ] *(you)* Enable a TTL policy on `usageQuotas.expireAt`.
+5. [x] Delete `validateRequestSignature` usage and the `REQUEST_SIGNING_SECRET` requirement (`app.js`, `config/env.js`, docs, emulator config).
+6. [x] Delete `enhancedAuthorization` UA/header heuristics, the role- and method-based limiters, per-route IP limiters, and the in-memory `enforceQuota` duplicates in stays and POI. One flood guard remains (`createApiLimiter`: per user when signed in, per IP otherwise), plus a separate photo bucket until ADR-004. `middleware/userQuota.js` gives each paid route one quota: durable in production, in-memory in dev/test. *Kept on purpose:* the short hourly in-memory limits inside the phrasebook and itinerary controllers (burst control in addition to their daily durable quotas).
+7. [x] Change `attachUserContext` to `verifyIdToken(token)` and use `checkRevoked: true` only in `requireAuth` for write and admin routes.
+8. [x] Phase 2 code: App Check in the SPA (`services/appCheck.js`, lazy, off unless `VITE_APPCHECK_RECAPTCHA_SITE_KEY` is set) and `middleware/appCheck.js` (monitor mode; `APP_CHECK_ENFORCE=true` to enforce). [ ] *(you)* Register the web app for App Check, then flip enforce once logs are clean.

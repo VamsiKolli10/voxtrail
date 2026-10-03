@@ -5,8 +5,6 @@ const fakeServiceAccount = {
     "-----BEGIN PRIVATE KEY-----\\nFAKEKEY\\n-----END PRIVATE KEY-----\\n",
 };
 
-process.env.REQUEST_SIGNING_SECRET =
-  process.env.REQUEST_SIGNING_SECRET || "test-signing-secret";
 process.env.FB_ADMIN_CREDENTIALS =
   process.env.FB_ADMIN_CREDENTIALS ||
   process.env.FIREBASE_ADMIN_CREDENTIALS ||

@@ -9,9 +9,6 @@ const toNumber = (value) => {
 const envSchema = z
   .object({
     NODE_ENV: z.string().optional(),
-    REQUEST_SIGNING_SECRET: z
-      .string()
-      .min(16, "REQUEST_SIGNING_SECRET must be at least 16 characters"),
     CORS_ALLOWED_ORIGINS: z.string().optional(),
     FB_ADMIN_CREDENTIALS: z.string().optional(),
     FIREBASE_ADMIN_CREDENTIALS: z.string().optional(),
@@ -28,6 +25,10 @@ const envSchema = z
       .preprocess(toNumber, z.number().int().positive().optional()),
     RATE_LIMIT_MAX: z
       .preprocess(toNumber, z.number().int().positive().optional()),
+    RATE_LIMIT_ANONYMOUS_MAX: z
+      .preprocess(toNumber, z.number().int().positive().optional()),
+    APP_CHECK_ENFORCE: z
+      .preprocess((v) => (v === undefined || v === "" ? undefined : String(v).toLowerCase() === "true"), z.boolean().optional()),
     REQUEST_BODY_LIMIT: z.string().optional(),
     READINESS_TIMEOUT_MS: z
       .preprocess(toNumber, z.number().int().positive().max(10_000).optional()),

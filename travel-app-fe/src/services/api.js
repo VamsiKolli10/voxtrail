@@ -2,6 +2,7 @@
 import axios from "axios";
 import { getAuth } from "firebase/auth";
 import { normalizeApiBaseUrl } from "./apiConfig";
+import { getAppCheckToken } from "./appCheck";
 
 /**
  * Axios instance for all backend requests.
@@ -19,6 +20,11 @@ api.interceptors.request.use(async (config) => {
     const token = await user.getIdToken();
     config.headers = config.headers || {};
     config.headers.Authorization = `Bearer ${token}`;
+  }
+  const appCheckToken = await getAppCheckToken();
+  if (appCheckToken) {
+    config.headers = config.headers || {};
+    config.headers["X-Firebase-AppCheck"] = appCheckToken;
   }
   return config;
 });
