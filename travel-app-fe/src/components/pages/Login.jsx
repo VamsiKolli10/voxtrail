@@ -1,3 +1,4 @@
+import { authRedirect } from "../../utils/authRedirect";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
@@ -8,11 +9,9 @@ import {
   TextField,
   Typography,
   Box,
-  Paper,
-  Divider,
   CircularProgress,
-  useTheme,
   alpha,
+  Button,
 } from "@mui/material";
 import {
   Visibility as VisibilityIcon,
@@ -23,33 +22,16 @@ import {
 import { styled } from "@mui/material/styles";
 import { auth } from "../../firebase";
 import { signOut } from "firebase/auth";
-import Button from "../common/Button";
 import AuthShell from "../layout/AuthShell";
-import useNotification from "../../hooks/useNotification";
+import { useNotify } from "../../contexts/NotificationContext.jsx";
 import { loginWithEmail, resendEmailVerification } from "../../services/auth";
 import { useAuth } from "../../contexts/AuthContext";
-
-const AnimatedPaper = styled(Paper)(({ theme }) => ({
-  borderRadius: 16,
-  padding: theme.spacing(4),
-  boxShadow: `0 10px 40px ${alpha(theme.palette.common.black, 0.1)}`,
-  background: `linear-gradient(180deg, ${alpha(
-    theme.palette.background.paper,
-    0.9
-  )} 0%, ${alpha(theme.palette.background.paper, 0.95)} 100%)`,
-  backdropFilter: "blur(10px)",
-  border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
-  transition: "transform 0.3s ease, box-shadow 0.3s ease",
-  "&:hover": {
-    transform: "translateY(-4px)",
-    boxShadow: `0 15px 50px ${alpha(theme.palette.common.black, 0.15)}`,
-  },
-}));
+import { transitionFor } from "../../theme";
 
 const StyledTextField = styled(TextField)(({ theme }) => ({
   "& .MuiOutlinedInput-root": {
     borderRadius: 12,
-    transition: "all 0.3s ease",
+    transition: transitionFor("all"),
     "& fieldset": {
       borderColor: alpha(theme.palette.divider, 0.5),
     },
@@ -73,11 +55,12 @@ const StyledTextField = styled(TextField)(({ theme }) => ({
 export default function Login() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { showNotification } = useNotification();
-  const theme = useTheme();
+  const { notify: showNotification } = useNotify();
   const { user } = useAuth();
   const redirectPath = useMemo(
-    () => location.state?.from?.pathname || "/home",
+    () => {
+      return authRedirect(location.state?.from);
+    },
     [location.state]
   );
 
@@ -138,7 +121,7 @@ export default function Login() {
   };
 
   useEffect(() => {
-    if (!location.state) return;
+    if (!location.state?.email && !location.state?.verificationSent) return;
     const { email: incomingEmail, verificationSent } = location.state;
     if (incomingEmail) {
       setFormData((prev) => ({ ...prev, email: incomingEmail }));
@@ -152,8 +135,9 @@ export default function Login() {
       );
     }
 
-    // Clear the state to prevent showing the message again
-    navigate(location.pathname, { replace: true });
+    // Consume the verification notice while retaining the protected destination.
+    const { email: _email, verificationSent: _sent, ...state } = location.state;
+    navigate(`${location.pathname}${location.search}${location.hash}`, { replace: true, state });
   }, [location, navigate]);
 
   useEffect(() => {
@@ -289,6 +273,37 @@ export default function Login() {
     }
   };
 
+  const resendButton = (
+    <Box sx={{ mt: 1 }}>
+      <Button
+        variant="contained"
+        size="small"
+        onClick={handleResendVerification}
+        startIcon={
+          resendingVerification ? (
+            <CircularProgress size={16} color="inherit" />
+          ) : (
+            <EmailIcon fontSize="small" />
+          )
+        }
+        disabled={
+          resendingVerification ||
+          (resendCooldownUntil
+            ? resendCooldownUntil - nowTick > 0
+            : false)
+        }
+      >
+        {resendingVerification
+          ? "Resending..."
+          : resendCooldownUntil && resendCooldownUntil - nowTick > 0
+          ? `Resend in ${Math.ceil(
+              (resendCooldownUntil - nowTick) / 1000 / 60
+            )}m`
+          : "Resend verification email"}
+      </Button>
+    </Box>
+  );
+
   return (
     <AuthShell
       icon="🔐"
@@ -298,7 +313,7 @@ export default function Login() {
       footer={
         <Stack spacing={1.5} alignItems="center">
           <Typography variant="body2" color="text.secondary">
-            Don't have an account? <Link to="/register">Create one</Link>
+            Don&apos;t have an account? <Link to="/register">Create one</Link>
           </Typography>
           <Typography variant="body2" color="text.secondary">
             <Link to="/forgot-password">Forgot your password?</Link>
@@ -306,8 +321,18 @@ export default function Login() {
         </Stack>
       }
     >
-      <AnimatedPaper elevation={0}>
+      <Box>
         <Stack component="form" spacing={3} onSubmit={handleSubmit}>
+          {infoMessage && (
+            <Alert
+              severity="info"
+              onClose={() => setInfoMessage("")}
+              sx={{ borderRadius: 2 }}
+            >
+              {infoMessage}
+              {verificationEmail && resendButton}
+            </Alert>
+          )}
           {error && (
             <Alert
               severity="error"
@@ -322,35 +347,7 @@ export default function Login() {
               }}
             >
               {error}
-              {verificationEmail && (
-                <Box sx={{ mt: 1 }}>
-                  <Button
-                    size="small"
-                    onClick={handleResendVerification}
-                    startIcon={
-                      resendingVerification ? (
-                        <CircularProgress size={16} color="inherit" />
-                      ) : (
-                        <EmailIcon fontSize="small" />
-                      )
-                    }
-                    disabled={
-                      resendingVerification ||
-                      (resendCooldownUntil
-                        ? resendCooldownUntil - nowTick > 0
-                        : false)
-                    }
-                  >
-                    {resendingVerification
-                      ? "Resending..."
-                      : resendCooldownUntil && resendCooldownUntil - nowTick > 0
-                      ? `Resend in ${Math.ceil(
-                          (resendCooldownUntil - nowTick) / 1000 / 60
-                        )}m`
-                      : "Resend verification email"}
-                  </Button>
-                </Box>
-              )}
+              {verificationEmail && !infoMessage && resendButton}
             </Alert>
           )}
 
@@ -410,7 +407,7 @@ export default function Login() {
                         showPassword ? "Hide password" : "Show password"
                       }
                       sx={{
-                        transition: "transform 0.2s ease",
+                        transition: transitionFor("transform", "fast"),
                         "&:hover": {
                           transform: "scale(1.1)",
                         },
@@ -449,8 +446,9 @@ export default function Login() {
                 width: "100%",
                 height: "100%",
                 background:
-                  "linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent)",
-                transition: "left 0.5s",
+                  (theme) =>
+                  `linear-gradient(90deg, transparent, ${alpha(theme.palette.common.white, 0.2)}, transparent)`,
+                transition: transitionFor("left", "slow"),
               },
               "&:hover::after": {
                 left: "100%",
@@ -472,7 +470,7 @@ export default function Login() {
             )}
           </Button>
         </Stack>
-      </AnimatedPaper>
+      </Box>
     </AuthShell>
   );
 }

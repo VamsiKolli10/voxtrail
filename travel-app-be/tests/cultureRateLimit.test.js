@@ -8,7 +8,7 @@ jest.mock("../src/lib/openrouterClient", () => ({
 const { chatComplete } = require("../src/lib/openrouterClient");
 const mockFirestore = require("firebase-admin").firestore;
 
-describe("Culture brief rate limiting by role", () => {
+describe("Culture brief and the API flood guard (ADR-002)", () => {
   let app;
 
   beforeAll(() => {
@@ -41,7 +41,7 @@ describe("Culture brief rate limiting by role", () => {
     );
   });
 
-  test("allows admin to exceed user limit", async () => {
+  test("anonymous bursts are limited without blocking signed-in users", async () => {
     const userAgent = request.agent(app);
     let hit429 = false;
     for (let i = 0; i < 45; i++) {
@@ -59,6 +59,7 @@ describe("Culture brief rate limiting by role", () => {
       .set("user-agent", "jest")
       .set("Authorization", "Bearer valid-admin-token");
 
-    expect([200, 429, 500]).toContain(adminRes.statusCode);
+    expect(hit429).toBe(true);
+    expect(adminRes.statusCode).not.toBe(429);
   }, 30000); // Increase timeout to 30 seconds for this test
 });

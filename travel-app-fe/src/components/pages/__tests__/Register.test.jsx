@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, Routes, Route } from "react-router-dom";
 import Register from "../Register.jsx";
 import { registerWithEmail } from "../../../services/auth";
 
@@ -8,16 +8,25 @@ vi.mock("../../../services/auth", () => ({
   registerWithEmail: vi.fn(),
 }));
 
-vi.mock("../../../hooks/useNotification", () => ({
-  __esModule: true,
-  default: () => ({
-    showNotification: vi.fn(),
-  }),
+vi.mock("../../../contexts/NotificationContext.jsx", () => ({
+  useNotify: () => ({ notify: vi.fn() }),
 }));
 
 describe("Register page", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  it("opens legal information without a link nested in the consent label", () => {
+    render(<MemoryRouter initialEntries={["/register"]}><Routes>
+      <Route path="/register" element={<Register />} />
+      <Route path="/terms" element={<h1>Terms document</h1>} />
+    </Routes></MemoryRouter>);
+    const link = screen.getByRole("link", { name: "Terms of Service" });
+    expect(link.closest("label")).toBeNull();
+    expect(screen.getByRole("checkbox")).not.toBeChecked();
+    fireEvent.click(link);
+    expect(screen.getByRole("heading", { name: "Terms document" })).toBeInTheDocument();
   });
 
   it("validates required fields", () => {

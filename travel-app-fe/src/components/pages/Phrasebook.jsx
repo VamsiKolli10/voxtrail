@@ -1,3 +1,4 @@
+import { useAuth } from "../../contexts/AuthContext.jsx";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Alert,
@@ -17,37 +18,29 @@ import {
   Skeleton,
   Tooltip,
   useTheme,
+  Button,
 } from "@mui/material";
 import {
   Bookmark as BookmarkFilledIcon,
   BookmarkBorder as BookmarkIcon,
   Refresh as RefreshIcon,
   AutoFixHigh as GenerateIcon,
-  Add as AddIcon,
   FilterList as FilterIcon,
-  DeleteSweep as DeleteIcon,
+  BookmarkBorder as EmptyBookmarkIcon,
 } from "@mui/icons-material";
 import { motion } from "framer-motion";
 import PageContainer from "../layout/PageContainer";
-import Button from "../common/Button";
 import { generatePhrasebook } from "../../services/phrasebook";
-import {
-  listSavedPhrases,
-  addSavedPhrase,
-  removeSavedPhrase,
-} from "../../services/savedPhrases";
-import useConnectivity from "../../hooks/useConnectivity";
+import useSavedPhrases from "../../hooks/useSavedPhrases";
 import useTravelContext from "../../hooks/useTravelContext";
-import {
-  cacheSavedPhrases,
-  readSavedPhrases,
-} from "../../services/offlineCache";
 import {
   getLanguageLabel,
   resolveLanguageCode,
   TRANSLATION_LANGUAGES,
 } from "../../constants/languages";
 import { logRecentActivity } from "../../utils/recentActivity";
+import { transitionFor } from "../../theme";
+import EmptyState from "../common/EmptyState";
 
 const COUNT_MARKS = [
   { value: 5, label: "5" },
@@ -83,6 +76,7 @@ const normalizeLanguageForApi = (value = "") => {
 };
 
 export default function Phrasebook() {
+  const { user } = useAuth();
   const {
     sourceLanguageName,
     targetLanguageName,
@@ -103,13 +97,16 @@ export default function Phrasebook() {
   const [error, setError] = useState("");
   const [result, setResult] = useState(null);
 
-  const [saved, setSaved] = useState([]);
-  const [loadingSaved, setLoadingSaved] = useState(true);
-  const { isOnline } = useConnectivity();
-  const [usingOfflineSaved, setUsingOfflineSaved] = useState(false);
-  const [savedCacheMissing, setSavedCacheMissing] = useState(false);
+  const {
+    saved,
+    loading: loadingSaved,
+    usingOffline: usingOfflineSaved,
+    cacheMissing: savedCacheMissing,
+    setSaved,
+    savePhrase,
+    removePhrase,
+  } = useSavedPhrases(user?.uid);
   const [filter, setFilter] = useState("");
-  const [filteredSaved, setFilteredSaved] = useState([]);
   const theme = useTheme();
 
   useEffect(() => {
@@ -127,11 +124,6 @@ export default function Phrasebook() {
       setTargetLang(nextTarget);
     }
   }, [targetLanguageName, targetLanguageCode, targetLang]);
-
-  const persistSaved = (items) =>
-    cacheSavedPhrases(items).catch((error) =>
-      console.warn("Failed to persist saved phrases locally", error)
-    );
 
   const updateSourceLanguage = useCallback(
     (value) => {
@@ -165,69 +157,15 @@ export default function Phrasebook() {
     [setLanguagePair]
   );
 
-  useEffect(() => {
-    let active = true;
-    (async () => {
-      try {
-        setLoadingSaved(true);
-        if (isOnline) {
-          const items = await listSavedPhrases();
-          if (!active) return;
-          setSaved(items || []);
-          setUsingOfflineSaved(false);
-          setSavedCacheMissing(false);
-          await cacheSavedPhrases(items || []);
-          return;
-        }
-        const cached = await readSavedPhrases();
-        if (!active) return;
-        if (cached?.length) {
-          setSaved(cached);
-          setUsingOfflineSaved(true);
-          setSavedCacheMissing(false);
-        } else {
-          setSaved([]);
-          setUsingOfflineSaved(true);
-          setSavedCacheMissing(true);
-        }
-      } catch (e) {
-        const cached = await readSavedPhrases();
-        if (active) {
-          if (cached?.length) {
-            setSaved(cached);
-            setUsingOfflineSaved(true);
-            setSavedCacheMissing(false);
-          } else {
-            setSaved([]);
-            setSavedCacheMissing(true);
-          }
-        }
-        console.warn(
-          "Could not load saved phrases (likely low connectivity):",
-          e?.response?.status || e?.message
-        );
-      } finally {
-        if (active) setLoadingSaved(false);
-      }
-    })();
-    return () => {
-      active = false;
-    };
-  }, [isOnline]);
-
-  useEffect(() => {
-    if (!filter) {
-      setFilteredSaved(saved);
-    } else {
-      setFilteredSaved(
-        saved.filter(
-          (item) =>
-            item.phrase?.toLowerCase().includes(filter.toLowerCase()) ||
-            item.meaning?.toLowerCase().includes(filter.toLowerCase()) ||
-            item.topic?.toLowerCase().includes(filter.toLowerCase())
-        )
-      );
-    }
+  const filteredSaved = useMemo(() => {
+    if (!filter) return saved;
+    const needle = filter.toLowerCase();
+    return saved.filter(
+      (item) =>
+        item.phrase?.toLowerCase().includes(needle) ||
+        item.meaning?.toLowerCase().includes(needle) ||
+        item.topic?.toLowerCase().includes(needle)
+    );
   }, [filter, saved]);
 
   const canSubmit =
@@ -337,21 +275,17 @@ export default function Phrasebook() {
 
     if (existing) {
       try {
-        await removeSavedPhrase(existing.id);
-        setSaved((prev) => {
-          const next = prev.filter((p) => p.id !== existing.id);
-          persistSaved(next);
-          return next;
-        });
+        await removePhrase(existing.id);
+        setSaved((prev) => prev.filter((p) => p.id !== existing.id));
       } catch (e) {
-        const msg = e?.response?.data?.error || e?.message;
+        const msg = e?.response?.data?.error?.message || (typeof e?.response?.data?.error === "string" ? e.response.data.error : e?.message);
         setError(msg || "Failed to remove phrase");
       }
       return;
     }
 
     try {
-      const id = await addSavedPhrase({
+      const id = await savePhrase({
         phrase: item.phrase,
         transliteration: item.transliteration || "",
         meaning: item.meaning,
@@ -382,13 +316,11 @@ export default function Phrasebook() {
               normalizeLanguageForApi(entry.sourceLang) === normalizedSourceLang
             )
         );
-        const next = [nextCandidate, ...filtered];
-        persistSaved(next);
-        return next;
+        return [nextCandidate, ...filtered];
       });
     } catch (e) {
       const status = e?.response?.status;
-      const msg = e?.response?.data?.error || e?.message;
+      const msg = e?.response?.data?.error?.message || (typeof e?.response?.data?.error === "string" ? e.response.data.error : e?.message);
       if (status === 401) {
         setError("Please sign in to save phrases.");
       } else {
@@ -399,14 +331,10 @@ export default function Phrasebook() {
 
   const removeSaved = async (id) => {
     try {
-      await removeSavedPhrase(id);
-      setSaved((prev) => {
-        const next = prev.filter((p) => p.id !== id);
-        persistSaved(next);
-        return next;
-      });
+      await removePhrase(id);
+      setSaved((prev) => prev.filter((p) => p.id !== id));
     } catch (e) {
-      const msg = e?.response?.data?.error || e?.message;
+      const msg = e?.response?.data?.error?.message || (typeof e?.response?.data?.error === "string" ? e.response.data.error : e?.message);
       setError(msg || "Failed to remove saved phrase");
     }
   };
@@ -460,7 +388,7 @@ export default function Phrasebook() {
                   sx={{
                     "& .MuiOutlinedInput-root": {
                       borderRadius: 2,
-                      transition: "all 0.3s ease",
+                      transition: transitionFor("all"),
                       "& fieldset": {
                         borderColor: alpha(theme.palette.divider, 0.5),
                       },
@@ -489,7 +417,7 @@ export default function Phrasebook() {
                   sx={{
                     "& .MuiOutlinedInput-root": {
                       borderRadius: 2,
-                      transition: "all 0.3s ease",
+                      transition: transitionFor("all"),
                       "& fieldset": {
                         borderColor: alpha(theme.palette.divider, 0.5),
                       },
@@ -524,7 +452,7 @@ export default function Phrasebook() {
                   sx={{
                     "& .MuiOutlinedInput-root": {
                       borderRadius: 2,
-                      transition: "all 0.3s ease",
+                      transition: transitionFor("all"),
                       "& fieldset": {
                         borderColor: alpha(theme.palette.divider, 0.5),
                       },
@@ -565,7 +493,7 @@ export default function Phrasebook() {
                     valueLabelDisplay="auto"
                     sx={{
                       "& .MuiSlider-thumb": {
-                        transition: "all 0.3s ease",
+                        transition: transitionFor("all"),
                         "&:hover": {
                           boxShadow: `0 0 0 8px ${alpha(
                             theme.palette.primary.main,
@@ -599,7 +527,7 @@ export default function Phrasebook() {
                   disabled={!canSubmit || loading}
                   startIcon={<GenerateIcon />}
                   sx={{
-                    transition: "all 0.3s ease",
+                    transition: transitionFor("all"),
                     position: "relative",
                     overflow: "hidden",
                     "&::after": {
@@ -610,8 +538,9 @@ export default function Phrasebook() {
                       width: "100%",
                       height: "100%",
                       background:
-                        "linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent)",
-                      transition: "left 0.5s",
+                        (theme) =>
+                  `linear-gradient(90deg, transparent, ${alpha(theme.palette.common.white, 0.2)}, transparent)`,
+                      transition: transitionFor("left", "slow"),
                     },
                     "&:hover::after": {
                       left: "100%",
@@ -705,7 +634,7 @@ export default function Phrasebook() {
               justifyContent="space-between"
             >
               <Box>
-                <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                <Typography variant="h6">
                   {result.topic}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
@@ -752,9 +681,9 @@ export default function Phrasebook() {
                         flexDirection: "column",
                         borderRadius: 3,
                         borderColor: savedAlready
-                          ? "rgba(33,128,141,0.4)"
-                          : "rgba(94,82,64,0.12)",
-                        transition: "all 0.3s ease",
+                          ? "primary.light"
+                          : "border.subtle",
+                        transition: transitionFor("all"),
                         "&:hover": {
                           transform: "translateY(-4px)",
                           boxShadow: theme.shadows[4],
@@ -782,7 +711,7 @@ export default function Phrasebook() {
                             >
                               #{index + 1}
                             </Typography>
-                            <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                            <Typography variant="h6">
                               {item.phrase}
                             </Typography>
                           </Stack>
@@ -802,7 +731,7 @@ export default function Phrasebook() {
                               color={savedAlready ? "primary" : "default"}
                               size="small"
                               sx={{
-                                transition: "all 0.3s ease",
+                                transition: transitionFor("all"),
                                 "&:hover": {
                                   transform: "scale(1.1)",
                                 },
@@ -851,7 +780,7 @@ export default function Phrasebook() {
                   gap: 2,
                 }}
               >
-                <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                <Typography variant="h6">
                   Generate a phrasebook to get started
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
@@ -888,7 +817,7 @@ export default function Phrasebook() {
               justifyContent="space-between"
             >
               <Box>
-                <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                <Typography variant="h6">
                   Saved phrases
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
@@ -976,8 +905,8 @@ export default function Phrasebook() {
                         display: "flex",
                         flexGrow: "1",
                         flexDirection: "column",
-                        borderColor: "rgba(94,82,64,0.12)",
-                        transition: "all 0.3s ease",
+                        borderColor: "border.subtle",
+                        transition: transitionFor("all"),
                         "&:hover": {
                           transform: "translateY(-4px)",
                           boxShadow: theme.shadows[4],
@@ -1005,7 +934,7 @@ export default function Phrasebook() {
                             >
                               #{index + 1}
                             </Typography>
-                            <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                            <Typography variant="h6">
                               {item.phrase}
                             </Typography>
                           </Stack>
@@ -1016,7 +945,7 @@ export default function Phrasebook() {
                               size="small"
                               color="primary"
                               sx={{
-                                transition: "all 0.3s ease",
+                                transition: transitionFor("all"),
                                 "&:hover": {
                                   transform: "scale(1.1)",
                                 },
@@ -1058,26 +987,16 @@ export default function Phrasebook() {
                 ))}
               </AnimatedGrid>
             ) : (
-              <Box
-                sx={{
-                  textAlign: "center",
-                  py: 5,
-                  px: { xs: 2, md: 4 },
-                  backgroundColor: "rgba(33,128,141,0.06)",
-                  borderRadius: 2,
-                }}
-              >
-                <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-                  {filter
-                    ? "No matching saved phrases"
-                    : "No saved phrases yet"}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  {filter
+              <EmptyState
+                icon={<EmptyBookmarkIcon />}
+                titleComponent="h3"
+                title={filter ? "No matching saved phrases" : "No saved phrases yet"}
+                description={
+                  filter
                     ? `No phrases match your filter "${filter}".`
-                    : "Generate a phrasebook and tap the bookmark icon to keep phrases handy."}
-                </Typography>
-              </Box>
+                    : "Generate a phrasebook and tap the bookmark icon to keep phrases handy."
+                }
+              />
             )}
           </CardContent>
         </AnimatedCard>

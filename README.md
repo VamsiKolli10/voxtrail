@@ -10,6 +10,7 @@ VoxTrail brings the tools travelers usually spread across several apps into one 
 - **AI phrasebooks** — Generate useful phrases for airports, dining, directions, emergencies, and more.
 - **Saved phrases** — Keep a personal, Firestore-backed collection of favorites.
 - **Stays search** — Find accommodations with ratings, amenities, photos, filters, and map context.
+- **Saved stays** — Bookmark a place with your own nickname and notes, then revisit it from any signed-in device. [Behavior and storage](docs/features/saved-stays.md).
 - **Discover** — Explore destinations and points of interest with rich detail pages and maps.
 - **Itinerary planner** — Build context-aware itineraries from destinations, interests, pace, and budget.
 - **Cultural guidance** — Learn local etiquette and get destination-aware travel tips.
@@ -33,7 +34,6 @@ flowchart LR
 VoxTrail
 ├── travel-app-fe/              React + Vite + Material UI frontend
 ├── travel-app-be/              Express API + Firebase Admin backend
-├── travel-app-be/functions/    Archived Functions codebase (not deployed)
 └── scripts/                    Deployment and release helpers
 ```
 
@@ -48,6 +48,8 @@ VoxTrail
 
 ## Run locally
 
+Use Node.js **22** and npm >=10 (`node --version` must report 22.x).
+
 ### 1. Install dependencies
 
 ```bash
@@ -61,7 +63,7 @@ cp travel-app-fe/.env.example travel-app-fe/.env
 cp travel-app-be/.env.example travel-app-be/.env
 ```
 
-Configure the Firebase values, `VITE_API_URL`, `REQUEST_SIGNING_SECRET`, and provider keys for Google Places and OpenRouter. Local backend development also needs either `FB_ADMIN_CREDENTIALS` or `GOOGLE_APPLICATION_CREDENTIALS`; managed Firebase Functions use Application Default Credentials. Never commit `.env` files, API keys, service-account JSON, or other secrets.
+Configure the Firebase values, `VITE_API_URL`, and provider keys for Google Places and OpenRouter. Local backend development also needs either `FB_ADMIN_CREDENTIALS` or `GOOGLE_APPLICATION_CREDENTIALS`; managed Firebase Functions use Application Default Credentials. Never commit `.env` files, API keys, service-account JSON, or other secrets.
 
 ### 3. Start both apps with one command
 
@@ -143,24 +145,26 @@ GitHub Actions workflows are available in `.github/workflows/`:
 - `ci.yml` runs clean installs, frontend/backend tests, dependency audits, the production build, and Firebase Emulator integration smoke tests.
 - `deploy.yml` deploys the Firebase stack only after successful `main` CI, or by a protected manual run from `main`, when every required Firebase repository secret is configured. Otherwise, its preflight reports a clean skip.
 
-The active Firebase topology uses the `backend` Functions codebase in
-`travel-app-be/`. The historical `travel-app-be/functions/` directory is
-archived and is not deployed.
+The Firebase topology uses the `backend` Functions codebase in
+`travel-app-be/`: one Express API served by the 2nd gen function `apiV2`
+(Hosting rewrites `/api/**` to it). Provider keys are Secret Manager secrets.
+See [docs/adr/001-api-runtime-2nd-gen.md](docs/adr/001-api-runtime-2nd-gen.md).
 
 ## Security
 
-VoxTrail includes Firebase token verification, role-aware access control, request validation, CORS allowlisting, Helmet headers, request IDs, HMAC validation for unsigned sensitive requests, endpoint throttles, and durable production quotas for AI generation.
+VoxTrail requires a Firebase sign-in for every route that calls a paid provider, enforces durable per-user quotas on those routes, verifies tokens (with revocation checks on writes), validates requests, and applies CORS allowlisting, Helmet headers, request IDs, a single API flood guard, and optional Firebase App Check. Spend is also capped at the providers (budgets, API quotas, credit limits). See [docs/adr/002-abuse-and-cost-protection.md](docs/adr/002-abuse-and-cost-protection.md).
 
 Review [ENVIRONMENT_VARIABLES.md](ENVIRONMENT_VARIABLES.md) and [travel-app-be/firestore.rules](travel-app-be/firestore.rules) before production configuration.
 
 ## Production status
 
-The repository is a **staging-ready release candidate**: clean installs, unit tests, production builds, full dependency audits, Firebase Emulator integration checks, and real local translation inference pass. Unrestricted public launch remains conditional on staging observability, provider quota/spend validation, legal review, and rollback/backup drills.
+The October 2026 audit fixes verified UI, UX, API, authentication, cache isolation and dependency issues. Local tests and builds pass. Translation uses OpenRouter; live provider and authenticated staging/device workflows remain release checks. See [PROJECT_AUDIT.md](PROJECT_AUDIT.md) for findings, validation evidence and limitations.
 
 Read the full assessment in [PRODUCTION_READINESS_REPORT.md](PRODUCTION_READINESS_REPORT.md).
 
 ## Documentation
 
+- [Project audit](PROJECT_AUDIT.md)
 - [API documentation](API_Documentation.md)
 - [MVP plan](MVP_PLAN.md)
 - [Environment variables](ENVIRONMENT_VARIABLES.md)

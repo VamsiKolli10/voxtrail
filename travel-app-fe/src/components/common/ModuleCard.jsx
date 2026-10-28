@@ -1,5 +1,6 @@
 import { Card } from "@mui/material";
 import { styled } from "@mui/material/styles";
+import { transitionFor } from "../../theme";
 
 const StyledModuleCard = styled(Card, {
   shouldForwardProp: (prop) => prop !== "interactive",
@@ -8,10 +9,10 @@ const StyledModuleCard = styled(Card, {
   flexDirection: "column",
   height: "100%",
   minHeight: 220,
-  borderRadius: 24,
+  borderRadius: theme.radius.xl,
   transition: interactive
-    ? "transform 200ms ease, box-shadow 200ms ease"
-    : "box-shadow 200ms ease",
+    ? transitionFor(["transform", "box-shadow"], "fast")
+    : transitionFor("box-shadow", "fast"),
   [theme.breakpoints.down("sm")]: {
     minHeight: 200,
   },
@@ -19,23 +20,25 @@ const StyledModuleCard = styled(Card, {
     cursor: "pointer",
     "&:hover": {
       transform: "translateY(-4px)",
-      boxShadow: theme.shadows[6],
+      boxShadow: theme.customShadows.cardHover,
     },
   }),
 }));
 
 export function ModuleCard({ interactive = false, sx, onClick, ...props }) {
+  const actionable = interactive && typeof onClick === "function";
   return (
     <StyledModuleCard
       interactive={interactive ? 1 : 0}
       elevation={0}
       sx={sx}
       onClick={onClick}
-      role={interactive ? "button" : undefined}
-      tabIndex={interactive ? 0 : undefined}
+      role={actionable ? "button" : undefined}
+      tabIndex={actionable ? 0 : undefined}
       onKeyDown={
-        interactive
+        actionable
           ? (event) => {
+              if (event.target !== event.currentTarget) return;
               if ((event.key === "Enter" || event.key === " ") && onClick) {
                 event.preventDefault();
                 onClick(event);
@@ -53,7 +56,7 @@ const StyledModuleCardGrid = styled("div")(({ theme }) => ({
   width: "100%",
   gap: theme.spacing(3),
   alignItems: "stretch",
-  gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+  gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 240px), 1fr))",
 }));
 
 export function ModuleCardGrid({ children, sx, ...props }) {

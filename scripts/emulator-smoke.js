@@ -20,7 +20,13 @@ async function requestWithRetry(url, options = {}, attempts = 12) {
 
 async function expectJson(url, expectedStatus = 200, options = {}) {
   const response = await requestWithRetry(url, options);
-  const body = await response.json();
+  const text = await response.text();
+  let body;
+  try {
+    body = JSON.parse(text);
+  } catch {
+    throw new Error(`${url} returned HTTP ${response.status} with a non-JSON response: ${text.slice(0, 200)}`);
+  }
   if (response.status !== expectedStatus) {
     throw new Error(
       `${url} returned HTTP ${response.status}: ${JSON.stringify(body)}`
@@ -33,6 +39,11 @@ async function run() {
   const home = await requestWithRetry(hostingUrl);
   if (home.status !== 200 || !(await home.text()).includes("<div id=\"root\">")) {
     throw new Error("Firebase Hosting did not serve the frontend application");
+  }
+  if (home.headers.get("x-content-type-options") !== "nosniff" ||
+      home.headers.get("x-frame-options") !== "DENY" ||
+      !home.headers.get("content-security-policy")?.includes("frame-ancestors 'none'")) {
+    throw new Error("Firebase Hosting security headers are missing");
   }
 
   const health = await expectJson(`${hostingUrl}/api/healthz`);
@@ -62,7 +73,22 @@ async function run() {
     throw new Error("Authenticated saved-phrases response is malformed");
   }
 
-  console.log("Firebase emulator smoke tests passed: Hosting, Functions, Firestore, and Auth.");
+  const stayUrl = `${hostingUrl}/api/saved-stays/smoke-place`;
+  const headers = { authorization: `Bearer ${auth.idToken}`, "content-type": "application/json" };
+  const shortlist = await expectJson(`${hostingUrl}/api/saved-stays`, 200, { headers });
+  if (shortlist.items.length !== 0) throw new Error("New account has another account's saved stays");
+  await expectJson(stayUrl, 201, { method: "PUT", headers, body: JSON.stringify({ nickname: "Smoke test option", notes: "User-authored note" }) });
+  await expectJson(stayUrl, 200, { method: "PUT", headers, body: JSON.stringify({ nickname: "Updated option" }) });
+  const saved = await expectJson(`${hostingUrl}/api/saved-stays`, 200, { headers });
+  if (saved.items.length !== 1 || saved.items[0].nickname !== "Updated option" || !saved.items[0].createdAt) {
+    throw new Error(`Saved-stays persistence failed: ${JSON.stringify(saved)}`);
+  }
+  await expectJson(stayUrl, 200, { method: "DELETE", headers });
+  await expectJson(stayUrl, 200, { method: "DELETE", headers });
+  const removed = await expectJson(`${hostingUrl}/api/saved-stays`, 200, { headers });
+  if (removed.items.length !== 0) throw new Error("Removed stay remains in the shortlist");
+
+  console.log("Firebase emulator smoke tests passed: Hosting, Functions, Firestore, Auth, and saved-stays CRUD.");
 }
 
 run().catch((error) => {

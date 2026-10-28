@@ -1,15 +1,14 @@
-import { useEffect, useMemo, useState } from "react";
+import { resolveApiAssetUrl } from "../../services/apiConfig";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import {
   Box,
-  Container,
   Grid,
   Paper,
   TextField,
   Button,
   InputAdornment,
-  CircularProgress,
-  Alert,
   Typography,
   Chip,
   Card,
@@ -17,25 +16,26 @@ import {
   CardMedia,
   Stack,
   useTheme,
-  useMediaQuery,
   FormControl,
   InputLabel,
   Select,
   MenuItem,
+  Skeleton,
 } from "@mui/material";
 import { alpha } from "@mui/material/styles";
 import {
   Search as SearchIcon,
   MyLocation as MyLocationIcon,
-  DirectionsWalk as DirectionsWalkIcon,
-  Star as StarIcon,
-  AccessTime as AccessTimeIcon,
-  Public as PublicIcon,
-  Launch as LaunchIcon,
+  TravelExplore as TravelExploreIcon,
+  ErrorOutline as ErrorOutlineIcon,
 } from "@mui/icons-material";
 import { searchPOIs } from "../../services/poi";
+import { queryKeys } from "../../services/queryKeys";
 import { useAnalytics } from "../../contexts/AnalyticsContext.jsx";
 import useTravelContext from "../../hooks/useTravelContext";
+import EmptyState from "../common/EmptyState";
+import PageContainer from "../layout/PageContainer";
+import { useNotify } from "../../contexts/NotificationContext.jsx";
 
 const CATEGORY_CHIPS = [
   { key: "museum", label: "Museum", icon: "🖼️" },
@@ -50,7 +50,6 @@ export default function DiscoverPage() {
   const [params, setParams] = useSearchParams();
   const navigate = useNavigate();
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const isDarkMode = theme.palette.mode === "dark";
   const panelBg = alpha(theme.palette.background.paper, isDarkMode ? 0.96 : 1);
   const cardBg = alpha(theme.palette.background.paper, isDarkMode ? 0.92 : 1);
@@ -60,7 +59,7 @@ export default function DiscoverPage() {
     isDarkMode ? 0.6 : 0.92
   );
   const softShadow = theme.shadows[isDarkMode ? 6 : 1];
-  const { track } = useAnalytics();
+  const { trackEvent: track } = useAnalytics();
   const {
     destination,
     destinationDisplayName,
@@ -73,15 +72,15 @@ export default function DiscoverPage() {
     [destinationDisplayName, destination]
   );
 
-  const [query, setQuery] = useState({
-    dest: params.get("dest") || contextDestination || "",
-    lat: params.get("lat")
-      ? Number(params.get("lat"))
-      : destinationLat ?? undefined,
-    lng: params.get("lng")
-      ? Number(params.get("lng"))
-      : destinationLng ?? undefined,
-  });
+  const urlDest = (params.get("dest") || "").trim();
+  const urlLat = params.get("lat")?.trim();
+  const urlLng = params.get("lng")?.trim();
+  const hasUrlLocation = Boolean(urlDest || urlLat || urlLng);
+  const [query, setQuery] = useState(() => ({
+    dest: urlDest || (hasUrlLocation ? "" : contextDestination) || "",
+    lat: urlLat ? Number(urlLat) : hasUrlLocation ? undefined : destinationLat ?? undefined,
+    lng: urlLng ? Number(urlLng) : hasUrlLocation ? undefined : destinationLng ?? undefined,
+  }));
 
   const [filters, setFilters] = useState({
     category: (params.get("category") || "").split(",").filter(Boolean),
@@ -89,11 +88,29 @@ export default function DiscoverPage() {
     accessibility: params.get("accessibility") === "true",
   });
 
-  // Map/List views are removed. Always show card list.
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [results, setResults] = useState([]);
-  const [hasSearched, setHasSearched] = useState(false);
+  // The last search the user ran (null until the first one). TanStack Query
+  // owns the request: the query key is the search, so a slow response for an
+  // older search can't overwrite a newer one (ADR-005).
+  const [submitted, setSubmitted] = useState(null);
+  const searchQuery = useQuery({
+    queryKey: queryKeys.poi.search(submitted),
+    queryFn: ({ signal }) => searchPOIs(submitted, { signal }),
+    enabled: submitted !== null,
+    placeholderData: keepPreviousData,
+  });
+  const loading = searchQuery.isFetching;
+  const results =
+    submitted && !searchQuery.isError ? searchQuery.data?.items || [] : [];
+  const hasSearched = submitted !== null;
+  const searchError = searchQuery.isError ? searchQuery.error : null;
+  const apiErrorMessage =
+    searchError?.response?.data?.error?.message || searchError?.message || "";
+  const error = searchError
+    ? apiErrorMessage
+      ? `Something went wrong: ${apiErrorMessage}`
+      : "Check your connection and try again."
+    : "";
+  const { notify } = useNotify();
   const [itineraryMode, setItineraryMode] = useState(false);
   const [nlQuery, setNlQuery] = useState("");
   const [parsedDays, setParsedDays] = useState(undefined);
@@ -107,18 +124,7 @@ export default function DiscoverPage() {
   const [itinerary, setItinerary] = useState(null);
   // Removed inline itinerary generation on Discover page per request
 
-  const toAbsoluteUrl = (maybeRelative) => {
-    if (!maybeRelative) return maybeRelative;
-    if (
-      maybeRelative.startsWith("http://") ||
-      maybeRelative.startsWith("https://")
-    ) {
-      return maybeRelative;
-    }
-    const baseURL = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
-    const cleanBase = baseURL.replace(/\/api$/, "");
-    return `${cleanBase}${maybeRelative}`;
-  };
+  const toAbsoluteUrl = resolveApiAssetUrl;
 
   const normalizeDiscoverQuery = (base = {}) => {
     const dest =
@@ -153,6 +159,7 @@ export default function DiscoverPage() {
   }, [queryParams, setParams]);
 
   useEffect(() => {
+    if (hasUrlLocation) return;
     if (!contextDestination && destinationLat == null && destinationLng == null)
       return;
     setQuery((prev) => {
@@ -183,70 +190,54 @@ export default function DiscoverPage() {
             : prev.lng,
       };
     });
-  }, [contextDestination, destinationLat, destinationLng]);
+  }, [contextDestination, destinationLat, destinationLng, hasUrlLocation]);
 
-  // Helper so we can search with fresh local state right after a click
-  const performSearch = async (localQuery = query, localFilters = filters) => {
+  // Record a successful search in the travel context and analytics once per
+  // search (not again for cache hits or background refetches of the same one).
+  const handledSearch = useRef(null);
+  useEffect(() => {
+    if (!searchQuery.isSuccess || searchQuery.isPlaceholderData || !submitted) return;
+    const key = JSON.stringify(submitted);
+    if (handledSearch.current === key) return;
+    handledSearch.current = key;
+    const { dest, lat, lng } = submitted;
+    const hasCoords = Number.isFinite(lat) && Number.isFinite(lng);
+    const label =
+      dest?.trim() ||
+      (hasCoords ? `Lat ${lat.toFixed(2)}, Lng ${lng.toFixed(2)}` : "");
+    if (label) {
+      setDestinationContext(
+        label,
+        { display: label, city: dest?.trim() || "", lat, lng },
+        { source: "discover-search" }
+      );
+    }
+    track?.("discover_search", submitted);
+  }, [searchQuery.isSuccess, searchQuery.isPlaceholderData, submitted, setDestinationContext, track]);
+
+  const performSearch = (localQuery = query, localFilters = filters) => {
     const normalizedQuery = normalizeDiscoverQuery(localQuery);
     setQuery((prev) => ({ ...prev, ...normalizedQuery }));
-    setHasSearched(true);
-    setLoading(true);
-    setError("");
-    try {
-      const { items } = await searchPOIs({
-        dest: normalizedQuery.dest,
-        lat: normalizedQuery.lat,
-        lng: normalizedQuery.lng,
-        category: localFilters.category.join(","),
-        kidFriendly: localFilters.kidFriendly,
-        accessibility: localFilters.accessibility,
-      });
-      setResults(items || []);
-      if (
-        (normalizedQuery.dest && normalizedQuery.dest.trim()) ||
-        (normalizedQuery.lat && normalizedQuery.lng)
-      ) {
-        const label =
-          normalizedQuery.dest?.trim() ||
-          (normalizedQuery.lat && normalizedQuery.lng
-            ? `Lat ${normalizedQuery.lat.toFixed(
-                2
-              )}, Lng ${normalizedQuery.lng.toFixed(2)}`
-            : "");
-        if (label) {
-          setDestinationContext(
-            label,
-            {
-              display: label,
-              city: normalizedQuery.dest?.trim() || "",
-              lat: normalizedQuery.lat,
-              lng: normalizedQuery.lng,
-            },
-            { source: "discover-search" }
-          );
-        }
-      }
-      track?.("discover_search", {
-        ...normalizedQuery,
-        ...localFilters,
-      });
-    } catch (e) {
-      console.error("Discover search error", e);
-      const apiMsg = e?.response?.data?.error?.message || e?.message || "";
-      setError(
-        apiMsg
-          ? `Failed to fetch places: ${apiMsg}`
-          : "Failed to fetch places. Try again."
-      );
-    } finally {
-      setLoading(false);
+    const next = {
+      dest: normalizedQuery.dest,
+      lat: normalizedQuery.lat,
+      lng: normalizedQuery.lng,
+      category: localFilters.category.join(","),
+      kidFriendly: localFilters.kidFriendly,
+      accessibility: localFilters.accessibility,
+    };
+    // Same search again: retry it if it failed; otherwise the cached result stands.
+    if (submitted && JSON.stringify(next) === JSON.stringify(submitted)) {
+      if (searchQuery.isError) searchQuery.refetch();
+      return;
     }
+    setSubmitted(next);
   };
 
   const runSearch = () => {
     const normalized = normalizeDiscoverQuery(query);
     const hasDest = normalized.dest;
-    const hasCoords = normalized.lat && normalized.lng;
+    const hasCoords = Number.isFinite(normalized.lat) && Number.isFinite(normalized.lng);
     if (!hasDest && !hasCoords) {
       // Do not call API without a valid location
       return;
@@ -256,14 +247,17 @@ export default function DiscoverPage() {
 
   useEffect(() => {
     // Auto-search only if a valid location is present
-    if ((query.dest && query.dest.trim()) || (query.lat && query.lng)) {
+    if ((query.dest && query.dest.trim()) || (Number.isFinite(query.lat) && Number.isFinite(query.lng))) {
       runSearch();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleNearMe = () => {
-    if (!navigator.geolocation) return;
+    if (!navigator.geolocation) {
+      notify("Location isn't available in this browser. Enter a destination instead.", "warning");
+      return;
+    }
     navigator.geolocation.getCurrentPosition((pos) => {
       const nextQuery = {
         lat: pos.coords.latitude,
@@ -273,7 +267,9 @@ export default function DiscoverPage() {
       setQuery(nextQuery);
       // Immediately search with new coordinates
       performSearch(nextQuery, filters);
-    });
+    }, () => {
+      notify("Couldn't get your location. Check location permissions or enter a destination.", "warning");
+    }, { timeout: 10000, maximumAge: 60000 });
   };
 
   // Very lightweight NL parser: extracts days, destination, category, budget, pace, and season
@@ -395,78 +391,6 @@ export default function DiscoverPage() {
     return { days, dest, category, budget, pace, season };
   };
 
-  // Low-race helper that both parses and (optionally) generates immediately
-  const handlePlanFromNL = async (generateAfter = false) => {
-    const { days, dest, category, budget, pace, season } =
-      parseTripQuery(nlQuery);
-
-    // Update UI state
-    // Always prefer destination from NL; also reflect it in the search box
-    if (dest) {
-      setQuery((q) => ({ ...q, dest, lat: undefined, lng: undefined }));
-    }
-    if (days) {
-      setParsedDays(days);
-      setItDays(days);
-    }
-    const nextFilters = { ...filters };
-    if (category) nextFilters.category = [category];
-    setFilters(nextFilters);
-    if (category) setItInterests(category);
-    if (budget) setItBudget(budget);
-    if (pace) setItPace(pace);
-    if (season) setItSeason(season);
-
-    // Refresh list results (non-blocking)
-    performSearch(
-      { ...query, dest: dest || query.dest, lat: undefined, lng: undefined },
-      nextFilters
-    );
-
-    if (!generateAfter) return;
-
-    // Build params directly to avoid relying on async setState
-    const hasDest = (dest || query.dest || "").trim();
-    const paramsObj = {
-      days: days || parsedDays || itDays,
-      budget: budget || itBudget,
-      pace: pace || itPace,
-      season: season || itSeason,
-      interests: (
-        itInterests ||
-        category ||
-        nextFilters.category?.[0] ||
-        ""
-      ).toString(),
-    };
-    if (hasDest) paramsObj.dest = hasDest;
-    else if (query.lat && query.lng) {
-      paramsObj.lat = query.lat;
-      paramsObj.lng = query.lng;
-    } else {
-      // No location: don't call API
-      return;
-    }
-
-    setItLoading(true);
-    setItError("");
-    setItinerary(null);
-    try {
-      const { generateItinerary } = await import("../../services/itinerary");
-      const data = await generateItinerary(paramsObj);
-      setItinerary(data);
-      track?.("discover_itinerary_generate", { source: "nl", ...paramsObj });
-    } catch (e) {
-      const apiMsg = e?.response?.data?.error?.message || e?.message || "";
-      setItError(
-        apiMsg
-          ? `Failed to generate itinerary: ${apiMsg}`
-          : "Failed to generate itinerary"
-      );
-    } finally {
-      setItLoading(false);
-    }
-  };
 
   const generatePlan = async () => {
     // Parse NL first to sync controls
@@ -553,7 +477,7 @@ export default function DiscoverPage() {
   // Inline itinerary generation removed
 
   return (
-    <Container maxWidth="xl" sx={{ py: 3 }}>
+    <PageContainer variant="fullBleed" title="Explore destinations" gap={0}>
       <Paper
         sx={{
           p: 2,
@@ -565,7 +489,7 @@ export default function DiscoverPage() {
         }}
       >
         <Grid container spacing={2} alignItems="center">
-          <Grid item xs={12} md={6}>
+          <Grid size={{ xs: 12, md: 6 }}>
             <TextField
               fullWidth
               label="Search city, country, or attraction"
@@ -593,7 +517,7 @@ export default function DiscoverPage() {
             />
           </Grid>
           {/* Distance input removed */}
-          <Grid item xs={12} md="auto">
+          <Grid size={{ xs: 12, md: "auto" }}>
             <Button
               variant="outlined"
               startIcon={<MyLocationIcon />}
@@ -612,8 +536,7 @@ export default function DiscoverPage() {
               value={nlQuery}
               onChange={(e) => {
                 setNlQuery(e.target.value);
-                setResults([]);
-                setHasSearched(false);
+                setSubmitted(null);
               }}
               onKeyDown={(e) => {
                 if (e.key === "Enter") generatePlan();
@@ -723,7 +646,7 @@ export default function DiscoverPage() {
             }}
           />
           <Chip
-            label="Accessible"
+            label="Wheelchair entrance"
             color={filters.accessibility ? "primary" : "default"}
             onClick={() => {
               const nextFilters = {
@@ -813,12 +736,71 @@ export default function DiscoverPage() {
         </Paper>
       )}
 
-      {/* Error message removed per request */}
 
       {loading ? (
-        <Box sx={{ py: 6, textAlign: "center" }}>
-          <CircularProgress />
+        <Box
+          role="status"
+          aria-label="Loading places"
+          sx={{
+            display: "grid",
+            gridTemplateColumns: {
+              xs: "minmax(0, 1fr)",
+              sm: "repeat(2, minmax(0, 1fr))",
+              lg: "repeat(3, minmax(0, 1fr))",
+            },
+            gap: { xs: 1.5, md: 2 },
+            width: "100%",
+          }}
+        >
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Card
+              key={i}
+              aria-hidden="true"
+              sx={{
+                height: { xs: "auto", md: 360 },
+                bgcolor: cardBg,
+                border: `1px solid ${borderColor}`,
+                boxShadow: softShadow,
+                overflow: "hidden",
+              }}
+            >
+              <Skeleton
+                variant="rectangular"
+                sx={{ width: "100%", height: { xs: 180, md: 200 } }}
+              />
+              <CardContent>
+                <Skeleton width="70%" height={28} />
+                <Skeleton width="95%" />
+                <Skeleton width="85%" sx={{ mb: 1.5 }} />
+                <Stack direction="row" spacing={1}>
+                  <Skeleton variant="rounded" width={64} height={24} />
+                  <Skeleton variant="rounded" width={52} height={24} />
+                </Stack>
+              </CardContent>
+            </Card>
+          ))}
         </Box>
+      ) : results.length === 0 && error ? (
+        <EmptyState
+          icon={<ErrorOutlineIcon />}
+          title="Couldn't load places"
+          description={error}
+          action={
+            <Button variant="outlined" onClick={runSearch}>
+              Try again
+            </Button>
+          }
+        />
+      ) : results.length === 0 ? (
+        <EmptyState
+          icon={<TravelExploreIcon />}
+          title={hasSearched ? "No places found" : "Find places to explore"}
+          description={
+            hasSearched
+              ? "Try a different city or attraction, or remove some filters."
+              : "Search for a city, country, or attraction, or use your location to see what's nearby."
+          }
+        />
       ) : (
         <Box
           sx={{
@@ -862,6 +844,8 @@ export default function DiscoverPage() {
                   component="img"
                   image={toAbsoluteUrl(item.thumbnail)}
                   alt={item.name}
+                  loading="lazy"
+                  decoding="async"
                   sx={{
                     width: "100%",
                     height: { xs: 180, md: 200 },
@@ -930,6 +914,6 @@ export default function DiscoverPage() {
           ))}
         </Box>
       )}
-    </Container>
+    </PageContainer>
   );
 }

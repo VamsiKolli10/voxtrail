@@ -1,5 +1,6 @@
 const express = require("express");
 const axios = require("axios");
+const { finished } = require("node:stream/promises");
 const router = express.Router();
 const {
   geocodeCity,
@@ -18,26 +19,18 @@ const {
 } = require("../utils/errorHandler");
 const { getCached, setCached } = require("../utils/cache");
 const { requireAuth } = require("../middleware/authenticate");
-const { createCustomLimiter } = require("../utils/rateLimiter");
-const { enforceQuota } = require("../utils/quota");
-const { durableWindowedQuota } = require("../middleware/durableQuota");
+const { userWindowQuota } = require("../middleware/userQuota");
 const { trackExternalCall } = require("../utils/monitoring");
 const { validateQuery, validateParams } = require("../middleware/validate");
 const { staysSearchSchema } = require("../utils/schemas");
 const { z } = require("zod");
 const asyncHandler = require("../utils/asyncHandler");
+const { verifyPhotoQuery } = require("../lib/photoUrls");
+const {
+  getPlaceReviews,
+  placeReviewsQuota,
+} = require("../controllers/placeReviewsController");
 
-const searchLimiter = createCustomLimiter({
-  windowMs: Number(process.env.STAYS_SEARCH_WINDOW_MS || 60_000),
-  max: Number(process.env.STAYS_SEARCH_MAX_PER_IP || 15),
-  message: "Too many stay searches from this IP. Please slow down.",
-});
-
-const detailLimiter = createCustomLimiter({
-  windowMs: Number(process.env.STAY_DETAIL_WINDOW_MS || 60_000),
-  max: Number(process.env.STAY_DETAIL_MAX_PER_IP || 30),
-  message: "Too many stay lookups from this IP. Try again shortly.",
-});
 
 const userQuotaLimit = Number(process.env.STAYS_PER_USER_PER_HOUR || 60);
 const userQuotaWindow = Number(
@@ -50,24 +43,18 @@ const detailCacheTtl = Number(
   process.env.STAY_DETAIL_CACHE_TTL_MS || 15 * 60 * 1000
 );
 
-// The in-process quota above is per-instance only, so it does not hold under
-// multiple Functions instances. These durable, Firestore-backed quotas
-// enforce the real per-user cap on the paid Google Places/Hotels calls.
-const isProduction = !["test", "development"].includes(process.env.NODE_ENV);
-const staysSearchQuota = isProduction
-  ? durableWindowedQuota({
-      name: "stays-search",
-      userLimit: userQuotaLimit,
-      windowMs: userQuotaWindow,
-    })
-  : (_req, _res, next) => next();
-const staysDetailQuota = isProduction
-  ? durableWindowedQuota({
-      name: "stays-detail",
-      userLimit: Math.max(20, Math.floor(userQuotaLimit / 2)),
-      windowMs: userQuotaWindow,
-    })
-  : (_req, _res, next) => next();
+// Per-user quotas on the paid Google Places calls: durable in production,
+// in-memory in development/test (middleware/userQuota.js, ADR-002).
+const staysSearchQuota = userWindowQuota({
+  name: "stays-search",
+  limit: userQuotaLimit,
+  windowMs: userQuotaWindow,
+});
+const staysDetailQuota = userWindowQuota({
+  name: "stays-detail",
+  limit: Math.max(20, Math.floor(userQuotaLimit / 2)),
+  windowMs: userQuotaWindow,
+});
 
 const encodePlacePath = (name) =>
   String(name)
@@ -75,35 +62,49 @@ const encodePlacePath = (name) =>
     .map((segment) => encodeURIComponent(segment))
     .join("/");
 
-// Photo endpoint is public - no authentication required
+// Photos load through <img>, which can't send a Bearer token, so this route
+// has no auth header check. Instead it serves only signed, unexpired URLs,
+// which are handed out in authenticated search/details responses (ADR-004).
 router.get("/photo", async (req, res) => {
-  const { name, ref, maxWidth, maxHeight } = req.query;
+  const verified = verifyPhotoQuery(req.query);
+  if (!verified.ok) {
+    return res
+      .status(403)
+      .json(
+        createErrorResponse(
+          403,
+          ERROR_CODES.FORBIDDEN,
+          verified.reason === "expired"
+            ? "Photo link expired; reload the page"
+            : "Photo link is not valid"
+        )
+      );
+  }
 
+  const controller = new AbortController();
+  let upstream;
+  const cancel = () => {
+    if (!res.writableFinished) {
+      controller.abort();
+      upstream?.data?.destroy();
+    }
+  };
+  res.once("close", cancel);
   try {
     ensureKey();
 
-    const photoName = name || ref;
-    if (!photoName) {
-      return res
-        .status(400)
-        .json(
-          createErrorResponse(
-            400,
-            ERROR_CODES.BAD_REQUEST,
-            "Place photo name is required"
-          )
-        );
-    }
-
+    const photoName = verified.name;
     const params = {};
-    if (maxWidth) params.maxWidthPx = Number(maxWidth);
-    if (maxHeight) params.maxHeightPx = Number(maxHeight);
+    if (verified.maxWidth) params.maxWidthPx = verified.maxWidth;
+    if (verified.maxHeight) params.maxHeightPx = verified.maxHeight;
     if (!params.maxWidthPx && !params.maxHeightPx) {
       params.maxWidthPx = 640;
     }
 
     const endpoint = `${PLACES_BASE_URL}/${encodePlacePath(photoName)}/media`;
-    let upstream = await axios.get(endpoint, {
+    upstream = await axios.get(endpoint, {
+      signal: controller.signal,
+      timeout: 20_000,
       headers: {
         "X-Goog-Api-Key": GOOGLE_API_KEY,
         "X-Goog-FieldMask": "*",
@@ -121,7 +122,10 @@ router.get("/photo", async (req, res) => {
 
     // If Google returns an expiring redirect, fetch it server-side so clients do not cache it
     if (upstream.status === 302 && upstream.headers.location) {
+      upstream.data.destroy();
       upstream = await axios.get(upstream.headers.location, {
+        signal: controller.signal,
+        timeout: 20_000,
         responseType: "stream",
         validateStatus: (status) => status >= 200 && status < 400,
       });
@@ -130,14 +134,47 @@ router.get("/photo", async (req, res) => {
     if (upstream.headers["content-type"]) {
       res.setHeader("Content-Type", upstream.headers["content-type"]);
     }
+    // Browser-only caching: no CDN/shared cache, since the Maps terms don't
+    // list photo bytes among the content that may be cached (ADR-004).
+    const secondsLeft = Math.floor((verified.exp - Date.now()) / 1000);
     res.setHeader(
       "Cache-Control",
-      "public, max-age=3600, stale-while-revalidate=3600"
+      `private, max-age=${Math.max(0, Math.min(3600, secondsLeft))}`
     );
 
-    return upstream.data.pipe(res);
+    // Observe the readable until it closes, including errors emitted after the
+    // browser disconnects and aborts Axios. Removing its listener on res.close
+    // can turn a cancellation into an uncaught stream error.
+    const providerFinished = finished(upstream.data, { cleanup: true });
+    const responseFinished = new Promise((resolve, reject) => {
+      const closed = () => {
+        cleanup();
+        if (res.writableFinished) resolve();
+        else reject(new Error("Photo response closed before completion"));
+      };
+      const cleanup = () => {
+        res.off("error", failed);
+        res.off("finish", completed);
+        res.off("close", closed);
+      };
+      const failed = (error) => { cleanup(); reject(error); };
+      const completed = () => { cleanup(); resolve(); };
+      res.once("error", failed);
+      res.once("finish", completed);
+      res.once("close", closed);
+    });
+    upstream.data.pipe(res);
+    try {
+      await Promise.all([providerFinished, responseFinished]);
+    } finally {
+      upstream.data.unpipe(res);
+    }
   } catch (e) {
+    if (res.destroyed) return;
     logError(e, { endpoint: "/api/stays/photo", query: req.query });
+    if (res.headersSent) { res.destroy(); return; }
+    res.removeHeader("Content-Type");
+    res.removeHeader("Cache-Control");
     return res
       .status(502)
       .json(
@@ -147,6 +184,9 @@ router.get("/photo", async (req, res) => {
           "Failed to fetch photo from provider"
         )
       );
+  } finally {
+    res.off("close", cancel);
+    if (upstream?.data && !upstream.data.readableEnded) upstream.data.destroy();
   }
 });
 
@@ -154,7 +194,6 @@ router.get(
   "/search",
   requireAuth({ allowRoles: ["user", "admin"] }),
   validateQuery(staysSearchSchema),
-  searchLimiter,
   staysSearchQuota,
   asyncHandler(async (req, res) => {
     try {
@@ -192,27 +231,10 @@ router.get(
       amenities: normalizeList(amenities),
       rating: rating ? Number(rating) : null,
       page: pageNumber,
+      pageSize: pageSizeInput ?? 5,
       lang,
     });
 
-    const quotaResult = enforceQuota({
-      identifier: req.user?.uid || req.userId || req.ip,
-      key: "stays:search",
-      limit: userQuotaLimit,
-      windowMs: userQuotaWindow,
-    });
-    if (!quotaResult.allowed) {
-      return res
-        .status(429)
-        .json(
-          createErrorResponse(
-            429,
-            ERROR_CODES.RATE_LIMIT_EXCEEDED,
-            "Stay search quota exceeded",
-            { resetAt: quotaResult.resetAt }
-          )
-        );
-    }
 
     const cached = getCached("stays:search", cacheKey);
     if (cached) {
@@ -221,7 +243,7 @@ router.get(
 
     let center;
     let resolvedDestination = null;
-    if (lat && lng) {
+    if (Number.isFinite(lat) && Number.isFinite(lng)) {
       center = { lat: Number(lat), lng: Number(lng) };
     } else if (dest) {
       const ge = await geocodeCity(dest, lang);
@@ -353,6 +375,14 @@ router.get(
 );
 
 router.get(
+  "/:id/reviews",
+  requireAuth({ allowRoles: ["user", "admin"] }),
+  validateParams(z.object({ id: z.string().min(1, "id is required") })),
+  placeReviewsQuota,
+  asyncHandler(getPlaceReviews)
+);
+
+router.get(
   "/:id",
   requireAuth({ allowRoles: ["user", "admin"] }),
   validateParams(
@@ -360,28 +390,9 @@ router.get(
       id: z.string().min(1, "id is required"),
     })
   ),
-  detailLimiter,
   staysDetailQuota,
   asyncHandler(async (req, res) => {
     try {
-      const quotaResult = enforceQuota({
-        identifier: req.user?.uid || req.ip,
-        key: "stays:detail",
-        limit: Math.max(20, Math.floor(userQuotaLimit / 2)),
-        windowMs: userQuotaWindow,
-      });
-      if (!quotaResult.allowed) {
-        return res
-          .status(429)
-          .json(
-            createErrorResponse(
-              429,
-              ERROR_CODES.RATE_LIMIT_EXCEEDED,
-              "Stay detail quota exceeded",
-              { resetAt: quotaResult.resetAt }
-            )
-          );
-      }
 
       const cacheKey = JSON.stringify({
         id: req.params.id,

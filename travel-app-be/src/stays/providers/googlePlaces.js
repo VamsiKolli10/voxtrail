@@ -1,8 +1,27 @@
 const axios = require("axios");
+const { signPhotoUrl } = require("../../lib/photoUrls");
+const {
+  geocodeAddress,
+  readCachedCenter,
+  writeCachedCenter,
+} = require("../../lib/geocoding");
 
 const GOOGLE_API_KEY = process.env.GOOGLE_PLACES_API_KEY;
 const PLACES_BASE_URL = "https://places.googleapis.com/v1";
-const PHOTO_PROXY_PATH = "/api/stays/photo";
+
+// Field masks decide the Places SKU (ADR-004). Keep Atmosphere fields
+// (reviews, editorialSummary) out of default calls.
+const DETAIL_FIELD_MASK =
+  "id,displayName,shortFormattedAddress,formattedAddress,location,types,primaryType,priceLevel,rating,userRatingCount,photos,businessStatus,currentOpeningHours,regularOpeningHours,internationalPhoneNumber,nationalPhoneNumber,websiteUri,googleMapsUri,accessibilityOptions";
+const SUMMARY_FIELD_MASK = "id,displayName,location";
+const REVIEWS_FIELD_MASK = "id,reviews";
+
+const warned = new Set();
+function warnOnce(message) {
+  if (warned.has(message)) return;
+  warned.add(message);
+  console.warn(message);
+}
 
 if (!GOOGLE_API_KEY) {
   console.warn(
@@ -219,12 +238,9 @@ function encodePlacePath(name) {
     .join("/");
 }
 
+// Photo URLs are signed and expire (ADR-004); see lib/photoUrls.js.
 function buildPhotoProxy(name, { maxWidth, maxHeight } = {}) {
-  if (!name) return null;
-  const params = new URLSearchParams({ name });
-  if (maxWidth) params.append("maxWidth", String(maxWidth));
-  if (maxHeight) params.append("maxHeight", String(maxHeight));
-  return `${PHOTO_PROXY_PATH}?${params.toString()}`;
+  return signPhotoUrl(name, { maxWidth, maxHeight });
 }
 
 function parseAddressComponents(components = [], fallbackCity = "") {
@@ -396,17 +412,6 @@ function mapPlaceToDetail(place, language = "en") {
     place.regularOpeningHours?.weekdayDescriptions ||
     [];
 
-  const reviews = Array.isArray(place.reviews)
-    ? place.reviews.slice(0, 5).map((review) => ({
-        author_name:
-          review.authorAttribution?.displayName || "Guest reviewer",
-        rating: review.rating ?? null,
-        text: review.text?.text || "",
-        relative_time_description:
-          review.relativePublishTimeDescription || "",
-      }))
-    : [];
-
   const { primary: inferredType, tags: typeTags } = classifyTypes({
     types: place.types,
     primaryType: place.primaryType,
@@ -415,15 +420,15 @@ function mapPlaceToDetail(place, language = "en") {
   return {
     id: place.id,
     name: place.displayName?.text || place.displayName || "Accommodation",
-    description:
-      place.editorialSummary?.text ||
-      place.editorialSummary?.overview ||
-      "",
+    // editorialSummary is an Atmosphere field (ADR-004); POI details fill
+    // this from Wikipedia instead.
+    description: "",
     rating: place.rating ?? null,
     reviewsCount: place.userRatingCount ?? null,
     price: pricePayload(place.priceLevel),
     amenities: collectPlaceFeatures(place),
-    reviews,
+    // Loaded on demand from /:id/reviews (Atmosphere SKU, ADR-004).
+    reviews: [],
     photos,
     location: {
       lat: latitude ?? null,
@@ -454,7 +459,23 @@ function mapPlaceToDetail(place, language = "en") {
   };
 }
 
-async function geocodeCity(cityQuery, language = "en") {
+function mapReviews(place = {}) {
+  return Array.isArray(place.reviews)
+    ? place.reviews.slice(0, 5).map((review) => ({
+        author_name:
+          review.authorAttribution?.displayName || "Guest reviewer",
+        author_uri: review.authorAttribution?.uri || null,
+        rating: review.rating ?? null,
+        text: review.text?.text || "",
+        relative_time_description:
+          review.relativePublishTimeDescription || "",
+      }))
+    : [];
+}
+
+// Text Search Pro: the fallback geocoder for queries the Geocoding API can't
+// resolve (or when that API isn't enabled for the key).
+async function geocodeCityWithTextSearch(cityQuery, language = "en") {
   ensureKey();
   const FIELD_MASK =
     "places.id,places.displayName,places.shortFormattedAddress,places.formattedAddress,places.location,places.addressComponents";
@@ -503,11 +524,13 @@ async function geocodeCity(cityQuery, language = "en") {
     return {
       lat,
       lng,
+      placeId: place.id || null,
       display: displayName,
       address: formattedAddress,
       city,
       state,
       country,
+      source: "places-text-search",
     };
   } catch (error) {
     console.error("Geocode error:", {
@@ -517,7 +540,6 @@ async function geocodeCity(cityQuery, language = "en") {
       config: {
         url: error.config?.url,
         method: error.config?.method,
-        headers: error.config?.headers,
       },
     });
     throw new Error(
@@ -527,6 +549,100 @@ async function geocodeCity(cityQuery, language = "en") {
         "Failed to geocode city"
     );
   }
+}
+
+const POLITICAL_TYPES = new Set([
+  "locality",
+  "postal_town",
+  "administrative_area_level_1",
+  "administrative_area_level_2",
+  "administrative_area_level_3",
+  "country",
+  "colloquial_area",
+  "sublocality",
+  "neighborhood",
+]);
+
+async function geocodeCityWithGeocodingApi(cityQuery, language = "en") {
+  const result = await geocodeAddress(cityQuery, language);
+  const parsed =
+    parseAddressComponents(result.addressComponents, cityQuery) ||
+    parseCityStateCountry(result.formattedAddress, cityQuery);
+  // Geocoding has no display name. For places (cities, regions) use the
+  // matched name; for addresses and landmarks keep what the user typed.
+  const isPlace = result.types.some((t) => POLITICAL_TYPES.has(t));
+  const display = isPlace
+    ? parsed.city || parsed.state || parsed.country || cityQuery
+    : cityQuery;
+  return {
+    lat: result.lat,
+    lng: result.lng,
+    placeId: result.placeId,
+    display,
+    address: result.formattedAddress || display,
+    city: parsed.city || "",
+    state: parsed.state || "",
+    country: parsed.country || "",
+    source: "geocoding",
+  };
+}
+
+// Statuses where Places Text Search may still succeed.
+const TEXT_SEARCH_FALLBACK = new Set(["ZERO_RESULTS", "REQUEST_DENIED"]);
+
+/**
+ * Resolve a free-text city/place to coordinates and address parts.
+ * GEOCODER=geocoding (default) uses the Geocoding API and falls back to Places
+ * Text Search on ZERO_RESULTS or REQUEST_DENIED; GEOCODER=places uses Text
+ * Search only.
+ */
+async function geocodeCity(cityQuery, language = "en") {
+  ensureKey();
+  if ((process.env.GEOCODER || "geocoding").toLowerCase() === "places") {
+    return geocodeCityWithTextSearch(cityQuery, language);
+  }
+  try {
+    return await geocodeCityWithGeocodingApi(cityQuery, language);
+  } catch (error) {
+    if (!TEXT_SEARCH_FALLBACK.has(error.code)) throw error;
+    if (error.code === "REQUEST_DENIED") {
+      warnOnce(
+        `[geocode] Geocoding API denied the request (${error.message}). Enable the Geocoding API for this key; using Places Text Search meanwhile.`
+      );
+    }
+    return geocodeCityWithTextSearch(cityQuery, language);
+  }
+}
+
+function defaultDb() {
+  return require("../../config/firebaseAdmin").db;
+}
+
+/**
+ * Coordinates only, with a Firestore cache of up to 29 days (lat/lng and place
+ * ID are the only content the terms allow us to store). For callers that don't
+ * need the address, such as itinerary grounding.
+ */
+async function geocodeCenter(query, language = "en", { db = defaultDb() } = {}) {
+  try {
+    const hit = await readCachedCenter(db, query, language);
+    if (hit) return { ...hit, display: query, cached: true };
+  } catch (error) {
+    console.warn("[geocode] cache read failed:", error.message);
+  }
+  const result = await geocodeCity(query, language);
+  try {
+    await writeCachedCenter(db, query, language, result);
+  } catch (error) {
+    console.warn("[geocode] cache write failed:", error.message);
+  }
+  return {
+    lat: result.lat,
+    lng: result.lng,
+    placeId: result.placeId || null,
+    display: result.display || query,
+    cached: false,
+  };
 }
 
 async function nearbyLodging({
@@ -598,8 +714,7 @@ async function fetchById(placeId, language = "en") {
     placePath = `places/${placeId}`;
   }
 
-  const FIELD_MASK =
-    "id,displayName,shortFormattedAddress,formattedAddress,location,types,primaryType,priceLevel,rating,userRatingCount,photos,businessStatus,currentOpeningHours,regularOpeningHours,internationalPhoneNumber,nationalPhoneNumber,websiteUri,editorialSummary,googleMapsUri,accessibilityOptions,reviews,reviews.rating,reviews.text,reviews.relativePublishTimeDescription,reviews.authorAttribution.displayName";
+  const FIELD_MASK = DETAIL_FIELD_MASK;
 
   try {
     const { data } = await axios.get(
@@ -639,8 +754,47 @@ async function fetchById(placeId, language = "en") {
   }
 }
 
+function toPlacePath(placeId) {
+  const id = String(placeId);
+  return encodePlacePath(id.startsWith("places/") ? id : `places/${id}`);
+}
+
+async function getPlace(placeId, fieldMask, language) {
+  ensureKey();
+  const { data } = await axios.get(`${PLACES_BASE_URL}/${toPlacePath(placeId)}`, {
+    headers: placesHeaders(fieldMask, null),
+    params: { languageCode: language },
+  });
+  return data || null;
+}
+
+// Name and coordinates only (Place Details Pro), e.g. to ground an itinerary.
+async function fetchPlaceSummary(placeId, language = "en") {
+  const place = await getPlace(placeId, SUMMARY_FIELD_MASK, language);
+  if (!place) return null;
+  const lat = Number(place.location?.latitude);
+  const lng = Number(place.location?.longitude);
+  return {
+    id: place.id,
+    name: place.displayName?.text || place.displayName || "Destination",
+    location:
+      Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : null,
+  };
+}
+
+// Reviews are an Atmosphere field, so they're fetched only when a user asks.
+async function fetchReviewsById(placeId, language = "en") {
+  const place = await getPlace(placeId, REVIEWS_FIELD_MASK, language);
+  if (!place) return null;
+  return { id: place.id, reviews: mapReviews(place) };
+}
+
 module.exports = {
   geocodeCity,
+  geocodeCenter,
+  fetchPlaceSummary,
+  fetchReviewsById,
+  DETAIL_FIELD_MASK,
   nearbyLodging,
   toResultItem: mapPlaceToResult,
   fetchById,

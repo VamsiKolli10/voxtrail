@@ -9,6 +9,7 @@ const env = require("./config/env");
 const translationRoutes = require("./routes/translationRoutes");
 const phrasebookRoutes = require("./routes/phrasebookRoutes");
 const savedPhraseRoutes = require("./routes/savedPhraseRoutes");
+const savedStayRoutes = require("./routes/savedStayRoutes");
 const staysRoutes = require("./routes/staysRoutes");
 const poiRoutes = require("./routes/poiRoutes");
 const itineraryRoutes = require("./routes/itineraryRoutes");
@@ -23,21 +24,25 @@ const {
   ERROR_CODES,
   logError,
 } = require("./utils/errorHandler");
-const {
-  createCustomLimiter,
-  createRoleBasedLimiter,
-  createMethodBasedLimiter,
-} = require("./utils/rateLimiter");
-const {
-  addSecurityHeaders,
-  securityLogging,
-  enhancedAuthorization,
-  validateRequestSignature,
-} = require("./utils/security");
+const { createApiLimiter, createCustomLimiter } = require("./utils/rateLimiter");
+const { addSecurityHeaders, securityLogging } = require("./utils/security");
+const { appCheck } = require("./middleware/appCheck");
 const { recordTiming, getPerformanceSnapshot } = require("./utils/performance");
 const { validateBody } = require("./middleware/validate");
 const { userWriteSchema } = require("./utils/schemas");
 const { requestContext } = require("./middleware/requestContext");
+const { getModelChain } = require("./lib/openrouterClient");
+
+// ADR-003: there is no built-in model. Say so once at boot instead of
+// failing every AI request silently; AI routes answer 503 until it is set.
+function reportAiConfiguration() {
+  if (["test", "development"].includes(process.env.NODE_ENV)) return;
+  if (process.env.OPENROUTER_API_KEY && getModelChain().length === 0) {
+    console.error(
+      "[config] OPENROUTER_MODEL_CHAIN has no usable model (vendor-prefixed, not :free). AI features will return 503."
+    );
+  }
+}
 
 const defaultAllowedOrigins = [
   "http://localhost",
@@ -53,70 +58,19 @@ const allowedOrigins =
     : defaultAllowedOrigins;
 
 const rateLimitWindowMs = env.RATE_LIMIT_WINDOW_MS ?? 60_000;
-const rateLimitMax = env.RATE_LIMIT_MAX ?? 60;
 const requestBodyLimit = env.REQUEST_BODY_LIMIT || "256kb";
-const signingSecret = env.REQUEST_SIGNING_SECRET;
 const readinessTimeoutMs = env.READINESS_TIMEOUT_MS ?? 3_000;
 
-if (!signingSecret) {
-  throw new Error(
-    "REQUEST_SIGNING_SECRET is required. Configure a strong secret before starting the API."
-  );
-}
 
-// Role-based rate limits (requests per window)
-const roleLimits = {
-  admin: 120, // Admins can make more requests
-  user: 60, // Regular users
-  anonymous: 20, // Anonymous users have limited access
-};
-
-// Endpoint-specific rate limits
-const endpointLimits = {
-  "/api/users": {
-    windowMs: 60000, // 1 minute
-    max: 20, // 20 requests per minute for user management
-  },
-  "/api/translate": {
-    windowMs: 60000, // 1 minute
-    max: 30, // 30 requests per minute for translation
-  },
-  "/api/phrasebook/generate": {
-    windowMs: 60000, // 1 minute
-    max: 10, // 10 requests per minute for phrasebook generation
-  },
-  "/api/stays/search": {
-    windowMs: 60000, // 1 minute
-    max: 40, // 40 requests per minute for stay search
-  },
-  "/api/stays/photo": {
-    windowMs: 60000, // 1 minute
-    max: 300, // 300 requests per minute for photo proxy
-  },
-  "/api/poi/search": {
-    windowMs: 60000, // 1 minute
-    max: 60,
-  },
-  "/api/itinerary/generate": {
-    windowMs: 60000,
-    max: 12, // keep lower to control AI costs
-  },
-  "/api/location/resolve": {
-    windowMs: 60000,
-    max: 60,
-  },
-};
-
-// Method-based rate limits (requests per window for different HTTP methods)
-const methodLimits = {
-  GET: 100,
-  POST: 50,
-  PUT: 30,
-  PATCH: 20,
-  DELETE: 10,
-};
+// Abuse and cost protection (docs/adr/002-abuse-and-cost-protection.md):
+// identity + durable per-user quotas on paid routes + provider-side caps.
+// In-process limits below are only a flood guard.
+const rateLimitAuthenticatedMax = env.RATE_LIMIT_MAX ?? 120;
+const rateLimitAnonymousMax = env.RATE_LIMIT_ANONYMOUS_MAX ?? 30;
+const PHOTO_PATH = "/stays/photo";
 
 function createApp() {
+  reportAiConfiguration();
   const app = express();
   let readinessCache = { checkedAt: 0, ready: false };
   app.disable("x-powered-by");
@@ -200,46 +154,39 @@ function createApp() {
   app.get("/api/healthz", healthResponse);
   app.get("/api/readyz", readinessResponse);
 
-  // Hydrate user context (if any) before applying role-based rate limits
+  // Hydrate user context (if any) so the flood guard can key by user.
   app.use(attachUserContext);
 
-  // Apply role-based rate limiting to the API (skip hot paths like /stays/photo which can issue many parallel requests)
-  const roleLimiter = createRoleBasedLimiter({
-    windowMs: rateLimitWindowMs,
-    limits: roleLimits,
-    defaultMessage: "Too many requests for your role",
-  });
-  const roleLimitBypass = ["/stays/photo", "/stays/photo/"];
+  // App Check: monitor by default; APP_CHECK_ENFORCE=true rejects requests
+  // without a valid token. Health checks stay open.
+  const checkApp = appCheck({
+      getAppCheck: () => require("firebase-admin/app-check").getAppCheck(),
+      enforce: env.APP_CHECK_ENFORCE === true,
+    });
   app.use("/api", (req, res, next) => {
-    const path = req.path || "";
-    if (roleLimitBypass.some((p) => path.startsWith(p))) {
+    // Images cannot attach App Check headers. The photo handler still requires
+    // a valid, unexpired signature before it makes any provider request.
+    if (["GET", "HEAD"].includes(req.method) && /^\/stays\/photo\/?$/i.test(req.path)) {
       return next();
     }
-    return roleLimiter(req, res, next);
+    return checkApp(req, res, next);
   });
 
-  // Apply endpoint-specific rate limiting
-  Object.entries(endpointLimits).forEach(([path, limits]) => {
-    app.use(path, createCustomLimiter(limits));
-  });
-
-  // Apply method-based rate limiting to the entire API
-  const methodLimiter = createMethodBasedLimiter({
+  // One API-wide flood guard. Photos get their own, higher bucket because a
+  // results page loads several at once (see ADR-004).
+  const apiLimiter = createApiLimiter({
     windowMs: rateLimitWindowMs,
-    limits: methodLimits,
-    defaultMessage: "Too many requests for this HTTP method",
+    authenticatedMax: rateLimitAuthenticatedMax,
+    anonymousMax: rateLimitAnonymousMax,
+    skip: (req) => (req.path || "").startsWith(PHOTO_PATH),
   });
-  app.use("/api", (req, res, next) => {
-    const path = req.path || "";
-    if (roleLimitBypass.some((p) => path.startsWith(p))) {
-      return next();
-    }
-    return methodLimiter(req, res, next);
-  });
+  app.use("/api", apiLimiter);
+  app.use(
+    `/api${PHOTO_PATH}`,
+    createCustomLimiter({ windowMs: 60_000, max: 300 })
+  );
 
-  // Add enhanced security middleware
   app.use(addSecurityHeaders());
-  app.use(enhancedAuthorization({ strictMode: true }));
   app.use(securityLogging({ trackSuspiciousActivity: true }));
 
   // Lightweight response time tracking (no logging); adds X-Response-Time-ms header
@@ -254,22 +201,13 @@ function createApp() {
       }
       res.requestDurationMs = durationMs;
       const routeKey = `${req.method} ${
-        req.route?.path || req.originalUrl.split("?")[0] || req.path
+        req.route ? `${req.baseUrl || ""}${req.route.path}` : "<unmatched>"
       }`;
       recordTiming(routeKey, durationMs);
       return originalEnd.call(this, chunk, encoding, callback);
     };
     next();
   });
-
-  // Validate request signatures for sensitive endpoints
-  app.use(
-    validateRequestSignature({
-      secret: signingSecret,
-      methods: ["POST", "PUT", "PATCH", "DELETE"],
-      protectedPaths: ["/api/stays", "/api/poi", "/api/itinerary"],
-    })
-  );
 
   app.use((req, _res, next) => {
     const hasAuth = (req.headers.authorization || "").startsWith("Bearer ");
@@ -338,6 +276,7 @@ function createApp() {
   app.use("/api/translate", translationRoutes);
   app.use("/api/phrasebook", phrasebookRoutes);
   app.use("/api/saved-phrases", requireUser(), savedPhraseRoutes);
+  app.use("/api/saved-stays", requireUser(), savedStayRoutes);
   app.use("/api/stays", staysRoutes);
   app.use("/api/poi", requireUser(), poiRoutes);
   app.use("/api/itinerary", requireUser(), itineraryRoutes);

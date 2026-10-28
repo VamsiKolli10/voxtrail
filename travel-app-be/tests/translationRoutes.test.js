@@ -110,13 +110,12 @@ describe("Translation routes", () => {
     expect(res.body.error.code).toBe("VALIDATION_ERROR");
   });
 
-  test("rejects requests without user-agent header", async () => {
+  test("does not filter signed-in clients by user-agent (ADR-002)", async () => {
     const res = await request(app)
       .post("/api/translate")
       .set("Authorization", "Bearer valid-user-token")
       .send({ text: "hello", langPair: "en-es" });
 
-    // Should either reject or require user-agent based on security middleware
-    expect([400, 401, 403]).toContain(res.statusCode);
+    expect(res.statusCode).toBe(200);
   });
 });

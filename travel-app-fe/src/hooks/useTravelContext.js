@@ -107,7 +107,7 @@ export default function useTravelContext() {
         source: options.source || overrides.source,
       });
     },
-    [updateTravelContext, context.destination, context.destinationDisplayName, context.destinationLat, context.destinationLng]
+    [updateTravelContext, context.destination, context.destinationDisplayName]
   );
 
   return {

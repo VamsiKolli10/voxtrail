@@ -1,19 +1,16 @@
+/*
+ * Landing backdrop. Colors are MUI theme variables
+ * (theme.palette.marketing.* → --mui-palette-marketing-*), which switch with
+ * <html data-theme>, so no per-mode selectors are needed here.
+ */
 .landing-root {
   min-height: 100vh;
   position: relative;
+  overflow-x: clip;
   background:
-    radial-gradient(circle at 14% 12%, rgba(33, 128, 141, 0.16) 0%, transparent 42%),
-    radial-gradient(circle at 82% 8%, rgba(33, 128, 141, 0.08) 0%, transparent 42%),
-    linear-gradient(180deg, #f6f9fb 0%, #ffffff 42%, #f6f9fb 100%);
-}
-
-@media (min-width: 900px) {
-  .landing-root {
-    background:
-      radial-gradient(circle at 12% 10%, rgba(33, 128, 141, 0.18) 0%, transparent 38%),
-      radial-gradient(circle at 86% 6%, rgba(33, 128, 141, 0.1) 0%, transparent 40%),
-      linear-gradient(180deg, #f5f8fb 0%, #ffffff 36%, #f6f9fb 100%);
-  }
+    radial-gradient(circle at 14% 12%, var(--mui-palette-marketing-glowStrong) 0%, transparent 42%),
+    radial-gradient(circle at 82% 8%, var(--mui-palette-marketing-glowSoft) 0%, transparent 42%),
+    linear-gradient(180deg, var(--mui-palette-marketing-backdropTop) 0%, var(--mui-palette-marketing-backdropMid) 42%, var(--mui-palette-marketing-backdropBottom) 100%);
 }
 
 .landing-root::after {
@@ -22,25 +19,9 @@
   inset: 0;
   pointer-events: none;
   background:
-    radial-gradient(circle at 28% 64%, rgba(33, 128, 141, 0.12), transparent 32%),
-    radial-gradient(circle at 76% 72%, rgba(33, 128, 141, 0.08), transparent 34%);
+    radial-gradient(circle at 28% 64%, var(--mui-palette-marketing-glowSoft), transparent 32%),
+    radial-gradient(circle at 76% 72%, var(--mui-palette-marketing-glowSoft), transparent 34%);
   opacity: 0.6;
-  mix-blend-mode: screen;
-}
-
-html[data-theme="dark"] .landing-root {
-  background:
-    radial-gradient(circle at 16% 10%, rgba(50, 184, 198, 0.2) 0%, transparent 50%),
-    radial-gradient(circle at 84% 8%, rgba(50, 184, 198, 0.12) 0%, transparent 50%),
-    linear-gradient(180deg, #0c171c 0%, #0f1c22 100%);
-}
-
-html[data-theme="dark"] .landing-root::after {
-  background:
-    radial-gradient(circle at 30% 70%, rgba(50, 184, 198, 0.16), transparent 32%),
-    radial-gradient(circle at 78% 72%, rgba(50, 184, 198, 0.14), transparent 36%);
-  mix-blend-mode: lighten;
-  opacity: 0.55;
 }
 
 .landing-section-surface {
@@ -53,26 +34,9 @@ html[data-theme="dark"] .landing-root::after {
   position: absolute;
   inset: -40px;
   background:
-    radial-gradient(circle at 10% 30%, rgba(33, 128, 141, 0.1), transparent 45%),
-    radial-gradient(circle at 90% 10%, rgba(33, 128, 141, 0.08), transparent 45%);
+    radial-gradient(circle at 10% 30%, var(--mui-palette-marketing-glowSoft), transparent 45%),
+    radial-gradient(circle at 90% 10%, var(--mui-palette-marketing-glowSoft), transparent 45%);
   opacity: 0.45;
   z-index: -1;
   pointer-events: none;
-}
-
-html[data-theme="dark"] .landing-section-surface::before {
-  background:
-    radial-gradient(circle at 12% 26%, rgba(50, 184, 198, 0.16), transparent 45%),
-    radial-gradient(circle at 88% 12%, rgba(50, 184, 198, 0.12), transparent 48%);
-}
-
-.landing-toggle-button {
-  border: 1px solid rgba(33, 128, 141, 0.18);
-  border-radius: 16px;
-  background-color: rgba(255, 255, 255, 0.85);
-}
-
-html[data-theme="dark"] .landing-toggle-button {
-  border: 1px solid rgba(237, 242, 243, 0.2);
-  background-color: rgba(16, 32, 39, 0.72);
 }

@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useDispatch, useSelector } from "react-redux";
+import { useQuery } from "@tanstack/react-query";
+import { useAuth } from "../../contexts/AuthContext.jsx";
+import { queryKeys } from "../../services/queryKeys";
 import {
   Box,
   Card,
@@ -8,42 +10,34 @@ import {
   Chip,
   Stack,
   Typography,
-  Fade,
-  Grow,
-  Button as MuiButton,
+  Button,
   useTheme,
   alpha,
 } from "@mui/material";
-import { styled } from "@mui/material/styles";
 import { motion, AnimatePresence } from "framer-motion";
 import PageContainer from "../layout/PageContainer";
-import Button from "../common/Button";
 import { ModuleCard, ModuleCardGrid } from "../common/ModuleCard";
 import { fetchProfile } from "../../services/user";
-import { setUser } from "../../store/slices/authSlice";
 import useTravelContext from "../../hooks/useTravelContext";
 import { formatDestinationLabel } from "../../utils/destination";
 import { readRecentActivity } from "../../utils/recentActivity";
+import { transitionFor } from "../../theme";
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const user = useSelector((state) => state.auth);
-  const dispatch = useDispatch();
+  const { user } = useAuth();
+  // Enriches the greeting; the user is already signed in via AuthContext.
+  const { data: profile } = useQuery({
+    queryKey: queryKeys.profile(),
+    queryFn: ({ signal }) => fetchProfile({ signal }),
+    enabled: Boolean(user?.uid),
+    staleTime: 5 * 60 * 1000,
+  });
   const theme = useTheme();
   const [animationComplete, setAnimationComplete] = useState(false);
   const [recentActivity, setRecentActivity] = useState(() =>
     readRecentActivity(5)
   );
-
-  useEffect(() => {
-    fetchProfile()
-      .then((resp) => dispatch(setUser(resp)))
-      .catch((err) => {
-        // Non-fatal: the user is already authenticated via AuthContext, this
-        // just enriches the profile. Log rather than fail silently.
-        console.error("Failed to refresh profile:", err);
-      });
-  }, [dispatch]);
 
   useEffect(() => {
     const timer = setTimeout(() => setAnimationComplete(true), 500);
@@ -92,46 +86,47 @@ export default function Dashboard() {
       description: "Quick two‑pane translator with history.",
       icon: "🌐",
       path: "/translation",
-      color: "#21808d",
+      color: theme.palette.accent.teal,
     },
     {
       title: "Phrasebook",
       description: "Curate and organize common phrases by category.",
       icon: "📚",
       path: "/phrasebook",
-      color: "#4a9ba8",
+      color: theme.palette.accent.sky,
     },
     {
       title: "Destinations",
       description: "Explore popular places, trails, and museums.",
       icon: "📍",
       path: "/destinations",
-      color: "#7b1fa2",
+      color: theme.palette.accent.violet,
     },
     {
       title: "Cultural Guide",
       description: "Learn greetings, etiquette, and local customs.",
       icon: "🏛️",
       path: "/cultural-guide",
-      color: "#f57c00",
+      color: theme.palette.accent.amber,
     },
     {
       title: "Stays",
       description: "Browse accommodations with ratings and amenities.",
       icon: "🏨",
       path: "/stays",
-      color: "#388e3c",
+      color: theme.palette.accent.green,
     },
     {
       title: "Emergency",
       description: "Find local emergency contacts and tips.",
       icon: "🚨",
       path: "/emergency",
-      color: "#d32f2f",
+      color: theme.palette.accent.red,
     },
   ];
 
   const quickActions = [
+    { label: "Saved stays", icon: "🔖", action: () => navigate("/saved-stays") },
     {
       label: "Quick Translate",
       icon: "⚡",
@@ -178,7 +173,7 @@ export default function Dashboard() {
 
   return (
     <PageContainer
-      title={`Welcome back, ${user?.user?.name || "traveler"}`}
+      title={`Welcome back, ${profile?.name || user?.displayName || "traveler"}`}
       subtitle="Stay on top of your trip with quick access to every tool."
       actions={
         <Stack direction="row" spacing={1.5}>
@@ -202,7 +197,8 @@ export default function Dashboard() {
             sx={{
               borderRadius: 3,
               background:
-                "linear-gradient(135deg, rgba(33,128,141,0.08), rgba(94,82,64,0.08))",
+                (theme) =>
+                  `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.08)}, ${alpha(theme.palette.secondary.main, 0.08)})`,
               overflow: "visible",
               position: "relative",
               "&::after": {
@@ -231,7 +227,7 @@ export default function Dashboard() {
                 alignItems={{ xs: "flex-start", md: "center" }}
               >
                 <Box>
-                  <Typography variant="h6" sx={{ fontWeight: 600, mb: 0.5 }}>
+                  <Typography variant="h6" sx={{ mb: 0.5 }}>
                     Quick Actions
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
@@ -241,8 +237,10 @@ export default function Dashboard() {
                 <Stack
                   direction={{ xs: "column", sm: "row" }}
                   spacing={{ xs: 1.5, sm: 1.5 }}
+                  useFlexGap
                   sx={{
                     width: { xs: "100%", md: "auto" },
+                    flexWrap: "wrap",
                     "& > *": { flexGrow: 1 },
                   }}
                 >
@@ -268,8 +266,9 @@ export default function Dashboard() {
                           width: "100%",
                           height: "100%",
                           background:
-                            "linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent)",
-                          transition: "left 0.5s",
+                            (theme) =>
+                  `linear-gradient(90deg, transparent, ${alpha(theme.palette.common.white, 0.2)}, transparent)`,
+                          transition: transitionFor("left", "slow"),
                         },
                         "&:hover::after": {
                           left: "100%",
@@ -310,12 +309,12 @@ export default function Dashboard() {
                     onClick={() => navigate(card.path)}
                     sx={{
                       backgroundColor: theme.palette.background.paper,
-                      border: "1px solid rgba(94,82,64,0.12)",
-                      transition: "all 0.3s ease",
+                      border: (theme) => `1px solid ${theme.palette.border.subtle}`,
+                      transition: transitionFor("all"),
                       overflow: "hidden",
                       position: "relative",
                       minHeight: 220,
-                      borderRadius: 24,
+                      borderRadius: "24px",
                       [theme.breakpoints.down("sm")]: {
                         minHeight: 200,
                       },
@@ -365,7 +364,7 @@ export default function Dashboard() {
                       <Box sx={{ flexGrow: 1 }}>
                         <Typography
                           variant="h6"
-                          sx={{ fontWeight: 600, mb: 1 }}
+                          sx={{ mb: 1 }}
                         >
                           {card.title}
                         </Typography>
@@ -398,7 +397,7 @@ export default function Dashboard() {
         >
           <ModuleCard
             sx={{
-              border: "1px solid rgba(94,82,64,0.12)",
+              border: (theme) => `1px solid ${theme.palette.border.subtle}`,
               backgroundColor: theme.palette.background.paper,
               position: "relative",
               overflow: "hidden",
@@ -409,7 +408,8 @@ export default function Dashboard() {
                 left: 0,
                 right: 0,
                 height: 4,
-                background: "linear-gradient(90deg, #21808d, #4a9ba8, #21808d)",
+                background: (theme) =>
+                  `linear-gradient(90deg, ${theme.palette.primary.main}, ${theme.palette.primary.light}, ${theme.palette.primary.main})`,
                 backgroundSize: "200% 200%",
                 animation: "gradient 3s ease infinite",
                 "@keyframes gradient": {
@@ -423,7 +423,7 @@ export default function Dashboard() {
             <CardContent
               sx={{ display: "flex", flexDirection: "column", gap: 2 }}
             >
-              <Typography variant="h6" sx={{ fontWeight: 600 }}>
+              <Typography variant="h6">
                 Recent Activity
               </Typography>
               <Stack spacing={1.5}>
@@ -442,10 +442,10 @@ export default function Dashboard() {
                         sx={{
                           p: 1.5,
                           borderRadius: 2,
-                          backgroundColor: "rgba(33,128,141,0.08)",
-                          transition: "all 0.2s ease",
+                          backgroundColor: "surface.tint",
+                          transition: transitionFor("all", "fast"),
                           "&:hover": {
-                            backgroundColor: "rgba(33,128,141,0.12)",
+                            backgroundColor: (theme) => alpha(theme.palette.primary.main, 0.12),
                             transform: "translateX(4px)",
                           },
                         }}
@@ -482,14 +482,14 @@ export default function Dashboard() {
 
           <ModuleCard
             sx={{
-              border: "1px solid rgba(94,82,64,0.12)",
+              border: (theme) => `1px solid ${theme.palette.border.subtle}`,
               backgroundColor: theme.palette.background.paper,
             }}
           >
             <CardContent
               sx={{ display: "flex", flexDirection: "column", gap: 2 }}
             >
-              <Typography variant="h6" sx={{ fontWeight: 600 }}>
+              <Typography variant="h6">
                 Travel Tips
               </Typography>
               <Stack spacing={1.5}>
@@ -520,11 +520,11 @@ export default function Dashboard() {
                       sx={{
                         p: 1.25,
                         borderRadius: 2,
-                        border: "1px solid rgba(94,82,64,0.12)",
-                        backgroundColor: "rgba(94,82,64,0.04)",
-                        transition: "all 0.2s ease",
+                        border: (theme) => `1px solid ${theme.palette.border.subtle}`,
+                        backgroundColor: "action.hover",
+                        transition: transitionFor("all", "fast"),
                         "&:hover": {
-                          borderColor: "rgba(94,82,64,0.3)",
+                          borderColor: "border.strong",
                           boxShadow: theme.shadows[2],
                           transform: "translateX(4px)",
                         },

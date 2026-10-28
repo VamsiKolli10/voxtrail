@@ -5,14 +5,18 @@ const fakeServiceAccount = {
     "-----BEGIN PRIVATE KEY-----\\nFAKEKEY\\n-----END PRIVATE KEY-----\\n",
 };
 
-process.env.REQUEST_SIGNING_SECRET =
-  process.env.REQUEST_SIGNING_SECRET || "test-signing-secret";
 process.env.FB_ADMIN_CREDENTIALS =
   process.env.FB_ADMIN_CREDENTIALS ||
   process.env.FIREBASE_ADMIN_CREDENTIALS ||
   Buffer.from(JSON.stringify(fakeServiceAccount)).toString("base64");
 process.env.CORS_ALLOWED_ORIGINS =
   process.env.CORS_ALLOWED_ORIGINS || "http://localhost:5173";
+// ADR-003: the model chain is configuration only. Tests use a valid paid ID
+// and the OpenRouter translation path so no test reaches Google credentials.
+process.env.OPENROUTER_MODEL_CHAIN =
+  process.env.OPENROUTER_MODEL_CHAIN || "openai/gpt-4o-mini";
+process.env.TRANSLATION_PROVIDER =
+  process.env.TRANSLATION_PROVIDER || "openrouter";
 
 const mockAuth = {
   verifyIdToken: jest.fn(async (token) => {

@@ -5,8 +5,8 @@ const {
   logError,
 } = require("../utils/errorHandler");
 const {
-  fetchById: fetchPlaceById,
-  geocodeCity,
+  geocodeCenter,
+  fetchPlaceSummary,
 } = require("../stays/providers/googlePlaces");
 const {
   searchNearbyPoi,
@@ -348,35 +348,6 @@ async function generateItinerary(req, res) {
         );
     }
 
-    // Fetch destination core info to ground output
-    let destination;
-    if (placeId) {
-      let place = null;
-      try {
-        place = await fetchPlaceById(placeId, lang);
-      } catch (_e) {}
-      destination = place
-        ? { id: place.id, name: place.name, location: place.location || null }
-        : { id: placeId, name: "Destination", location: null };
-    } else if (dest) {
-      try {
-        const ge = await geocodeCity(dest, lang);
-        destination = {
-          id: `text:${dest}`,
-          name: ge.display || dest,
-          location: { lat: ge.lat, lng: ge.lng },
-        };
-      } catch (_e) {
-        destination = { id: `text:${dest}`, name: dest, location: null };
-      }
-    } else {
-      destination = {
-        id: `coords:${latQ},${lngQ}`,
-        name: "Selected area",
-        location: { lat: latQ, lng: lngQ },
-      };
-    }
-
     const hasOpenRouter = Boolean(process.env.OPENROUTER_API_KEY);
 
     const cacheKey = makeCacheKey({
@@ -395,6 +366,36 @@ async function generateItinerary(req, res) {
     const cached = getCachedItinerary(cacheKey);
     if (cached) {
       return res.json({ ...cached, cached: true });
+    }
+
+    // Fetch destination core info to ground output
+    let destination;
+    if (placeId) {
+      let place = null;
+      try {
+        // Name and coordinates only: Place Details Pro, not Enterprise.
+        place = await fetchPlaceSummary(placeId, lang);
+      } catch (_e) {}
+      destination = place
+        ? { id: place.id, name: place.name, location: place.location || null }
+        : { id: placeId, name: "Destination", location: null };
+    } else if (dest) {
+      try {
+        const ge = await geocodeCenter(dest, lang);
+        destination = {
+          id: `text:${dest}`,
+          name: ge.display || dest,
+          location: { lat: ge.lat, lng: ge.lng },
+        };
+      } catch (_e) {
+        destination = { id: `text:${dest}`, name: dest, location: null };
+      }
+    } else {
+      destination = {
+        id: `coords:${latQ},${lngQ}`,
+        name: "Selected area",
+        location: { lat: latQ, lng: lngQ },
+      };
     }
 
     if (!hasOpenRouter) {
@@ -500,6 +501,7 @@ async function generateItinerary(req, res) {
         user,
         temperature: 0.4,
         response_format: "json_object",
+        max_tokens: 2500,
       });
       trackExternalCall({
         service: "openrouter-itinerary",
@@ -515,7 +517,8 @@ async function generateItinerary(req, res) {
         status === 403 ||
         status === 429 ||
         (status != null && status >= 500) ||
-        aiErr.code === "ETIMEDOUT";
+        aiErr.code === "ETIMEDOUT" ||
+        aiErr.code === "AI_NOT_CONFIGURED";
 
       logError(aiErr, {
         endpoint: "/api/itinerary/generate",

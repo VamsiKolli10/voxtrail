@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Box,
   Button,
@@ -9,7 +9,6 @@ import {
   Stack,
   TextField,
   Typography,
-  Divider,
   FormControl,
   InputLabel,
   MenuItem,
@@ -23,6 +22,7 @@ import PageContainer from "../layout/PageContainer";
 import CulturalEtiquette from "./CulturalEtiquette";
 import useTravelContext from "../../hooks/useTravelContext";
 import { TRANSLATION_LANGUAGES } from "../../constants/languages";
+import { transitionFor } from "../../theme";
 
 const featuredDestinations = [
   { destination: "Tokyo", culture: "Japanese", language: "ja" },
@@ -212,24 +212,15 @@ export default function CulturalGuide() {
         columnSpacing={{ xs: 2, md: 3 }}
         rowSpacing={{ xs: 2, md: 3 }}
       >
-        <Grid
-          item
-          xs={12}
-          md={4}
-          lg={4}
-          sx={{
-            flexBasis: { md: "33%", lg: "33%" },
-            maxWidth: { md: "33%", lg: "33%" },
-          }}
+        <Grid size={{ xs: 12, md: 4, lg: 4 }}
         >
           <Stack spacing={2} sx={{ height: "100%" }}>
             <Card
               sx={{
-                background:
-                  "linear-gradient(135deg, rgba(16,57,85,0.9) 0%, rgba(22,96,136,0.85) 100%)",
-                color: "common.white",
+                background: (theme) => theme.palette.culture.heroGradient,
+                color: "culture.onHero",
                 borderRadius: 3,
-                boxShadow: "0 18px 45px rgba(22, 96, 136, 0.25)",
+                boxShadow: (theme) => theme.palette.culture.heroShadow,
               }}
             >
               <CardContent>
@@ -237,7 +228,7 @@ export default function CulturalGuide() {
                   <Typography variant="h5" sx={{ fontWeight: 600 }}>
                     Travel with cultural confidence
                   </Typography>
-                  <Typography variant="body2" sx={{ opacity: 0.8 }}>
+                  <Typography variant="body2" sx={{ color: "culture.onHeroMuted" }}>
                     Curated etiquette briefs, safety cues, and practical tips
                     adapt to every destination you explore.
                   </Typography>
@@ -248,9 +239,10 @@ export default function CulturalGuide() {
                         icon={callout.icon}
                         label={callout.label}
                         sx={{
-                          color: "common.white",
-                          borderColor: "rgba(255,255,255,0.4)",
-                          backgroundColor: "rgba(255,255,255,0.12)",
+                          color: "culture.onHero",
+                          borderColor: "culture.chipBorder",
+                          backgroundColor: "culture.chipFill",
+                          "& .MuiChip-icon": { color: "inherit" },
                         }}
                         variant="outlined"
                       />
@@ -291,7 +283,7 @@ export default function CulturalGuide() {
                     </Stack>
                   </Box>
                   <Grid container spacing={2}>
-                    <Grid item xs={12} md={6}>
+                    <Grid size={{ xs: 12, md: 6 }}>
                       <TextField
                         label="Destination"
                         placeholder="e.g., Lima"
@@ -301,7 +293,7 @@ export default function CulturalGuide() {
                         required
                       />
                     </Grid>
-                    {/* <Grid item xs={12} md={6}>
+                    {/* <Grid size={{ xs: 12, md: 6 }}>
                       <TextField
                         label="Culture focus"
                         placeholder="optional"
@@ -310,7 +302,7 @@ export default function CulturalGuide() {
                         fullWidth
                       />
                     </Grid> */}
-                    <Grid item xs={12} md={6}>
+                    <Grid size={{ xs: 12, md: 6 }}>
                       <FormControl fullWidth>
                         <InputLabel>Language</InputLabel>
                         <Select
@@ -326,10 +318,7 @@ export default function CulturalGuide() {
                         </Select>
                       </FormControl>
                     </Grid>
-                    <Grid
-                      item
-                      xs={12}
-                      md={6}
+                    <Grid size={{ xs: 12, md: 6 }}
                       sx={{ display: "flex", alignItems: "stretch" }}
                     >
                       <Button
@@ -439,7 +428,7 @@ export default function CulturalGuide() {
                           sx={{
                             borderRadius: 2,
                             cursor: "pointer",
-                            transition: "transform 0.2s ease, box-shadow 0.2s",
+                            transition: transitionFor(["transform", "box-shadow"], "fast"),
                             "&:hover": {
                               transform: "translateY(-2px)",
                               boxShadow: (theme) => theme.shadows[4],
@@ -504,15 +493,7 @@ export default function CulturalGuide() {
             </Card>
           </Stack>
         </Grid>
-        <Grid
-          item
-          xs={12}
-          md={8}
-          lg={8}
-          sx={{
-            flexBasis: { md: "65%", lg: "65%" },
-            maxWidth: { md: "65%", lg: "65%" },
-          }}
+        <Grid size={{ xs: 12, md: 8, lg: 8 }}
         >
           <CulturalEtiquette
             destination={destination}

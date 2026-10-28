@@ -14,6 +14,9 @@ import {
   TextField,
   Tooltip,
   Typography,
+  useTheme,
+  alpha,
+  Button,
 } from "@mui/material";
 import {
   ContentCopy as CopyIcon,
@@ -21,11 +24,11 @@ import {
   Search as SearchIcon,
 } from "@mui/icons-material";
 import PageContainer from "../layout/PageContainer";
-import Button from "../common/Button";
 import emergencyNumbersByCountry from "../../data/emergencyNumbersByCountry";
-import emergencyLocationAliases from "../../data/emergencyLocationAliases";
+import { loadEmergencyAliases } from "../../services/emergencyAliases";
 import useTravelContext from "../../hooks/useTravelContext";
 import { resolveLocation } from "../../services/location";
+import { emergencyDialNumbers } from "../../utils/emergencyNumbers";
 
 const emergencyTips = [
   {
@@ -51,12 +54,13 @@ const emergencyTips = [
 ];
 
 const SERVICE_META = [
-  { id: "police", label: "Police", icon: "🚓", color: "#1976d2" },
-  { id: "ambulance", label: "Ambulance", icon: "🚑", color: "#d32f2f" },
-  { id: "fire", label: "Fire", icon: "🚒", color: "#ff9800" },
+  { id: "police", label: "Police", icon: "🚓", accent: "blue" },
+  { id: "ambulance", label: "Ambulance", icon: "🚑", accent: "red" },
+  { id: "fire", label: "Fire", icon: "🚒", accent: "amber" },
 ];
 
 export default function Emergency() {
+  const theme = useTheme();
   const [activeCall, setActiveCall] = useState(null);
   const [countryQuery, setCountryQuery] = useState("");
   const [searchError, setSearchError] = useState("");
@@ -64,9 +68,11 @@ export default function Emergency() {
   const [selectedCountry, setSelectedCountry] = useState("");
   const [isManualEditing, setIsManualEditing] = useState(false);
   const [locationLoading, setLocationLoading] = useState(false);
+  // Place-name aliases load on first use (ADR-006): idle | loading | ready | error
+  const [aliasesStatus, setAliasesStatus] = useState("idle");
+  const aliasesRef = useRef(null);
   const locationCacheRef = useRef(new Map());
   const inflightResolveRef = useRef(new Set());
-  const fallbackNumber = "911";
   const {
     destination,
     destinationDisplayName,
@@ -95,13 +101,11 @@ export default function Emergency() {
   );
 
   const alertNumber = useMemo(() => {
-    if (!searchedEntry) return fallbackNumber;
-    const candidates = [
-      searchedEntry.police,
-      searchedEntry.ambulance,
-      searchedEntry.fire,
-    ].filter((value) => value && value !== "—");
-    return candidates[0] || fallbackNumber;
+    if (!searchedEntry) return "";
+    const numbers = ["police", "ambulance", "fire"].map((service) =>
+      emergencyDialNumbers(searchedEntry[service])
+    );
+    return numbers[0].find((number) => numbers.every((service) => service.includes(number))) || "";
   }, [searchedEntry]);
 
   const countryLookup = useMemo(() => {
@@ -121,16 +125,25 @@ export default function Emergency() {
     return Array.from(unique).sort((a, b) => a.localeCompare(b));
   }, []);
 
-  const aliasLookup = useMemo(() => {
-    const map = new Map();
-    emergencyLocationAliases.forEach(({ name, country }) => {
-      if (!name || !country) return;
-      const key = name.trim().toLowerCase();
-      if (!key || map.has(key)) return;
-      map.set(key, country);
-    });
-    return map;
-  }, []);
+  // Resolves to the alias index, or null if it can't be loaded (e.g. offline
+  // before the service worker has cached it); search then falls back to
+  // country names and geocoding.
+  const ensureAliases = async () => {
+    if (aliasesRef.current) return aliasesRef.current;
+    setAliasesStatus("loading");
+    try {
+      aliasesRef.current = await loadEmergencyAliases();
+      setAliasesStatus("ready");
+      return aliasesRef.current;
+    } catch (error) {
+      console.warn("Emergency place names unavailable", error);
+      setAliasesStatus("error");
+      return null;
+    }
+  };
+
+  const findExactCountry = (value = "") =>
+    countryLookup.get(value.trim().toLowerCase()) || null;
 
   const getCachedLocation = (q) => {
     const key = q.trim().toLowerCase();
@@ -152,7 +165,7 @@ export default function Emergency() {
     });
   };
 
-  const findCountryEntry = (value) => {
+  const findCountryEntry = (value, aliases) => {
     const normalized = value.trim().toLowerCase();
     if (!normalized) return null;
 
@@ -170,14 +183,14 @@ export default function Emergency() {
       return direct ? countryLookup.get(direct) : null;
     };
 
-    const aliasCountry = aliasLookup.get(normalized);
+    const aliasCountry = aliases?.lookup.get(normalized);
     if (aliasCountry) {
       const found = resolveCountry(aliasCountry);
       if (found) return found;
     }
 
-    const partialAlias = emergencyLocationAliases.find((alias) =>
-      alias.name.toLowerCase().includes(normalized)
+    const partialAlias = aliases?.list.find((alias) =>
+      alias.nameLower.includes(normalized)
     );
     if (partialAlias) {
       const found = resolveCountry(partialAlias.country);
@@ -204,8 +217,15 @@ export default function Emergency() {
     const trimmedValue = rawValue.trim();
     setSearchError("");
 
-    // If the input directly matches a country/alias, prefer that and skip geocoding to avoid noisy street hits
-    const directMatch = findCountryEntry(trimmedValue);
+    // Numbers first (ADR-006): an exact country name, or the travel
+    // context's country, resolves without downloading the place-name list.
+    // Otherwise load the aliases. A direct country/alias match skips
+    // geocoding to avoid noisy street hits.
+    const exactMatch =
+      findExactCountry(trimmedValue) ||
+      (options.contextCountry ? findExactCountry(options.contextCountry) : null);
+    const aliases = exactMatch ? null : await ensureAliases();
+    const directMatch = exactMatch || findCountryEntry(trimmedValue, aliases);
     if (directMatch) {
       setSearchedEntry(directMatch);
       const canonical = directMatch.country?.trim() || trimmedValue;
@@ -269,8 +289,8 @@ export default function Emergency() {
     }
 
     const match =
-      (resolvedCountry && findCountryEntry(resolvedCountry)) ||
-      findCountryEntry(trimmedValue);
+      (resolvedCountry && findCountryEntry(resolvedCountry, aliases)) ||
+      findCountryEntry(trimmedValue, aliases);
 
     if (!match) {
       setSearchedEntry(null);
@@ -354,6 +374,7 @@ export default function Emergency() {
         skipManualReset: true,
         existingCity: contextCity || primaryLocation,
         existingDisplay: primaryLocation,
+        contextCountry: fallbackCountry,
       });
       return;
     }
@@ -413,17 +434,18 @@ export default function Emergency() {
       id: service.id,
       name: service.label,
       number: searchedEntry[service.id] || "",
+      dialNumbers: emergencyDialNumbers(searchedEntry[service.id]),
       icon: service.icon,
       description: `${service.label} response in ${searchedEntry.country}`,
-      color: service.color,
+      color: theme.palette.accent[service.accent],
     }));
-  }, [searchedEntry]);
+  }, [searchedEntry, theme]);
 
-  const handleCall = (contact) => {
-    if (!contact.number) return;
+  const handleCall = (contact, number) => {
+    if (!contact.dialNumbers.includes(number)) return;
     setActiveCall(contact.id);
     setTimeout(() => setActiveCall(null), 1200);
-    window.open(`tel:${contact.number}`);
+    window.open(`tel:${number}`);
   };
 
   const handleCopy = async (number) => {
@@ -446,13 +468,14 @@ export default function Emergency() {
           icon={false}
           sx={{
             borderRadius: 3,
-            border: "1px solid rgba(255, 152, 0, 0.3)",
-            background: "rgba(255, 152, 0, 0.12)",
+            border: (t) => `1px solid ${alpha(t.palette.warning.main, 0.3)}`,
+            backgroundColor: (t) => alpha(t.palette.warning.main, 0.12),
           }}
         >
           <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-            ⚠️ If you or someone near you is in immediate danger, call{" "}
-            {alertNumber} right away.
+            ⚠️ {alertNumber
+              ? `If you or someone near you is in immediate danger, call ${alertNumber} right away.`
+              : "In immediate danger, contact local emergency services. Select your country below to find service numbers."}
           </Typography>
           <Typography variant="body2" color="text.secondary">
             Share your location and stay on the line until help arrives.
@@ -461,18 +484,18 @@ export default function Emergency() {
 
         <Card>
           <CardContent>
-            <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>
+            <Typography variant="h6" sx={{ mb: 2 }}>
               Emergency Preparedness
             </Typography>
             <Grid container spacing={2}>
               {emergencyTips.map((tip) => (
-                <Grid item xs={12} sm={6} key={tip.title}>
+                <Grid size={{ xs: 12, sm: 6 }} key={tip.title}>
                   <Card
                     variant="outlined"
                     sx={{
                       height: "100%",
                       borderRadius: 3,
-                      backgroundColor: "rgba(33,128,141,0.05)",
+                      backgroundColor: "surface.tint",
                     }}
                   >
                     <CardContent
@@ -525,6 +548,10 @@ export default function Emergency() {
                   setIsManualEditing(true);
                   setCountryQuery(e.target.value);
                 }}
+                onFocus={() => {
+                  // Start loading place names before the first search.
+                  ensureAliases();
+                }}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
                     setIsManualEditing(false);
@@ -532,7 +559,13 @@ export default function Emergency() {
                   }
                 }}
                 placeholder="Search a country or city"
-                helperText='Examples: "Paris", "New York City"'
+                helperText={
+                  aliasesStatus === "loading"
+                    ? "Loading place names…"
+                    : aliasesStatus === "error"
+                    ? "City search is limited right now: try a country name."
+                    : 'Examples: "Paris", "New York City"'
+                }
                 fullWidth
                 InputProps={{
                   startAdornment: (
@@ -555,7 +588,9 @@ export default function Emergency() {
                   renderValue: (selected) => {
                     if (!selected) {
                       return (
-                        <span style={{ color: "#999" }}>Select a country</span>
+                        <Box component="span" sx={{ color: "text.secondary" }}>
+                          Select a country
+                        </Box>
                       );
                     }
                     return selected;
@@ -601,7 +636,7 @@ export default function Emergency() {
                 severity="info"
                 sx={{
                   borderRadius: 3,
-                  border: "1px solid rgba(33,128,141,0.2)",
+                  border: (theme) => `1px solid ${theme.palette.divider}`,
                 }}
               >
                 {searchError}
@@ -614,7 +649,7 @@ export default function Emergency() {
               justifyContent="space-between"
             >
               <Box>
-                <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                <Typography variant="h6">
                   Essential contacts
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
@@ -635,17 +670,17 @@ export default function Emergency() {
             {essentialContacts.length ? (
               <Grid container spacing={2}>
                 {essentialContacts.map((contact) => {
-                  const disabled = !contact.number;
+                  const disabled = !contact.dialNumbers.length;
                   return (
-                    <Grid item xs={12} md={6} key={contact.id}>
+                    <Grid size={{ xs: 12, md: 6 }} key={contact.id}>
                       <Card
                         variant="outlined"
                         sx={{
                           borderRadius: 3,
                           borderColor:
                             activeCall === contact.id
-                              ? "rgba(33,128,141,0.5)"
-                              : "rgba(94,82,64,0.12)",
+                              ? "primary.light"
+                              : "border.subtle",
                         }}
                       >
                         <CardContent
@@ -694,12 +729,13 @@ export default function Emergency() {
                             {contact.number || "—"}
                           </Typography>
 
-                          <Stack direction="row" spacing={1}>
-                            <Button
+                          <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+                            {contact.dialNumbers.map((number) => <Button
+                              key={number}
                               variant="contained"
                               size="small"
                               startIcon={<PhoneIcon fontSize="small" />}
-                              onClick={() => handleCall(contact)}
+                              onClick={() => handleCall(contact, number)}
                               disabled={disabled || activeCall === contact.id}
                               sx={{ flexGrow: 1 }}
                             >
@@ -707,8 +743,9 @@ export default function Emergency() {
                                 ? "Unavailable"
                                 : activeCall === contact.id
                                 ? "Calling…"
-                                : "Call"}
-                            </Button>
+                                : `Call ${number}`}
+                            </Button>)}
+                            {disabled && <Button disabled size="small">Unavailable</Button>}
                             <Tooltip title="Copy number">
                               <span>
                                 <IconButton
@@ -717,7 +754,7 @@ export default function Emergency() {
                                   disabled={disabled}
                                   sx={{
                                     borderRadius: 2,
-                                    border: "1px solid rgba(94,82,64,0.12)",
+                                    border: (theme) => `1px solid ${theme.palette.border.subtle}`,
                                   }}
                                 >
                                   <CopyIcon fontSize="small" />

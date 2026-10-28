@@ -18,36 +18,24 @@ import {
   Star as StarIcon,
   LocalOffer as LocalOfferIcon,
   Navigation as NavigationIcon,
-  BookmarkBorder as BookmarkIcon,
-  Bookmark as BookmarkFilledIcon,
+  Hotel as HotelIcon,
 } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
-import { useState } from "react";
+import SaveStayButton from "./SaveStayButton";
 import PhotoCarousel from "./PhotoCarousel";
+import { transitionFor } from "../../theme";
+import EmptyState from "../common/EmptyState";
 
 export default function ResultsList({ items = [], loading }) {
   const nav = useNavigate();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
-  const [bookmarked, setBookmarked] = useState(new Set());
-
-  const toggleBookmark = (id) => {
-    setBookmarked((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
-      } else {
-        next.add(id);
-      }
-      return next;
-    });
-  };
 
   if (loading) {
     return (
       <Grid container spacing={2}>
         {[...Array(6)].map((_, i) => (
-          <Grid item xs={12} key={i}>
+          <Grid size={{ xs: 12 }} key={i}>
             <Card>
               <CardContent>
                 <Skeleton width="80%" sx={{ mb: 1 }} />
@@ -63,17 +51,11 @@ export default function ResultsList({ items = [], loading }) {
 
   if (!items?.length) {
     return (
-      <Card>
-        <CardContent sx={{ textAlign: "center", py: 4 }}>
-          {/* <MapPinIcon sx={{ fontSize: 40, color: "text.disabled", mb: 1 }} /> */}
-          <Typography variant="h6" color="textSecondary" sx={{ mb: 1 }}>
-            No accommodations found
-          </Typography>
-          <Typography variant="body2" color="textDisabled">
-            Try adjusting your search criteria or distance
-          </Typography>
-        </CardContent>
-      </Card>
+      <EmptyState
+        icon={<HotelIcon />}
+        title="No stays found"
+        description="Try another destination, a wider distance, or fewer filters."
+      />
     );
   }
 
@@ -119,7 +101,7 @@ export default function ResultsList({ items = [], loading }) {
                 "&:hover": {
                   boxShadow: theme.shadows[4],
                 },
-                transition: "box-shadow 0.3s",
+                transition: transitionFor("box-shadow"),
                 width: "100%",
                 maxWidth: "100%",
                 boxSizing: "border-box",
@@ -141,7 +123,6 @@ export default function ResultsList({ items = [], loading }) {
                 <PhotoCarousel
                   photos={photos}
                   height={carouselHeight}
-                  maxWidth={600}
                 />
                 <Box
                   sx={{
@@ -168,28 +149,11 @@ export default function ResultsList({ items = [], loading }) {
                     zIndex: 3,
                   }}
                 >
-                  <Button
-                    size="small"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      toggleBookmark(item.id);
-                    }}
-                    sx={{
-                      minWidth: "auto",
-                      borderRadius: "50%",
-                      width: 36,
-                      height: 36,
-                      backgroundColor: "white",
-                    }}
-                  >
-                    {bookmarked.has(item.id) ? (
-                      <BookmarkFilledIcon
-                        sx={{ color: theme.palette.primary.main, fontSize: 20 }}
-                      />
-                    ) : (
-                      <BookmarkIcon sx={{ fontSize: 20 }} />
-                    )}
-                  </Button>
+                  <SaveStayButton
+                    placeId={item.id}
+                    stayName={item.name}
+                    sx={{ bgcolor: "background.paper", boxShadow: 1 }}
+                  />
                 </Box>
               </Box>
 
@@ -228,7 +192,6 @@ export default function ResultsList({ items = [], loading }) {
                     <Typography
                       variant="h6"
                       sx={{
-                        fontWeight: 600,
                         mb: 0.5,
                         wordBreak: "break-word",
                         overflow: "hidden",
@@ -267,7 +230,7 @@ export default function ResultsList({ items = [], loading }) {
                       <Box
                         sx={{ display: "flex", alignItems: "center", gap: 0.5 }}
                       >
-                        <StarIcon sx={{ fontSize: 16, color: "#ffc107" }} />
+                        <StarIcon sx={{ fontSize: 16, color: "rating.main" }} />
                         <Typography variant="body2" sx={{ fontWeight: 600 }}>
                           {item.rating.toFixed(1)}
                         </Typography>

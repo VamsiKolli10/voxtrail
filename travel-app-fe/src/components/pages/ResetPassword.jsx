@@ -15,14 +15,14 @@ import {
   Stack,
   TextField,
   Typography,
+  Button,
 } from "@mui/material";
 import {
   Visibility as VisibilityIcon,
   VisibilityOff as VisibilityOffIcon,
 } from "@mui/icons-material";
-import Button from "../common/Button";
 import AuthShell from "../layout/AuthShell";
-import useNotification from "../../hooks/useNotification";
+import { useNotify } from "../../contexts/NotificationContext.jsx";
 import {
   confirmPasswordResetWithCode,
   verifyPasswordReset,
@@ -47,7 +47,7 @@ function extractActionParams(searchParams, hashString) {
 export default function ResetPassword() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { showNotification } = useNotification();
+  const { notify: showNotification } = useNotify();
   const [searchParams] = useSearchParams();
 
   const clientApiKey = import.meta.env.VITE_FIREBASE_API_KEY;
@@ -300,7 +300,7 @@ export default function ResetPassword() {
               <ListItem
                 key={step.primary}
                 sx={{
-                  border: "1px solid rgba(94,82,64,0.12)",
+                  border: (theme) => `1px solid ${theme.palette.border.subtle}`,
                   borderRadius: 2,
                   alignItems: "flex-start",
                   gap: 2,

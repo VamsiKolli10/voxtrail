@@ -31,8 +31,8 @@ const {
 const { __mockEnforceQuota: enforceQuota } = require("../src/utils/quota");
 
 jest.mock("../src/stays/providers/googlePlaces", () => ({
-  fetchById: jest.fn(async () => ({ id: "p1", name: "Paris", location: {} })),
-  geocodeCity: jest.fn(async () => ({ display: "Paris", lat: 1, lng: 2 })),
+  fetchPlaceSummary: jest.fn(async () => ({ id: "p1", name: "Paris", location: null })),
+  geocodeCenter: jest.fn(async () => ({ display: "Paris", lat: 1, lng: 2 })),
 }));
 
 describe("Itinerary routes", () => {
@@ -91,6 +91,18 @@ describe("Itinerary routes", () => {
     expect(res.body.destination.name).toBe("Paris");
   });
 
+  test.each([
+    ["placeId=cache-destination", "fetchPlaceSummary"],
+    ["dest=CacheCity", "geocodeCenter"],
+  ])("cached itineraries skip paid grounding (%s)", async (query, provider) => {
+    const lookup = require("../src/stays/providers/googlePlaces")[provider];
+    const first = await request(app).get(`/api/itinerary/generate?${query}`).set("Authorization", "Bearer valid-user-token");
+    const second = await request(app).get(`/api/itinerary/generate?${query}`).set("Authorization", "Bearer valid-user-token");
+    expect(first.statusCode).toBe(200);
+    expect(second.body.cached).toBe(true);
+    expect(lookup).toHaveBeenCalledTimes(1);
+  });
+
   test("handles lat/lng coordinates", async () => {
     chatComplete.mockResolvedValueOnce(
       JSON.stringify({
@@ -110,8 +122,8 @@ describe("Itinerary routes", () => {
   });
 
   test("falls back to sample on geocode failure", async () => {
-    const { geocodeCity } = require("../src/stays/providers/googlePlaces");
-    geocodeCity.mockRejectedValueOnce(new Error("Geocode fail"));
+    const { geocodeCenter } = require("../src/stays/providers/googlePlaces");
+    geocodeCenter.mockRejectedValueOnce(new Error("Geocode fail"));
 
     chatComplete.mockResolvedValueOnce(
       JSON.stringify({

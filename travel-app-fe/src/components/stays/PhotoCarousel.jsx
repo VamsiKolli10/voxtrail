@@ -1,3 +1,4 @@
+import { resolveApiAssetUrl } from "../../services/apiConfig";
 import { useState } from "react";
 import {
   Box,
@@ -5,6 +6,7 @@ import {
   Paper,
   Typography,
   useTheme,
+  alpha,
   useMediaQuery,
 } from "@mui/material";
 import {
@@ -12,7 +14,7 @@ import {
   ChevronRight as ChevronRightIcon,
 } from "@mui/icons-material";
 
-export default function PhotoCarousel({ photos = [], maxWidth = 800, height }) {
+export default function PhotoCarousel({ photos = [], height }) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
@@ -43,33 +45,11 @@ export default function PhotoCarousel({ photos = [], maxWidth = 800, height }) {
 
     // If photo has a URL, make it absolute if it's relative
     if (photo.url) {
-      // Already absolute URL
-      if (photo.url.startsWith("http://") || photo.url.startsWith("https://")) {
-        return photo.url;
-      }
-      // Relative URL - make it absolute
-      // Backend returns URLs like: /api/stays/photo?name=...&maxWidth=640
-      // Frontend baseURL is like: http://localhost:8000/api
-      // We need: http://localhost:8000/api/stays/photo?name=...&maxWidth=640
-      const baseURL =
-        import.meta.env.VITE_API_URL || "http://localhost:8000/api";
-      // Remove /api from baseURL, then the relative URL already has /api
-      const cleanBase = baseURL.replace(/\/api$/, "");
-      return `${cleanBase}${photo.url}`;
+      return resolveApiAssetUrl(photo.url);
     }
 
-    // Fallback: construct from name/reference
-    if (photo.reference || photo.name) {
-      const baseURL =
-        import.meta.env.VITE_API_URL || "http://localhost:8000/api";
-      const cleanBase = baseURL.replace(/\/api$/, "");
-      const params = new URLSearchParams({
-        name: photo.reference || photo.name,
-      });
-      if (maxWidth) params.set("maxWidth", String(maxWidth));
-      return `${cleanBase}/api/stays/photo?${params.toString()}`;
-    }
-
+    // The API serves only signed photo URLs from search/details responses
+    // (ADR-004), so a URL can't be rebuilt from the photo name here.
     return null;
   };
 
@@ -103,7 +83,11 @@ export default function PhotoCarousel({ photos = [], maxWidth = 800, height }) {
       {photoUrl ? (
         <Box
           component="img"
+          // Remount per photo so a failed image doesn't hide the next one.
+          key={photoUrl}
           src={photoUrl}
+          loading="lazy"
+          decoding="async"
           alt={`Photo ${currentIndex + 1} of ${photos.length}`}
           sx={{
             width: "100%",
@@ -153,16 +137,17 @@ export default function PhotoCarousel({ photos = [], maxWidth = 800, height }) {
         <>
           <IconButton
             onClick={handlePrevious}
+            aria-label="Previous photo"
             sx={{
               position: "absolute",
               left: 8,
               top: "50%",
               transform: "translateY(-50%)",
-              backgroundColor: "rgba(255, 255, 255, 0.85)",
+              backgroundColor: "surface.glass",
               color: "text.primary",
-              boxShadow: "0 2px 6px rgba(0,0,0,0.25)",
+              boxShadow: (t) => t.customShadows.overlay,
               "&:hover": {
-                backgroundColor: "rgba(255, 255, 255, 0.95)",
+                backgroundColor: "background.paper",
               },
               zIndex: 2,
             }}
@@ -172,16 +157,17 @@ export default function PhotoCarousel({ photos = [], maxWidth = 800, height }) {
           </IconButton>
           <IconButton
             onClick={handleNext}
+            aria-label="Next photo"
             sx={{
               position: "absolute",
               right: 8,
               top: "50%",
               transform: "translateY(-50%)",
-              backgroundColor: "rgba(255, 255, 255, 0.85)",
+              backgroundColor: "surface.glass",
               color: "text.primary",
-              boxShadow: "0 2px 6px rgba(0,0,0,0.25)",
+              boxShadow: (t) => t.customShadows.overlay,
               "&:hover": {
-                backgroundColor: "rgba(255, 255, 255, 0.95)",
+                backgroundColor: "background.paper",
               },
               zIndex: 2,
             }}
@@ -208,17 +194,33 @@ export default function PhotoCarousel({ photos = [], maxWidth = 800, height }) {
           {photos.map((_, index) => (
             <Box
               key={index}
+              component="button"
+              type="button"
               onClick={() => handleDotClick(index)}
+              aria-label={`Show photo ${index + 1} of ${photos.length}`}
+              aria-current={currentIndex === index ? "true" : undefined}
               sx={{
-                width: currentIndex === index ? 20 : 8,
-                height: 8,
-                borderRadius: 4,
-                backgroundColor:
-                  currentIndex === index
-                    ? theme.palette.primary.main
-                    : "rgba(255, 255, 255, 0.5)",
+                // 24px hit area around an 8px dot
+                p: "8px",
+                m: "-8px 0",
+                border: 0,
+                background: "none",
                 cursor: "pointer",
-                transition: "all 0.3s",
+                display: "flex",
+                alignItems: "center",
+                "&::before": {
+                  content: '""',
+                  display: "block",
+                  width: currentIndex === index ? 20 : 8,
+                  height: 8,
+                  borderRadius: "4px",
+                  backgroundColor:
+                    currentIndex === index
+                      ? theme.palette.primary.main
+                      : alpha(theme.palette.common.white, 0.6),
+                  boxShadow: `0 0 0 1px ${alpha(theme.palette.common.black, 0.25)}`,
+                  transition: `all ${theme.motion.duration.base}ms ${theme.motion.easing.standard}`,
+                },
               }}
             />
           ))}
@@ -234,8 +236,8 @@ export default function PhotoCarousel({ photos = [], maxWidth = 800, height }) {
             right: 8,
             px: 1,
             py: 0.5,
-            backgroundColor: "rgba(0, 0, 0, 0.5)",
-            color: "white",
+            backgroundColor: (t) => alpha(t.palette.common.black, 0.6),
+            color: "common.white",
             zIndex: 2,
           }}
         >

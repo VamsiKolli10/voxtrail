@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, Routes, Route, useLocation } from "react-router-dom";
 import Login from "../Login.jsx";
+import PublicRoute from "../../common/PublicRoute";
 import {
   loginWithEmail,
   resendEmailVerification,
@@ -19,13 +20,35 @@ vi.mock("../../../hooks/useNotification", () => ({
   }),
 }));
 
+let session;
 vi.mock("../../../contexts/AuthContext", () => ({
-  useAuth: () => ({ user: null }),
+  useAuth: () => session,
 }));
+function Destination() {
+  const location = useLocation();
+  return <div>{`${location.pathname}${location.search}${location.hash}`}</div>;
+}
 
 describe("Login page", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    session = { user: null, loading: false };
+  });
+
+  it("returns to the protected location after the auth state changes", async () => {
+    const fixture = () => <MemoryRouter initialEntries={[{ pathname: "/login", state: {
+      from: { pathname: "/stays/hotel", search: "?lang=fr", hash: "#photos" },
+      email: "user@test.dev", verificationSent: true,
+    } }]}><Routes>
+      <Route element={<PublicRoute />}><Route path="/login" element={<Login />} /></Route>
+      <Route path="*" element={<Destination />} />
+    </Routes></MemoryRouter>;
+    const view = render(fixture());
+    await screen.findByText(/we sent a verification link/i);
+    expect(screen.getByLabelText(/email address/i)).toHaveValue("user@test.dev");
+    session = { user: { uid: "u1" }, loading: false };
+    view.rerender(fixture());
+    expect(await screen.findByText("/stays/hotel?lang=fr#photos")).toBeInTheDocument();
   });
 
   it("validates empty fields", async () => {
@@ -85,6 +108,13 @@ describe("Login page", () => {
     await waitFor(() =>
       expect(screen.getByText(/please verify your email/i)).toBeInTheDocument()
     );
+    // The detailed guidance (with the address) is shown, not just the error.
+    expect(
+      screen.getByText(/check user@test\.dev for the verification email/i)
+    ).toBeInTheDocument();
+    expect(
+      screen.getAllByRole("button", { name: /resend verification email/i })
+    ).toHaveLength(1);
 
     fireEvent.click(
       screen.getByRole("button", { name: /resend verification email/i })

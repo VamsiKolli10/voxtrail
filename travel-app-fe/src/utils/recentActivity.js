@@ -1,5 +1,15 @@
 const STORAGE_KEY = "recentActivity";
 const MAX_ITEMS = 15;
+let activityUserId = null;
+
+export function setRecentActivityUser(userId) {
+  const next = userId || null;
+  if (next === activityUserId) return;
+  activityUserId = next;
+  window.dispatchEvent(new CustomEvent("recent-activity-updated"));
+}
+
+const storageKey = () => `${STORAGE_KEY}:${activityUserId}`;
 
 function safeParse(json, fallback = []) {
   try {
@@ -10,9 +20,9 @@ function safeParse(json, fallback = []) {
 }
 
 export function readRecentActivity(limit = MAX_ITEMS) {
-  if (typeof window === "undefined") return [];
+  if (typeof window === "undefined" || !activityUserId) return [];
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
+    const raw = window.localStorage.getItem(storageKey());
     const parsed = raw ? safeParse(raw, []) : [];
     const list = Array.isArray(parsed) ? parsed : [];
     return list.slice(0, limit);
@@ -23,12 +33,12 @@ export function readRecentActivity(limit = MAX_ITEMS) {
 
 function persistRecentActivity(items) {
   if (typeof window === "undefined") return;
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(items.slice(0, MAX_ITEMS)));
+  window.localStorage.setItem(storageKey(), JSON.stringify(items.slice(0, MAX_ITEMS)));
   window.dispatchEvent(new CustomEvent("recent-activity-updated"));
 }
 
 export function logRecentActivity(entry = {}) {
-  if (typeof window === "undefined") return;
+  if (typeof window === "undefined" || !activityUserId) return;
   try {
     const items = readRecentActivity(MAX_ITEMS);
     const timestamp = entry.timestamp || Date.now();
@@ -49,6 +59,7 @@ export function logRecentActivity(entry = {}) {
 
 export function clearRecentActivity() {
   if (typeof window === "undefined") return;
-  window.localStorage.removeItem(STORAGE_KEY);
+  if (!activityUserId) return;
+  window.localStorage.removeItem(storageKey());
   window.dispatchEvent(new CustomEvent("recent-activity-updated"));
 }

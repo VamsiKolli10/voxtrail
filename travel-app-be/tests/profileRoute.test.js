@@ -21,5 +21,9 @@ describe("Profile route", () => {
     expect(res.statusCode).toBe(200);
     expect(res.body.uid).toBeDefined();
     expect(Array.isArray(res.body.roles)).toBe(true);
+    // Reads skip the revocation round-trip (ADR-002).
+    const { auth } = require("../src/config/firebaseAdmin");
+    expect(auth.verifyIdToken).toHaveBeenCalledWith("valid-user-token");
+    expect(auth.verifyIdToken).not.toHaveBeenCalledWith("valid-user-token", true);
   });
 });

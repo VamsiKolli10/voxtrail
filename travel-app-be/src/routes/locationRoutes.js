@@ -6,24 +6,37 @@ const {
   ERROR_CODES,
   logError,
 } = require("../utils/errorHandler");
-const { createCustomLimiter } = require("../utils/rateLimiter");
+const { requireAuth } = require("../middleware/authenticate");
+const { userWindowQuota } = require("../middleware/userQuota");
 const { getCached, setCached } = require("../utils/cache");
 const asyncHandler = require("../utils/asyncHandler");
 
-const resolveLimiter = createCustomLimiter({
-  windowMs: Number(process.env.LOCATION_RESOLVE_WINDOW_MS || 60_000),
-  max: Number(process.env.LOCATION_RESOLVE_MAX || 60),
-  message: "Too many location lookups. Please slow down.",
+// City lookups call Google Places (billed per call): signed-in users only,
+// with a per-user hourly quota (ADR-002).
+const resolveQuota = userWindowQuota({
+  name: "location-resolve",
+  limit: Number(process.env.LOCATION_RESOLVE_PER_HOUR || 60),
+  windowMs: 60 * 60 * 1000,
 });
 
 const cacheTtlMs = Number(
   process.env.LOCATION_RESOLVE_CACHE_TTL_MS || 5 * 60 * 1000
 );
 
-router.get("/resolve", resolveLimiter, asyncHandler(async (req, res) => {
-  const query =
-    (req.query.q || req.query.query || req.query.dest || "").trim();
-  const lang = (req.query.lang || "en").trim() || "en";
+router.get(
+  "/resolve",
+  requireAuth({ allowRoles: ["user", "admin"] }),
+  resolveQuota,
+  asyncHandler(async (req, res) => {
+  const rawQuery = req.query.q || req.query.query || req.query.dest || "";
+  const rawLang = req.query.lang || "en";
+  if (typeof rawQuery !== "string" || rawQuery.length > 200 ||
+      typeof rawLang !== "string" || rawLang.length > 12) {
+    return res.status(400).json(createErrorResponse(400, ERROR_CODES.VALIDATION_ERROR,
+      "Location query and language must be single bounded strings"));
+  }
+  const query = rawQuery.trim();
+  const lang = rawLang.trim() || "en";
 
   if (!query) {
     return res

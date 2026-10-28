@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
-import { Alert, CircularProgress, Stack, Typography } from "@mui/material";
+import { Alert, CircularProgress, Stack, Typography, Button } from "@mui/material";
 import AuthShell from "../layout/AuthShell";
-import Button from "../common/Button";
 
 function extractParams(searchParams, hashString) {
   const base = new URLSearchParams(searchParams);
@@ -29,7 +28,7 @@ export default function AuthAction() {
   const navigate = useNavigate();
   const [error, setError] = useState("");
 
-  const { mode, oobCode, apiKey, email, continueUrl, all } = useMemo(
+  const { mode, oobCode, apiKey, email, continueUrl } = useMemo(
     () => extractParams(searchParams, location.hash),
     [searchParams, location.hash]
   );

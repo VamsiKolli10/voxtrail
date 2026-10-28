@@ -78,6 +78,21 @@ describe("Stays routes", () => {
     expect(res.body.id).toBe("stay-1");
   });
 
+  test("accepts coordinates on the equator and prime meridian", async () => {
+    const res = await request(app).get("/api/stays/search?lat=0&lng=0")
+      .set("user-agent", "jest").set("Authorization", "Bearer valid-user-token");
+    expect(res.statusCode).toBe(200);
+    const { nearbyLodging } = require("../src/stays/providers/googlePlaces");
+    expect(nearbyLodging).toHaveBeenCalledWith(expect.objectContaining({ lat: 0, lng: 0 }));
+  });
+
+  test("uses different cached responses for different page sizes", async () => {
+    const getPage = (size) => request(app).get(`/api/stays/search?dest=PageSizeTown&pageSize=${size}`)
+      .set("user-agent", "jest").set("Authorization", "Bearer valid-user-token");
+    expect((await getPage(5)).body.pageSize).toBe(5);
+    expect((await getPage(50)).body.pageSize).toBe(50);
+  });
+
   test("returns 404 when stay detail missing", async () => {
     const res = await request(app)
       .get("/api/stays/unknown")

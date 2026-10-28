@@ -1,4 +1,26 @@
 import React from "react";
+import { Alert, AlertTitle, Box, Button } from "@mui/material";
+
+function ErrorFallback({ error }) {
+  const detail = import.meta.env?.DEV ? error?.message : null;
+  return (
+    <Box role="alert" sx={{ p: { xs: 2, md: 4 }, display: "grid", placeItems: "center" }}>
+      <Alert
+        severity="error"
+        variant="outlined"
+        sx={{ maxWidth: 560, width: "100%", alignItems: "flex-start" }}
+        action={
+          <Button color="error" size="small" onClick={() => window.location.reload()}>
+            Reload page
+          </Button>
+        }
+      >
+        <AlertTitle>Something went wrong</AlertTitle>
+        {detail || "An unexpected error occurred. Reloading usually fixes it."}
+      </Alert>
+    </Box>
+  );
+}
 
 class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -16,37 +38,7 @@ class ErrorBoundary extends React.Component {
 
   render() {
     if (this.state.hasError) {
-      return (
-        <div
-          style={{
-            padding: "20px",
-            textAlign: "center",
-            color: "#c62828",
-            fontSize: "18px",
-            backgroundColor: "rgba(200, 40, 40, 0.05)",
-            borderRadius: "8px",
-            border: "1px solid rgba(200, 40, 40, 0.2)",
-            margin: "20px",
-          }}
-        >
-          <h2>Something went wrong.</h2>
-          <p>{this.state.error?.message || "An unexpected error occurred."}</p>
-          <button
-            onClick={() => window.location.reload()}
-            style={{
-              padding: "10px 20px",
-              backgroundColor: "#c62828",
-              color: "white",
-              border: "none",
-              borderRadius: "4px",
-              cursor: "pointer",
-              fontSize: "14px",
-            }}
-          >
-            Reload page
-          </button>
-        </div>
-      );
+      return <ErrorFallback error={this.state.error} />;
     }
     return this.props.children;
   }

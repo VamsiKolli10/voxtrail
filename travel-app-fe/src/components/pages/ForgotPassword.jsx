@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import {
   Alert,
   List,
@@ -8,15 +8,14 @@ import {
   Stack,
   TextField,
   Typography,
+  Button,
 } from "@mui/material";
-import Button from "../common/Button";
 import AuthShell from "../layout/AuthShell";
-import useNotification from "../../hooks/useNotification";
+import { useNotify } from "../../contexts/NotificationContext.jsx";
 import { sendPasswordReset } from "../../services/auth";
 
 export default function ForgotPassword() {
-  const navigate = useNavigate();
-  const { showNotification } = useNotification();
+  const { notify: showNotification } = useNotify();
 
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
@@ -59,27 +58,6 @@ export default function ForgotPassword() {
     }
   };
 
-  const handleResend = async () => {
-    if (!email) {
-      setError("Enter your email before resending the link.");
-      return;
-    }
-    setLoading(true);
-    setError("");
-    try {
-      await sendPasswordReset(email);
-      showNotification("Reset email sent again!", "success");
-    } catch (err) {
-      const message =
-        err?.code === "auth/user-not-found"
-          ? "No account found for that email."
-          : "Failed to resend email. Please try again.";
-      setError(message);
-      showNotification(message, "error");
-    } finally {
-      setLoading(false);
-    }
-  };
 
   if (success) {
     return (
@@ -112,7 +90,7 @@ export default function ForgotPassword() {
               <ListItem
                 key={text}
                 sx={{
-                  border: "1px solid rgba(94,82,64,0.12)",
+                  border: (theme) => `1px solid ${theme.palette.border.subtle}`,
                   borderRadius: 2,
                   alignItems: "flex-start",
                   gap: 2,

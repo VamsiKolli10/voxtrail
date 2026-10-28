@@ -1,4 +1,4 @@
-import React, {
+import {
   useState,
   useEffect,
   useCallback,
@@ -33,6 +33,7 @@ import useTravelContext from "../../hooks/useTravelContext";
 
 // Simple in-memory cache to avoid duplicate brief requests across mounts/tab switches
 const briefCache = new Map();
+const pendingBriefs = new Map();
 const BRIEF_CACHE_TTL_MS = 60 * 1000; // 1 minute
 
 /**
@@ -61,8 +62,9 @@ const CulturalEtiquette = ({
   const [question, setQuestion] = useState("");
   const [qaLoading, setQaLoading] = useState(false);
   const [qaResult, setQaResult] = useState(null);
-  const lastFetchKeyRef = useRef("");
-  const fetchingRef = useRef(false);
+  const briefRequest = useRef(0);
+  const qaRequest = useRef(0);
+  const currentSelection = useRef("");
 
   const {
     destination: contextDestination,
@@ -102,78 +104,74 @@ const CulturalEtiquette = ({
     setDestinationContext,
   ]);
 
+  const selectionKey = JSON.stringify([resolvedDestination, resolvedCulture, resolvedLanguage]);
+  currentSelection.current = selectionKey;
+
   const fetchBrief = useCallback(
     async ({ refresh = false } = {}) => {
+      const request = ++briefRequest.current;
+      const isCurrent = () => request === briefRequest.current && currentSelection.current === selectionKey;
+      setBriefError("");
+      if (!refresh) setBrief(null);
+      setLoadingBrief(false);
+      setRefreshingBrief(false);
       if (!resolvedDestination) return;
 
-      const requestKey = `${resolvedDestination}::${resolvedCulture || ""}::${
-        resolvedLanguage || ""
-      }::${refresh ? "refresh" : "cold"}`;
-      if (
-        !refresh &&
-        lastFetchKeyRef.current === requestKey &&
-        (fetchingRef.current || loadingBrief || refreshingBrief)
-      ) {
-        return;
-      }
-
-      const cacheKey = `${resolvedDestination}::${resolvedCulture || ""}::${resolvedLanguage || ""}`;
-      const cached = briefCache.get(cacheKey);
-      if (
-        !refresh &&
-        cached &&
-        cached.expiresAt > Date.now() &&
-        cached.data
-      ) {
+      const cached = briefCache.get(selectionKey);
+      if (!refresh && cached?.expiresAt > Date.now()) {
         setBrief(cached.data);
-        lastFetchKeyRef.current = requestKey;
         return;
       }
-
-      setBriefError("");
-      setQaResult(null);
-
-      if (refresh) {
-        setRefreshingBrief(true);
-      } else {
-        setLoadingBrief(true);
-      }
-
+      if (refresh) setRefreshingBrief(true);
+      else setLoadingBrief(true);
       try {
-        fetchingRef.current = true;
-        lastFetchKeyRef.current = requestKey;
-        const data = await getCultureBrief({
-          destination: resolvedDestination,
-          culture: resolvedCulture,
-          language: resolvedLanguage,
-          refresh,
-        });
+        let pending = !refresh && pendingBriefs.get(selectionKey);
+        if (!pending) {
+          pending = getCultureBrief({
+            destination: resolvedDestination,
+            culture: resolvedCulture,
+            language: resolvedLanguage,
+            refresh,
+          });
+          pendingBriefs.set(selectionKey, pending);
+        }
+        let data;
+        try { data = await pending; }
+        finally {
+          if (pendingBriefs.get(selectionKey) === pending) pendingBriefs.delete(selectionKey);
+        }
+        if (!isCurrent()) return;
         setBrief(data);
-        briefCache.set(cacheKey, {
-          data,
-          expiresAt: Date.now() + BRIEF_CACHE_TTL_MS,
-        });
+        briefCache.set(selectionKey, { data, expiresAt: Date.now() + BRIEF_CACHE_TTL_MS });
       } catch (err) {
+        if (!isCurrent()) return;
         console.error("Failed to load culture brief", err);
         setBriefError("Failed to load cultural guidance for this destination.");
       } finally {
-        fetchingRef.current = false;
-        if (refresh) {
-          setRefreshingBrief(false);
-        } else {
+        if (isCurrent()) {
           setLoadingBrief(false);
+          setRefreshingBrief(false);
         }
       }
     },
-    [resolvedDestination, resolvedCulture, resolvedLanguage]
+    [resolvedDestination, resolvedCulture, resolvedLanguage, selectionKey]
   );
 
   useEffect(() => {
+    setQaResult(null);
+    setQuestion("");
+    setQaLoading(false);
     fetchBrief();
+    // These counters identify requests, rather than DOM refs; invalidate them
+    // on selection changes and unmount so late responses cannot update state.
+    const invalidate = () => { ++briefRequest.current; ++qaRequest.current; };
+    return invalidate;
   }, [fetchBrief]);
 
   const handleAsk = async () => {
     if (!question.trim() || !resolvedDestination) return;
+    const request = ++qaRequest.current;
+    const isCurrent = () => request === qaRequest.current && currentSelection.current === selectionKey;
     setQaLoading(true);
     setQaResult(null);
     try {
@@ -183,19 +181,17 @@ const CulturalEtiquette = ({
         language: resolvedLanguage,
         question: question.trim(),
       });
-      setQaResult(data);
+      if (isCurrent()) setQaResult(data);
     } catch (err) {
+      if (!isCurrent()) return;
       console.error("Failed to ask culture question", err);
-      setQaResult({
-        answer: "Unable to answer this question at the moment.",
-        highlights: [],
-      });
+      setQaResult({ answer: "Unable to answer this question at the moment.", highlights: [] });
     } finally {
-      setQaLoading(false);
+      if (isCurrent()) setQaLoading(false);
     }
   };
 
-  const categories = brief?.categories || {};
+  const categories = useMemo(() => brief?.categories || {}, [brief]);
   const orderedCategories = useMemo(() => {
     const canonical = [
       "greetings",

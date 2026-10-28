@@ -20,6 +20,7 @@ import {
   TextField,
   Tooltip,
   Typography,
+  Button,
 } from "@mui/material";
 import {
   SwapHoriz as SwapIcon,
@@ -30,11 +31,12 @@ import {
   Pause as PauseIcon,
   PlayArrow as PlayIcon,
 } from "@mui/icons-material";
-import Button from "../common/Button";
 import PageContainer from "../layout/PageContainer";
 import { ModuleCard, ModuleCardGrid } from "../common/ModuleCard";
 import { translateText } from "../../services/translation";
+import { useQueryClient } from "@tanstack/react-query";
 import { addSavedPhrase } from "../../services/savedPhrases";
+import { queryKeys } from "../../services/queryKeys";
 import { useAnalytics } from "../../contexts/AnalyticsContext.jsx";
 import ErrorBoundary from "../common/ErrorBoundary";
 import { logRecentActivity } from "../../utils/recentActivity";
@@ -44,6 +46,7 @@ import {
   TRANSLATION_LANGUAGES,
   getLanguageLabel,
 } from "../../constants/languages";
+import { transitionFor } from "../../theme";
 
 const translationHighlights = [
   {
@@ -62,7 +65,7 @@ const translationHighlights = [
 ];
 
 const quickTips = [
-  "Hold the mic button to capture short phrases hands-free.",
+  "Tap the mic button to start voice input; tap again to stop.",
   "Use the speech sliders to match local cadence before playback.",
   "Save your go-to phrases so they sync to the Phrasebook tab.",
 ];
@@ -83,14 +86,17 @@ function TranslationBody() {
     targetLanguageCode = "es",
     setLanguagePair,
   } = useTravelContext();
-  const [sourceLang, setSourceLang] = useState(sourceLanguageCode || "en");
-  const [targetLang, setTargetLang] = useState(targetLanguageCode || "es");
+  const isSupportedLanguage = (code) => TRANSLATION_LANGUAGES.some((language) => language.code === code);
+  const [sourceLang, setSourceLang] = useState(isSupportedLanguage(sourceLanguageCode) ? sourceLanguageCode : "en");
+  const [targetLang, setTargetLang] = useState(isSupportedLanguage(targetLanguageCode) ? targetLanguageCode : "es");
   const [loading, setLoading] = useState(false);
+  const [translationError, setTranslationError] = useState("");
+  const translationRequest = useRef(0);
   const [isRecording, setIsRecording] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [speechRate, setSpeechRate] = useState(1);
-  const [speechPitch, setSpeechPitch] = useState(1);
+  const speechPitch = 1;
   const [selectedVoice, setSelectedVoice] = useState(null);
   const [availableVoices, setAvailableVoices] = useState([]);
   const [filteredVoices, setFilteredVoices] = useState([]);
@@ -109,16 +115,17 @@ function TranslationBody() {
   const utteranceRef = useRef(null);
   const { trackModuleView, trackEvent } = useAnalytics();
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const languageOptions = TRANSLATION_LANGUAGES;
 
   useEffect(() => {
-    if (sourceLanguageCode && sourceLanguageCode !== sourceLang) {
+    if (isSupportedLanguage(sourceLanguageCode) && sourceLanguageCode !== sourceLang) {
       setSourceLang(sourceLanguageCode);
     }
   }, [sourceLanguageCode, sourceLang]);
 
   useEffect(() => {
-    if (targetLanguageCode && targetLanguageCode !== targetLang) {
+    if (isSupportedLanguage(targetLanguageCode) && targetLanguageCode !== targetLang) {
       setTargetLang(targetLanguageCode);
     }
   }, [targetLanguageCode, targetLang]);
@@ -142,6 +149,16 @@ function TranslationBody() {
   }, [trackModuleView]);
 
   useEffect(() => {
+    translationRequest.current += 1;
+    setTarget("");
+    setTranslationError("");
+    setLoading(false);
+    window.speechSynthesis?.cancel();
+    setIsSpeaking(false);
+    setIsPaused(false);
+  }, [source, sourceLang, targetLang]);
+
+  useEffect(() => {
     const SpeechRecognition =
       window.SpeechRecognition || window.webkitSpeechRecognition;
     if (SpeechRecognition) {
@@ -154,7 +171,10 @@ function TranslationBody() {
       recognitionRef.current.onstart = () => setIsRecording(true);
       recognitionRef.current.onend = () => setIsRecording(false);
       recognitionRef.current.onerror = (event) =>
-        console.error("Speech recognition error:", event.error);
+        setSaveFeedback({ open: true, severity: "error", message:
+          event.error === "not-allowed"
+            ? "Microphone access was denied. You can still type your text."
+            : "Voice input failed. Please try again or type your text." });
       recognitionRef.current.onresult = (event) => {
         let interimTranscript = "";
         let finalTranscript = "";
@@ -176,11 +196,6 @@ function TranslationBody() {
       const loadVoices = () => {
         const voices = window.speechSynthesis.getVoices();
         setAvailableVoices(voices);
-        const matches = voices.filter((voice) =>
-          voice.lang.toLowerCase().includes(targetLang)
-        );
-        setFilteredVoices(matches);
-        if (matches.length && !selectedVoice) setSelectedVoice(matches[0]);
       };
 
       loadVoices();
@@ -198,9 +213,11 @@ function TranslationBody() {
 
     return () => {
       window.speechSynthesis?.cancel();
+      if (window.speechSynthesis) window.speechSynthesis.onvoiceschanged = null;
       recognitionRef.current?.abort();
+      translationRequest.current += 1;
     };
-  }, [selectedVoice, targetLang]);
+  }, []);
 
   useEffect(() => {
     if (recognitionRef.current) {
@@ -213,7 +230,7 @@ function TranslationBody() {
       voice.lang.toLowerCase().includes(targetLang)
     );
     setFilteredVoices(matches);
-    if (matches.length) setSelectedVoice(matches[0]);
+    setSelectedVoice(matches[0] || null);
   }, [availableVoices, targetLang]);
 
   const handleStartRecording = () => {
@@ -236,7 +253,13 @@ function TranslationBody() {
   };
 
   const handleTranslate = async () => {
-    if (!source.trim()) return;
+    if (!source.trim() || loading) return;
+    setTranslationError("");
+    if (source.trim().length > 500) {
+      setTranslationError("Please enter 500 characters or fewer.");
+      return;
+    }
+    const requestId = ++translationRequest.current;
     if (sourceLang === targetLang) {
       setTarget(source);
       trackEvent("translation_submit", {
@@ -261,7 +284,9 @@ function TranslationBody() {
 
     try {
       const data = await translateText(source, `${sourceLang}-${targetLang}`);
-      setTarget(data?.translation || "Translation failed.");
+      if (requestId !== translationRequest.current) return;
+      if (!data?.translation?.trim()) throw new Error("No translation was returned. Please try again.");
+      setTarget(data.translation);
       trackEvent("translation_submit", {
         sourceLang,
         targetLang,
@@ -280,7 +305,14 @@ function TranslationBody() {
       }
     } catch (error) {
       console.error("Translation error:", error);
-      setTarget("Error contacting translation server.");
+      if (requestId !== translationRequest.current) return;
+      const status = error?.response?.status;
+      const message = error?.response?.data?.error?.message;
+      setTranslationError(status === 429
+        ? "Too many translation requests. Wait a minute and try again."
+        : status === 401
+        ? "Your session expired. Please sign in again."
+        : message || "Error contacting translation server. Please try again.");
       trackEvent("translation_submit", {
         sourceLang,
         targetLang,
@@ -289,7 +321,7 @@ function TranslationBody() {
         error: error?.message || "unknown",
       });
     } finally {
-      setLoading(false);
+      if (requestId === translationRequest.current) setLoading(false);
     }
   };
 
@@ -303,7 +335,7 @@ function TranslationBody() {
     utteranceRef.current.lang = lang;
     utteranceRef.current.rate = speechRate;
     utteranceRef.current.pitch = speechPitch;
-    if (selectedVoice) utteranceRef.current.voice = selectedVoice;
+    utteranceRef.current.voice = selectedVoice;
     synth.speak(utteranceRef.current);
   };
 
@@ -359,6 +391,7 @@ function TranslationBody() {
         targetLang,
       });
 
+      queryClient.invalidateQueries({ queryKey: queryKeys.savedPhrases.all });
       setSaveFeedback({
         open: true,
         severity: "success",
@@ -408,6 +441,15 @@ function TranslationBody() {
     setSaveFeedback((prev) => ({ ...prev, open: false }));
   };
 
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(target);
+      setSaveFeedback({ open: true, severity: "success", message: "Translation copied." });
+    } catch {
+      setSaveFeedback({ open: true, severity: "error", message: "Could not copy. Select the translated text and copy it manually." });
+    }
+  };
+
   const supportChips = useMemo(
     () => (
       <Stack direction="row" spacing={1} flexWrap="wrap">
@@ -454,8 +496,8 @@ function TranslationBody() {
         <Card
           sx={{
             borderRadius: 4,
-            border: "1px solid rgba(94,82,64,0.18)",
-            background: "rgba(255,255,255,0.92)",
+            border: (theme) => `1px solid ${theme.palette.border.subtle}`,
+            backgroundColor: "surface.glass",
             backdropFilter: "blur(12px)",
           }}
         >
@@ -487,6 +529,7 @@ function TranslationBody() {
                 <InputLabel>From</InputLabel>
                 <Select
                   value={sourceLang}
+                  disabled={loading}
                   label="From"
                   onChange={(e) => {
                     const next = e.target.value;
@@ -505,8 +548,10 @@ function TranslationBody() {
               <Tooltip title="Swap languages and text">
                 <IconButton
                   onClick={handleSwap}
+                  disabled={loading}
+                  aria-label="Swap languages and text"
                   sx={{
-                    border: "1px solid rgba(94,82,64,0.16)",
+                    border: (theme) => `1px solid ${theme.palette.border.subtle}`,
                     borderRadius: 2,
                     backgroundColor: "background.default",
                   }}
@@ -516,11 +561,12 @@ function TranslationBody() {
               </Tooltip>
 
               <FormControl
-                sx={{ minWidth: { xs: "100%", sm: 160, flexGrow: 1 } }}
+                sx={{ minWidth: { xs: "100%", sm: 160 }, flexGrow: 1 }}
               >
                 <InputLabel>To</InputLabel>
                 <Select
                   value={targetLang}
+                  disabled={loading}
                   label="To"
                   onChange={(e) => {
                     const next = e.target.value;
@@ -538,7 +584,7 @@ function TranslationBody() {
             </Stack>
 
             <Grid container spacing={2.5} alignItems="stretch">
-              <Grid item xs={12} md={6} flexGrow={1} sx={{ padding: "0 8px" }}>
+              <Grid size={{ xs: 12, md: 6 }} flexGrow={1} sx={{ padding: "0 8px" }}>
                 <Card
                   variant="outlined"
                   sx={{
@@ -546,13 +592,10 @@ function TranslationBody() {
                     borderRadius: 3,
                     backgroundColor: "background.paper",
                     transition:
-                      "transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out",
+                      transitionFor(["transform", "box-shadow"], "fast"),
                     "&:hover": {
                       transform: "translateY(-2px)",
-                      boxShadow: (theme) =>
-                        theme.palette.mode === "dark"
-                          ? "0 8px 16px rgba(0,0,0,0.3)"
-                          : "0 8px 16px rgba(0,0,0,0.1)",
+                      boxShadow: (theme) => theme.customShadows.overlay,
                     },
                   }}
                 >
@@ -575,12 +618,15 @@ function TranslationBody() {
                         >
                           <IconButton
                             size="small"
+                            disabled={loading}
                             onClick={
                               isRecording
                                 ? handleStopRecording
                                 : handleStartRecording
                             }
                             color={isRecording ? "error" : "primary"}
+                            aria-label={isRecording ? "Stop recording" : "Start voice input"}
+                            aria-pressed={isRecording}
                             sx={{
                               animation: isRecording
                                 ? "pulse 1.5s infinite"
@@ -608,27 +654,10 @@ function TranslationBody() {
                           : "Type text to translate…"
                       }
                       value={source}
+                      disabled={loading}
+                      inputProps={{ "aria-label": "Text to translate", maxLength: 500 }}
+                      helperText={`${source.length}/500 characters`}
                       onChange={(e) => setSource(e.target.value)}
-                      sx={{
-                        "& .MuiOutlinedInput-root": {
-                          "& fieldset": {
-                            borderColor: (theme) =>
-                              theme.palette.mode === "dark"
-                                ? "rgba(255,255,255,0.2)"
-                                : "rgba(0,0,0,0.2)",
-                          },
-                          "&:hover fieldset": {
-                            borderColor: (theme) =>
-                              theme.palette.mode === "dark"
-                                ? "rgba(255,255,255,0.3)"
-                                : "rgba(0,0,0,0.3)",
-                          },
-                          "&.Mui-focused fieldset": {
-                            borderColor: "primary.main",
-                            borderWidth: 2,
-                          },
-                        },
-                      }}
                     />
                     {isRecording && (
                       <Alert
@@ -653,7 +682,7 @@ function TranslationBody() {
                   </CardContent>
                 </Card>
               </Grid>
-              <Grid item xs={12} md={6} flexGrow={1} sx={{ padding: "0 8px" }}>
+              <Grid size={{ xs: 12, md: 6 }} flexGrow={1} sx={{ padding: "0 8px" }}>
                 <Card
                   variant="outlined"
                   sx={{
@@ -661,13 +690,10 @@ function TranslationBody() {
                     borderRadius: 3,
                     backgroundColor: "background.paper",
                     transition:
-                      "transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out",
+                      transitionFor(["transform", "box-shadow"], "fast"),
                     "&:hover": {
                       transform: "translateY(-2px)",
-                      boxShadow: (theme) =>
-                        theme.palette.mode === "dark"
-                          ? "0 8px 16px rgba(0,0,0,0.3)"
-                          : "0 8px 16px rgba(0,0,0,0.1)",
+                      boxShadow: (theme) => theme.customShadows.overlay,
                     },
                   }}
                 >
@@ -695,6 +721,7 @@ function TranslationBody() {
                                   : handlePlayAudio(target, targetLang)
                               }
                               color="primary"
+                              aria-label={isSpeaking && !isPaused ? "Stop audio" : "Play translation"}
                             >
                               {isSpeaking && !isPaused ? (
                                 <StopIcon />
@@ -733,6 +760,7 @@ function TranslationBody() {
                       minRows={7}
                       maxRows={12}
                       value={target}
+                      inputProps={{ "aria-label": "Translated text" }}
                       placeholder="Translated text will appear here…"
                       InputProps={{
                         readOnly: true,
@@ -743,30 +771,7 @@ function TranslationBody() {
                         ) : undefined,
                         sx: {
                           "&.Mui-readOnly": {
-                            backgroundColor: (theme) =>
-                              theme.palette.mode === "dark"
-                                ? "rgba(255,255,255,0.05)"
-                                : "rgba(0,0,0,0.03)",
-                          },
-                        },
-                      }}
-                      sx={{
-                        "& .MuiOutlinedInput-root": {
-                          "& fieldset": {
-                            borderColor: (theme) =>
-                              theme.palette.mode === "dark"
-                                ? "rgba(255,255,255,0.2)"
-                                : "rgba(0,0,0,0.2)",
-                          },
-                          "&:hover fieldset": {
-                            borderColor: (theme) =>
-                              theme.palette.mode === "dark"
-                                ? "rgba(255,255,255,0.3)"
-                                : "rgba(0,0,0,0.3)",
-                          },
-                          "&.Mui-focused fieldset": {
-                            borderColor: "primary.main",
-                            borderWidth: 2,
+                            backgroundColor: "action.hover",
                           },
                         },
                       }}
@@ -816,6 +821,8 @@ function TranslationBody() {
               </Grid>
             </Grid>
 
+            {translationError && <Alert severity="error">{translationError}</Alert>}
+
             <Stack
               direction={{ xs: "column", sm: "row" }}
               spacing={1.5}
@@ -830,7 +837,7 @@ function TranslationBody() {
                 size="large"
                 sx={{
                   minWidth: 120,
-                  transition: "all 0.3s ease",
+                  transition: transitionFor("all"),
                   "&:hover": {
                     transform: "translateY(-2px)",
                     boxShadow: 4,
@@ -851,12 +858,12 @@ function TranslationBody() {
               </Button>
               <Button
                 variant="outlined"
-                onClick={() => target && navigator.clipboard.writeText(target)}
+                onClick={handleCopy}
                 disabled={!target}
                 size="large"
                 sx={{
                   minWidth: 100,
-                  transition: "all 0.3s ease",
+                  transition: transitionFor("all"),
                   "&:hover": {
                     transform: "translateY(-2px)",
                     boxShadow: 2,
@@ -873,7 +880,7 @@ function TranslationBody() {
                 size="large"
                 sx={{
                   minWidth: 100,
-                  transition: "all 0.3s ease",
+                  transition: transitionFor("all"),
                   "&:hover": {
                     transform: "translateY(-2px)",
                     boxShadow: 2,
@@ -889,7 +896,7 @@ function TranslationBody() {
                 size="large"
                 sx={{
                   minWidth: 150,
-                  transition: "all 0.3s ease",
+                  transition: transitionFor("all"),
                   "&:hover": {
                     transform: "translateY(-2px)",
                     boxShadow: 2,
@@ -910,30 +917,19 @@ function TranslationBody() {
         </Card>
 
         <Grid container spacing={3}>
-          <Grid item xs={12} lg={browserSupport.synthesis ? 7 : 6}>
+          <Grid size={{ xs: 12, lg: 7 }} sx={{ display: browserSupport.synthesis ? "block" : "none" }}>
             {browserSupport.synthesis && (
               <Card
                 sx={{
                   height: "100%",
                   borderRadius: 3,
-                  border: (theme) =>
-                    `1px solid ${
-                      theme.palette.mode === "dark"
-                        ? "rgba(237,242,243,0.12)"
-                        : "rgba(94,82,64,0.12)"
-                    }`,
-                  backgroundColor: (theme) =>
-                    theme.palette.mode === "dark"
-                      ? "rgba(13,24,32,0.95)"
-                      : "rgba(255,255,255,0.92)",
+                  border: (theme) => `1px solid ${theme.palette.border.subtle}`,
+                  backgroundColor: "surface.glass",
                   transition:
-                    "transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out",
+                    transitionFor(["transform", "box-shadow"]),
                   "&:hover": {
                     transform: "translateY(-4px)",
-                    boxShadow: (theme) =>
-                      theme.palette.mode === "dark"
-                        ? "0 12px 20px rgba(0,0,0,0.4)"
-                        : "0 12px 20px rgba(0,0,0,0.1)",
+                    boxShadow: (theme) => theme.customShadows.overlay,
                   },
                 }}
               >
@@ -945,7 +941,7 @@ function TranslationBody() {
                     justifyContent="space-between"
                     alignItems="center"
                   >
-                    <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                    <Typography variant="h6">
                       Speech settings
                     </Typography>
                     <Chip
@@ -963,30 +959,10 @@ function TranslationBody() {
                     />
                   </Stack>
                   <Grid container spacing={2.5}>
-                    <Grid item xs={12}>
+                    <Grid size={{ xs: 12 }}>
                       <FormControl
                         fullWidth
                         size="small"
-                        sx={{
-                          "& .MuiOutlinedInput-root": {
-                            "& fieldset": {
-                              borderColor: (theme) =>
-                                theme.palette.mode === "dark"
-                                  ? "rgba(255,255,255,0.2)"
-                                  : "rgba(0,0,0,0.2)",
-                            },
-                            "&:hover fieldset": {
-                              borderColor: (theme) =>
-                                theme.palette.mode === "dark"
-                                  ? "rgba(255,255,255,0.3)"
-                                  : "rgba(0,0,0,0.3)",
-                            },
-                            "&.Mui-focused fieldset": {
-                              borderColor: "primary.main",
-                              borderWidth: 2,
-                            },
-                          },
-                        }}
                       >
                         <InputLabel>Voice</InputLabel>
                         <Select
@@ -1022,7 +998,7 @@ function TranslationBody() {
                         </Select>
                       </FormControl>
                     </Grid>
-                    <Grid item xs={12}>
+                    <Grid size={{ xs: 12 }}>
                       <Box>
                         <Typography
                           variant="body2"
@@ -1031,6 +1007,7 @@ function TranslationBody() {
                           Speech rate: {speechRate.toFixed(1)}
                         </Typography>
                         <Slider
+                          aria-label="Speech rate"
                           value={speechRate}
                           onChange={(_, value) => setSpeechRate(value)}
                           min={0.5}
@@ -1053,7 +1030,7 @@ function TranslationBody() {
                               fontSize: "0.75rem",
                             },
                             "& .MuiSlider-thumb": {
-                              transition: "transform 0.2s ease",
+                              transition: transitionFor("transform", "fast"),
                               "&:hover": {
                                 transform: "scale(1.2)",
                               },
@@ -1077,7 +1054,7 @@ function TranslationBody() {
                       startIcon={<SpeakerIcon />}
                       fullWidth
                       sx={{
-                        transition: "all 0.3s ease",
+                        transition: transitionFor("all"),
                         "&:hover": {
                           transform: "translateY(-2px)",
                           boxShadow: 4,
@@ -1091,7 +1068,7 @@ function TranslationBody() {
                       onClick={handlePauseAudio}
                       disabled={!isSpeaking}
                       sx={{
-                        transition: "all 0.3s ease",
+                        transition: transitionFor("all"),
                         "&:hover": {
                           transform: "translateY(-2px)",
                           boxShadow: 2,
@@ -1105,7 +1082,7 @@ function TranslationBody() {
                       onClick={handleStopAudio}
                       disabled={!isSpeaking}
                       sx={{
-                        transition: "all 0.3s ease",
+                        transition: transitionFor("all"),
                         "&:hover": {
                           transform: "translateY(-2px)",
                           boxShadow: 2,
@@ -1120,21 +1097,13 @@ function TranslationBody() {
             )}
           </Grid>
 
-          <Grid item xs={12} lg={browserSupport.synthesis ? 5 : 12}>
+          <Grid size={{ xs: 12, lg: browserSupport.synthesis ? 5 : 12 }}>
             <Card
               sx={{
                 height: "100%",
                 borderRadius: 3,
-                border: (theme) =>
-                  `1px solid ${
-                    theme.palette.mode === "dark"
-                      ? "rgba(237,242,243,0.12)"
-                      : "rgba(94,82,64,0.12)"
-                  }`,
-                backgroundColor: (theme) =>
-                  theme.palette.mode === "dark"
-                    ? "rgba(15,26,34,0.95)"
-                    : "rgba(255,255,255,0.92)",
+                border: (theme) => `1px solid ${theme.palette.border.subtle}`,
+                backgroundColor: "surface.glass",
               }}
             >
               <CardContent
@@ -1145,7 +1114,7 @@ function TranslationBody() {
                   justifyContent="space-between"
                   alignItems="center"
                 >
-                  <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                  <Typography variant="h6">
                     Quick tips
                   </Typography>
                   <Chip label="Best practice" size="small" />
@@ -1177,16 +1146,8 @@ function TranslationBody() {
             <ModuleCard
               key={highlight.title}
               sx={{
-                border: (theme) =>
-                  `1px solid ${
-                    theme.palette.mode === "dark"
-                      ? "rgba(237,242,243,0.14)"
-                      : "rgba(94,82,64,0.12)"
-                  }`,
-                backgroundColor: (theme) =>
-                  theme.palette.mode === "dark"
-                    ? "rgba(14,26,33,0.95)"
-                    : "rgba(255,255,255,0.9)",
+                border: (theme) => `1px solid ${theme.palette.border.subtle}`,
+                backgroundColor: "surface.glass",
               }}
             >
               <CardContent
@@ -1195,7 +1156,7 @@ function TranslationBody() {
                 <Typography variant="h4" component="span">
                   {highlight.icon}
                 </Typography>
-                <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                <Typography variant="h6">
                   {highlight.title}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">

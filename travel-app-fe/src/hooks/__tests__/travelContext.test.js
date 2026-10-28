@@ -12,7 +12,8 @@ function createWrapper() {
       travelContext: travelContextReducer,
     },
   });
-  return ({ children }) => React.createElement(Provider, { store }, children);
+  const Wrapper = ({ children }) => React.createElement(Provider, { store }, children);
+  return Wrapper;
 }
 
 describe("useTravelContext", () => {

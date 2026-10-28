@@ -5,7 +5,6 @@ import {
   Box,
   Button,
   Chip,
-  Container,
   Divider,
   Grid,
   Link,
@@ -19,7 +18,6 @@ import { alpha } from "@mui/material/styles";
 import {
   ArrowBack as ArrowBackIcon,
   LocationOn as LocationIcon,
-  AccessTime as AccessTimeIcon,
   AttachMoney as PriceIcon,
   Public as PublicIcon,
   Launch as LaunchIcon,
@@ -33,10 +31,14 @@ import {
   Map as MapIcon,
 } from "@mui/icons-material";
 import PhotoCarousel from "../stays/PhotoCarousel";
-import MapView from "../discover/MapView";
+import DestinationMap from "../discover/DestinationMap";
 import CulturalEtiquette from "./CulturalEtiquette";
 import useTravelContext from "../../hooks/useTravelContext";
-import { getPOIDetails } from "../../services/poi";
+import { useQuery } from "@tanstack/react-query";
+import { getPOIDetails, getPOIReviews } from "../../services/poi";
+import { queryKeys } from "../../services/queryKeys";
+import PlaceReviews from "../common/PlaceReviews";
+import PageContainer from "../layout/PageContainer";
 
 const titleCase = (value = "") =>
   value
@@ -87,9 +89,16 @@ export default function DestinationDetailsPage() {
   const theme = useTheme();
   const isDarkMode = theme.palette.mode === "dark";
 
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const detailsQuery = useQuery({
+    queryKey: queryKeys.poi.detail(id),
+    queryFn: ({ signal }) => getPOIDetails(id, "en", { signal }),
+    enabled: Boolean(id),
+  });
+  const data = detailsQuery.data ?? null;
+  const loading = detailsQuery.isPending;
+  const error = detailsQuery.isError
+    ? "We couldn’t load that destination. Try again in a moment."
+    : "";
   const [isSaved, setIsSaved] = useState(false);
   const [shareNotice, setShareNotice] = useState("");
 
@@ -119,28 +128,6 @@ export default function DestinationDetailsPage() {
     theme.palette.divider,
     isDarkMode ? 0.6 : 0.9
   )}`;
-  const reviewBg = alpha(theme.palette.primary.main, isDarkMode ? 0.18 : 0.08);
-
-  useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    setError("");
-    getPOIDetails(id)
-      .then((res) => {
-        if (cancelled) return;
-        setData(res);
-        setLoading(false);
-      })
-      .catch((err) => {
-        if (cancelled) return;
-        console.error(err);
-        setError("We couldn’t load that destination. Try again in a moment.");
-        setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [id]);
 
   useEffect(() => {
     if (!data?.name) return;
@@ -224,7 +211,6 @@ export default function DestinationDetailsPage() {
     [data?.openingHours]
   );
 
-  const reviews = Array.isArray(data?.reviews) ? data.reviews : [];
 
   const mapsUrl =
     data?.provider?.deeplink ||
@@ -274,24 +260,24 @@ export default function DestinationDetailsPage() {
 
   if (loading) {
     return (
-      <Container maxWidth="lg" sx={{ py: 4 }}>
+      <PageContainer variant="fullBleed" maxWidth="lg" gap={0}>
         <Skeleton variant="rounded" height={360} sx={{ mb: 3 }} />
         <Grid container spacing={3}>
-          <Grid item xs={12} md={8}>
+          <Grid size={{ xs: 12, md: 8 }}>
             <Skeleton variant="rounded" height={220} sx={{ mb: 2 }} />
             <Skeleton variant="rounded" height={180} />
           </Grid>
-          <Grid item xs={12} md={4}>
+          <Grid size={{ xs: 12, md: 4 }}>
             <Skeleton variant="rounded" height={320} />
           </Grid>
         </Grid>
-      </Container>
+      </PageContainer>
     );
   }
 
   if (error) {
     return (
-      <Container maxWidth="sm" sx={{ py: 6 }}>
+      <PageContainer variant="fullBleed" maxWidth="sm" gap={0}>
         <Alert
           severity="error"
           sx={{ mb: 2 }}
@@ -310,7 +296,7 @@ export default function DestinationDetailsPage() {
         <Button startIcon={<ArrowBackIcon />} onClick={handleBack}>
           Go back
         </Button>
-      </Container>
+      </PageContainer>
     );
   }
 
@@ -326,7 +312,7 @@ export default function DestinationDetailsPage() {
   };
 
   return (
-    <Container maxWidth="lg" sx={{ py: 4 }}>
+    <PageContainer variant="fullBleed" maxWidth="lg" gap={0}>
       <Box
         sx={{
           position: "relative",
@@ -371,7 +357,7 @@ export default function DestinationDetailsPage() {
             Back to results
           </Button>
           <Box>
-            <Typography variant="h4" sx={{ fontWeight: 700, mb: 0.5 }}>
+            <Typography component="h1" variant="h4" sx={{ mb: 0.5 }}>
               {data.name}
             </Typography>
             {data.location?.address && (
@@ -408,9 +394,9 @@ export default function DestinationDetailsPage() {
       </Box>
 
       <Grid container spacing={3}>
-        <Grid item xs={12} md={8}>
+        <Grid size={{ xs: 12, md: 8 }}>
           <Paper sx={paperStyles}>
-            <Typography variant="h6" sx={{ fontWeight: 600, mb: 1 }}>
+            <Typography variant="h6" sx={{ mb: 1 }}>
               Overview
             </Typography>
             <Typography variant="body1" color="text.secondary">
@@ -421,7 +407,7 @@ export default function DestinationDetailsPage() {
 
           {highlights.length > 0 && (
             <Paper sx={paperStyles}>
-              <Typography variant="h6" sx={{ fontWeight: 600, mb: 1 }}>
+              <Typography variant="h6" sx={{ mb: 1 }}>
                 Highlights
               </Typography>
               <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap" }}>
@@ -439,11 +425,11 @@ export default function DestinationDetailsPage() {
               alignItems="stretch"
             >
               <Box sx={{ flex: 1, minHeight: 280 }}>
-                <Typography variant="h6" sx={{ fontWeight: 600, mb: 1 }}>
+                <Typography variant="h6" sx={{ mb: 1 }}>
                   Map & directions
                 </Typography>
                 <Box sx={{ height: 240 }}>
-                  <MapView
+                  <DestinationMap
                     items={[
                       {
                         id: data.id,
@@ -484,7 +470,7 @@ export default function DestinationDetailsPage() {
                 sx={{ display: { xs: "none", md: "block" } }}
               />
               <Box sx={{ flex: 1 }}>
-                <Typography variant="h6" sx={{ fontWeight: 600, mb: 1 }}>
+                <Typography variant="h6" sx={{ mb: 1 }}>
                   Opening hours
                 </Typography>
                 {hoursPreview.length > 0 ? (
@@ -515,60 +501,21 @@ export default function DestinationDetailsPage() {
             </Stack>
           </Paper>
 
-          {reviews.length > 0 && (
+          {data.reviewsCount > 0 && (
             <Paper sx={paperStyles}>
-              <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>
-                Recent reviews
-              </Typography>
-              <Stack spacing={2}>
-                {reviews.slice(0, 3).map((review, idx) => (
-                  <Box
-                    key={`${review.author_name}-${idx}`}
-                    sx={{
-                      p: 2,
-                      borderRadius: 2,
-                      bgcolor: reviewBg,
-                      border: `1px solid ${alpha(
-                        theme.palette.primary.main,
-                        isDarkMode ? 0.35 : 0.15
-                      )}`,
-                    }}
-                  >
-                    <Stack
-                      direction="row"
-                      spacing={1}
-                      alignItems="center"
-                      sx={{ mb: 0.5 }}
-                    >
-                      <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
-                        {review.author_name}
-                      </Typography>
-                      {typeof review.rating === "number" && (
-                        <Chip
-                          size="small"
-                          icon={<StarIcon fontSize="small" />}
-                          label={review.rating.toFixed(1)}
-                        />
-                      )}
-                      {review.relative_time_description && (
-                        <Typography variant="caption" color="text.secondary">
-                          {review.relative_time_description}
-                        </Typography>
-                      )}
-                    </Stack>
-                    <Typography variant="body2" color="text.secondary">
-                      {review.text || "No review text provided."}
-                    </Typography>
-                  </Box>
-                ))}
-              </Stack>
+              <PlaceReviews
+                title="Recent reviews"
+                reviewsCount={data.reviewsCount}
+                queryKey={queryKeys.poi.reviews(id)}
+                loadReviews={({ signal }) => getPOIReviews(id, "en", { signal })}
+              />
             </Paper>
           )}
         </Grid>
 
-        <Grid item xs={12} md={4}>
+        <Grid size={{ xs: 12, md: 4 }}>
           <Paper sx={paperStyles}>
-            <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>
+            <Typography variant="h6" sx={{ mb: 2 }}>
               Essentials
             </Typography>
             <Stack spacing={2}>
@@ -637,6 +584,6 @@ export default function DestinationDetailsPage() {
           </Paper>
         </Grid>
       </Grid>
-    </Container>
+    </PageContainer>
   );
 }

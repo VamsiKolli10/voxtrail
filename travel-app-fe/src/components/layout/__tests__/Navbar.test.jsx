@@ -1,26 +1,23 @@
 import { describe, it, expect } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
-import { Provider } from "react-redux";
-import { configureStore } from "@reduxjs/toolkit";
 import Navbar from "../Navbar.jsx";
 import { AppearanceProvider } from "../../../contexts/AppearanceContext.jsx";
-import authReducer from "../../../store/slices/authSlice";
+
+vi.mock("../../../contexts/AuthContext.jsx", () => ({ useAuth: () => ({ user: null, loading: false }) }));
 
 vi.mock("react-router-dom", () => ({
   Link: ({ children, to }) => <a href={to}>{children}</a>,
   NavLink: ({ children, to }) => <a href={to}>{children}</a>,
   useLocation: () => ({ pathname: "/" }),
+  useNavigate: () => () => {},
 }));
 
 describe("Navbar", () => {
   it("renders brand and toggles theme", () => {
-    const store = configureStore({ reducer: { auth: authReducer } });
     render(
-      <Provider store={store}>
-        <AppearanceProvider>
-          <Navbar />
-        </AppearanceProvider>
-      </Provider>
+      <AppearanceProvider>
+        <Navbar />
+      </AppearanceProvider>
     );
 
     expect(screen.getByText(/voxtrail/i)).toBeInTheDocument();

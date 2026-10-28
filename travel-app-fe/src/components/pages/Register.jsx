@@ -4,21 +4,20 @@ import {
   Alert,
   Box,
   Checkbox,
-  FormControlLabel,
   Grid,
   IconButton,
   InputAdornment,
   Stack,
   TextField,
   Typography,
+  Button,
 } from "@mui/material";
 import {
   Visibility as VisibilityIcon,
   VisibilityOff as VisibilityOffIcon,
 } from "@mui/icons-material";
-import Button from "../common/Button";
 import AuthShell from "../layout/AuthShell";
-import useNotification from "../../hooks/useNotification";
+import { useNotify } from "../../contexts/NotificationContext.jsx";
 import { registerWithEmail } from "../../services/auth";
 
 const PASSWORD_RULES = [
@@ -35,7 +34,7 @@ const PASSWORD_RULES = [
 
 export default function Register() {
   const navigate = useNavigate();
-  const { showNotification } = useNotification();
+  const { notify: showNotification } = useNotify();
 
   const [formData, setFormData] = useState({
     firstName: "",
@@ -149,7 +148,7 @@ export default function Register() {
         )}
 
         <Grid container spacing={2}>
-          <Grid item xs={12} sm={6}>
+          <Grid size={{ xs: 12, sm: 6 }}>
             <TextField
               label="First name"
               name="firstName"
@@ -160,7 +159,7 @@ export default function Register() {
               disabled={loading}
             />
           </Grid>
-          <Grid item xs={12} sm={6}>
+          <Grid size={{ xs: 12, sm: 6 }}>
             <TextField
               label="Last name"
               name="lastName"
@@ -269,22 +268,20 @@ export default function Register() {
           />
         </Stack>
 
-        <FormControlLabel
-          control={
+        <Stack direction="row" alignItems="flex-start" spacing={1}>
             <Checkbox
               name="agreeToTerms"
               checked={formData.agreeToTerms}
               onChange={handleChange}
               disabled={loading}
+              inputProps={{ "aria-label": "I agree to the Terms of Service and Privacy Policy." }}
+              sx={{ mt: -1, ml: -1 }}
             />
-          }
-          label={
             <Typography variant="body2" color="text.secondary">
-              I agree to the <Link to="/terms">Terms of Service</Link> and{" "}
-              <Link to="/privacy">Privacy Policy</Link>.
+              I agree to the <Link to="/terms" style={{ display: "inline-block" }}>Terms of Service</Link> and{" "}
+              <Link to="/privacy" style={{ display: "inline-block" }}>Privacy Policy</Link>.
             </Typography>
-          }
-        />
+        </Stack>
 
         <Button
           type="submit"

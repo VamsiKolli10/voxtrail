@@ -15,12 +15,8 @@ const {
 } = require("../utils/errorHandler");
 const { getCached, setCached } = require("../utils/cache");
 const { getCacheStats } = require("../utils/cache");
-const { enforceQuota } = require("../utils/quota");
 const { trackExternalCall } = require("../utils/monitoring");
 
-const poiSearchLimit = Number(process.env.POI_PER_USER_PER_HOUR || 120);
-const poiWindow = Number(process.env.POI_PER_USER_WINDOW_MS || 60 * 60 * 1000);
-const poiDetailLimit = Math.max(40, Math.floor(poiSearchLimit / 2));
 const poiSearchCacheTtl = Number(
   process.env.POI_SEARCH_CACHE_TTL_MS || 2 * 60 * 1000
 );
@@ -71,18 +67,24 @@ async function search(req, res) {
       lng: normalizeNumber(lng),
       distance: Number(distance) || 5,
       category: normalizeList(category),
-      kidFriendly: kidFriendly === "true",
-      accessibility: accessibility === "true",
-      openNow: openNow === "true",
+      kidFriendly: kidFriendly === true,
+      accessibility: accessibility === true,
+      openNow: openNow === true,
       timeNeeded: timeNeeded ? String(timeNeeded) : null,
       cost: cost ? String(cost) : null,
       lang,
       page: pageNumber,
     });
 
+    // Check the cache before geocoding so a repeat search costs nothing.
+    const cached = getCached("poi:search", cacheKey);
+    if (cached) {
+      return res.json({ ...cached, cached: true });
+    }
+
     let center;
     let resolvedDestination = null;
-    if (lat && lng) {
+    if (Number.isFinite(lat) && Number.isFinite(lng)) {
       center = { lat: Number(lat), lng: Number(lng) };
     } else if (dest) {
       // Use existing, well-tested geocoder shared with Stays
@@ -111,28 +113,6 @@ async function search(req, res) {
     }
 
     const radius = Math.round((Number(distance) || 5) * 1000);
-    const quotaResult = enforceQuota({
-      identifier: req.user?.uid || req.ip,
-      key: "poi:search",
-      limit: poiSearchLimit,
-      windowMs: poiWindow,
-    });
-    if (!quotaResult.allowed) {
-      return res
-        .status(429)
-        .json(
-          createErrorResponse(
-            429,
-            ERROR_CODES.RATE_LIMIT_EXCEEDED,
-            "POI search quota exceeded",
-            { resetAt: quotaResult.resetAt }
-          )
-        );
-    }
-    const cached = getCached("poi:search", cacheKey);
-    if (cached) {
-      return res.json({ ...cached, cached: true });
-    }
     const raw = await searchNearbyPoi({
       lat: center.lat,
       lng: center.lng,
@@ -192,24 +172,6 @@ async function details(req, res) {
   const { id } = req.params;
   const lang = req.query.lang || "en";
   try {
-    const quotaResult = enforceQuota({
-      identifier: req.user?.uid || req.ip,
-      key: "poi:detail",
-      limit: poiDetailLimit,
-      windowMs: poiWindow,
-    });
-    if (!quotaResult.allowed) {
-      return res
-        .status(429)
-        .json(
-          createErrorResponse(
-            429,
-            ERROR_CODES.RATE_LIMIT_EXCEEDED,
-            "POI detail quota exceeded",
-            { resetAt: quotaResult.resetAt }
-          )
-        );
-    }
 
     const cacheKey = JSON.stringify({ id, lang });
     const cached = getCached("poi:detail", cacheKey);

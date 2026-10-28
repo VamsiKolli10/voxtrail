@@ -9,9 +9,6 @@ const toNumber = (value) => {
 const envSchema = z
   .object({
     NODE_ENV: z.string().optional(),
-    REQUEST_SIGNING_SECRET: z
-      .string()
-      .min(16, "REQUEST_SIGNING_SECRET must be at least 16 characters"),
     CORS_ALLOWED_ORIGINS: z.string().optional(),
     FB_ADMIN_CREDENTIALS: z.string().optional(),
     FIREBASE_ADMIN_CREDENTIALS: z.string().optional(),
@@ -23,11 +20,18 @@ const envSchema = z
     OPENROUTER_API_KEY: z.string().optional(),
     OPENROUTER_MODEL: z.string().optional(),
     OPENROUTER_MODEL_CHAIN: z.string().optional(),
+    OPENROUTER_ALLOW_FREE_MODELS: z.string().optional(),
+    TRANSLATION_PROVIDER: z.enum(["google", "openrouter"]).optional(),
+    TRANSLATION_FALLBACK: z.enum(["openrouter", "none"]).optional(),
     GOOGLE_PLACES_API_KEY: z.string().optional(),
     RATE_LIMIT_WINDOW_MS: z
       .preprocess(toNumber, z.number().int().positive().optional()),
     RATE_LIMIT_MAX: z
       .preprocess(toNumber, z.number().int().positive().optional()),
+    RATE_LIMIT_ANONYMOUS_MAX: z
+      .preprocess(toNumber, z.number().int().positive().optional()),
+    APP_CHECK_ENFORCE: z
+      .preprocess((v) => (v === undefined || v === "" ? undefined : String(v).toLowerCase() === "true"), z.boolean().optional()),
     REQUEST_BODY_LIMIT: z.string().optional(),
     READINESS_TIMEOUT_MS: z
       .preprocess(toNumber, z.number().int().positive().max(10_000).optional()),
@@ -63,7 +67,6 @@ const normalizeList = (raw = "") =>
 const env = {
   ...parsed,
   CORS_ALLOWED_ORIGIN_LIST: normalizeList(parsed.CORS_ALLOWED_ORIGINS),
-  OPENROUTER_MODEL_CHAIN_LIST: normalizeList(parsed.OPENROUTER_MODEL_CHAIN),
 };
 
 module.exports = env;

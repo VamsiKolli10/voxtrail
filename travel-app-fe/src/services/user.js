@@ -1,7 +1,7 @@
 import api from "./api";
 
-export async function fetchProfile() {
-  const { data } = await api.get("/profile");
+export async function fetchProfile({ signal } = {}) {
+  const { data } = await api.get("/profile", { signal });
   return data;
 }
 

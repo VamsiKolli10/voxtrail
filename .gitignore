@@ -11,3 +11,6 @@ dist/
 firebase-debug.log
 firebase-debug.*.log
 gha-creds-*.json
+
+# Emulator secrets (ADR-001); never commit
+**/.secret.local

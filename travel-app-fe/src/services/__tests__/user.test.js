@@ -18,7 +18,7 @@ describe("user service", () => {
 
     const profile = await fetchProfile();
 
-    expect(api.get).toHaveBeenCalledWith("/profile");
+    expect(api.get).toHaveBeenCalledWith("/profile", { signal: undefined });
     expect(profile).toEqual({ uid: "u1" });
   });
 });

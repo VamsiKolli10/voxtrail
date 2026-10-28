@@ -1,6 +1,18 @@
 const { z } = require("zod");
 const { LANGUAGE_CODE_PATTERN, DEFAULT_TEXT_MAX } = require("./validation");
 
+const queryNumber = (value) => {
+  if (value === undefined) return undefined;
+  if (typeof value !== "number" && (typeof value !== "string" || !value.trim())) return NaN;
+  return Number(value);
+};
+
+const queryBoolean = z.preprocess((value) => {
+  if (value === "true") return true;
+  if (value === "false") return false;
+  return value;
+}, z.boolean().optional());
+
 const langCodeSchema = z
   .string({
     required_error: "Language is required",
@@ -66,13 +78,13 @@ const itineraryQuerySchema = z
     dest: optionalNonEmptyString("dest", 200),
     lat: z
       .preprocess(
-        (value) => (value === undefined ? undefined : Number(value)),
+        queryNumber,
         z.number().gte(-90, "lat must be >= -90").lte(90, "lat must be <= 90")
       )
       .optional(),
     lng: z
       .preprocess(
-        (value) => (value === undefined ? undefined : Number(value)),
+        queryNumber,
         z
           .number()
           .gte(-180, "lng must be >= -180")
@@ -81,32 +93,31 @@ const itineraryQuerySchema = z
       .optional(),
     distance: z
       .preprocess(
-        (value) => (value === undefined ? undefined : Number(value)),
+        queryNumber,
         z.number().positive().max(500, "distance must be <= 500km")
       )
       .optional(),
     rating: z
       .preprocess(
-        (value) => (value === undefined ? undefined : Number(value)),
+        queryNumber,
         z.number().min(0).max(5)
       )
       .optional(),
     adults: z
       .preprocess(
-        (value) => (value === undefined ? undefined : Number(value)),
+        queryNumber,
         z.number().int().min(1).max(12)
       )
       .optional(),
     lang: langCodeSchema.optional(),
     page: z
       .preprocess(
-        (value) => (value === undefined ? 1 : Number(value)),
+        (value) => value === undefined ? 1 : queryNumber(value),
         z.number().int().min(1).max(200)
-      )
-      .optional(),
+      ),
     days: z
       .preprocess(
-        (value) => (value === undefined ? undefined : Number(value)),
+        queryNumber,
         z
           .number()
           .int()
@@ -162,25 +173,25 @@ const staysSearchSchema = z
     dest: optionalNonEmptyString("dest", 200),
     lat: z
       .preprocess(
-        (value) => (value === undefined ? undefined : Number(value)),
+        queryNumber,
         z.number().gte(-90).lte(90)
       )
       .optional(),
     lng: z
       .preprocess(
-        (value) => (value === undefined ? undefined : Number(value)),
+        queryNumber,
         z.number().gte(-180).lte(180)
       )
       .optional(),
     distance: z
       .preprocess(
-        (value) => (value === undefined ? undefined : Number(value)),
+        queryNumber,
         z.number().positive().max(500)
       )
       .optional(),
     rating: z
       .preprocess(
-        (value) => (value === undefined ? undefined : Number(value)),
+        queryNumber,
         z.number().min(0).max(5)
       )
       .optional(),
@@ -188,13 +199,12 @@ const staysSearchSchema = z
     amenities: limitedString("amenities", 200).optional(),
     page: z
       .preprocess(
-        (value) => (value === undefined ? 1 : Number(value)),
+        (value) => value === undefined ? 1 : queryNumber(value),
         z.number().int().min(1).max(200)
-      )
-      .optional(),
+      ),
     pageSize: z
       .preprocess(
-        (value) => (value === undefined ? undefined : Number(value)),
+        queryNumber,
         z.number().int().min(1).max(50)
       )
       .optional(),
@@ -203,7 +213,7 @@ const staysSearchSchema = z
     checkOutDate: limitedString("checkOutDate", 40).optional(),
     adults: z
       .preprocess(
-        (value) => (value === undefined ? undefined : Number(value)),
+        queryNumber,
         z.number().int().min(1).max(12)
       )
       .optional(),
@@ -223,19 +233,19 @@ const poiSearchSchema = z
     dest: optionalNonEmptyString("dest", 200),
     lat: z
       .preprocess(
-        (value) => (value === undefined ? undefined : Number(value)),
+        queryNumber,
         z.number().gte(-90).lte(90)
       )
       .optional(),
     lng: z
       .preprocess(
-        (value) => (value === undefined ? undefined : Number(value)),
+        queryNumber,
         z.number().gte(-180).lte(180)
       )
       .optional(),
     distance: z
       .preprocess(
-        (value) => (value === undefined ? undefined : Number(value)),
+        queryNumber,
         z.number().positive().max(200)
       )
       .optional(),
@@ -245,27 +255,17 @@ const poiSearchSchema = z
         const trimmed = String(value).trim();
         return trimmed.length ? trimmed : undefined; // treat empty query param as not provided
       }, limitedString("category", 120).optional()),
-    kidFriendly: z.preprocess(
-      (v) => (v === undefined ? undefined : String(v) === "true"),
-      z.boolean().optional()
-    ),
-    accessibility: z.preprocess(
-      (v) => (v === undefined ? undefined : String(v) === "true"),
-      z.boolean().optional()
-    ),
-    openNow: z.preprocess(
-      (v) => (v === undefined ? undefined : String(v) === "true"),
-      z.boolean().optional()
-    ),
+    kidFriendly: queryBoolean,
+    accessibility: queryBoolean,
+    openNow: queryBoolean,
     timeNeeded: limitedString("timeNeeded", 32).optional(),
     cost: limitedString("cost", 32).optional(),
     lang: limitedString("lang", 12).optional(),
     page: z
       .preprocess(
-        (value) => (value === undefined ? 1 : Number(value)),
+        (value) => value === undefined ? 1 : queryNumber(value),
         z.number().int().min(1).max(200)
-      )
-      .optional(),
+      ),
   })
   .refine(
     (value) =>
