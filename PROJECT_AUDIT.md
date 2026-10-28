@@ -2,6 +2,8 @@
 
 Assessment: October 2, 2026. Branch: `codex/project-audit-fixes`.
 
+The original assessment below records the October 2 state. Subsequent architecture changes are documented in [the ADRs](docs/adr/README.md); the October 7 saved-stays follow-up and current verification results appear at the end of this report.
+
 ## Scope and conclusion
 
 Reviewed the React frontend, Express API, authentication and user storage, provider wrappers, dependencies, Firebase configuration, development scripts, tests, and release documentation. Fixed reproducible UI, UX, correctness, and security defects and added regression coverage. This is a local engineering assessment, not evidence that every production workflow or external provider works.
@@ -99,3 +101,79 @@ Tests mock paid providers; passing them does not establish live translation qual
 ## Maintenance
 
 Treat `src/routes/`, `src/utils/schemas.js` and `src/config/env.js` as the executable contracts. Update this report and the API/environment guides with behavior changes. Keep Firebase production rules deny-by-default and separate from emulator-only rules. Re-run audits after dependency updates and before releases.
+
+## October 7 follow-up: saved stays
+
+Replaced component-local bookmarks with an account-scoped shortlist in Firestore. Search cards and stay details share bookmark state; `/saved-stays` supports nicknames, notes, editing, removal and reopening current details. Home and Stays link to it, and mobile navigation keeps Stays selected. Failed saves retain drafts, failed removals retain the item, and list failures offer a retry. Offline changes are disabled without claiming durable offline storage.
+
+The API stores only place references and user-authored metadata, with a transactional 100-stay cap and strict ownership/field validation. Listing the shortlist makes no Places requests. See [feature behavior](docs/features/saved-stays.md) and [API contracts](API_Documentation.md#saved-stays).
+
+Browser review exposed two shared dark-mode defects during the CSS-variable theme transition: the page backdrop used a fixed light palette, and primary chips applied their light-mode color in both schemes. PageContainer now uses palette CSS variables; the chip override uses MUI's light-scheme selector. Verified search/save/edit/shortlist layouts in an isolated synthetic-data preview at desktop (1280px) and narrow mobile (320px) widths, with no document overflow. No real accounts or paid providers were used.
+
+| Check | October 7 result |
+| --- | --- |
+| Frontend Vitest | 52 files, 184 tests passed, including the final theme changes |
+| Backend Jest | 34 suites, 177 tests passed |
+| Release scripts | Four tests passed |
+| Production build | Passed; existing large-chunk warning remains |
+| Firebase demo emulators | Passed Hosting/Functions/Auth/Firestore saved-stays create/update/list/delete, including idempotent updates/removals |
+| Frontend lint | Zero errors; 10 existing warnings outside the saved-stays implementation |
+| Whitespace | `git diff --check` passed |
+
+Dependency follow-up: restoring the existing frontend lockfile reported one high-severity advisory for its transitive `source-map-js` 1.2.1 dependency. [GHSA-68fv-2mgg-jv7q](https://github.com/advisories/GHSA-68fv-2mgg-jv7q) identifies 1.2.2 as patched. This feature did not change dependency manifests/lockfiles; remediation remains separate work. The original October 2 zero-advisory result is historical.
+
+Work remains local on `css-variables-theme`; no branch was created and nothing was pushed or deployed.
+
+## October 28 follow-up: review fixes
+
+Addressed the 18 defects identified in the full-project review, preserving the
+saved-stays implementation and its account-scoped storage:
+
+1. Corrected 21 emergency service fields across 16 countries using official
+   references, and removed contradictory obsolete Lithuanian numbers from notes.
+2. Split alternative phone numbers into individual dial actions, preserving
+   leading zeros and disabling automatic dialing of explanatory text. Actions
+   wrap within narrow cards.
+3. Removed the universal 911 fallback. The banner names a number only when it
+   serves all three emergency services for the selected country.
+4. Handled photo stream failures before/after bytes, premature closes and browser
+   disconnects; canceled upstream work and added provider timeouts.
+5. Removed request headers containing the Places key from geocoding diagnostics.
+6. Grouped unmatched timing paths and bounded both route buckets and samples.
+7. Exempted photo GET/HEAD requests from App Check headers while retaining URL
+   signature/expiry checks and enforcement on other API routes.
+8. Hashed complete normalized Unicode culture cache identities to prevent
+   collisions between destinations and culture/language combinations.
+9. Awaited best-effort culture cache writes before finishing the HTTP response.
+10. Checked the itinerary cache before paid destination grounding.
+11. Displayed structured phrase save/remove error messages without rendering
+    error objects as React children.
+12. Gave explicit Discover URL locations precedence over retained coordinates,
+    without converting blank parameters to zero or mixing partial coordinates
+    with the old location.
+13. Ignored outdated culture brief/Q&A responses and shared pending brief loads
+    during StrictMode effect replay.
+14. Kept the JavaScript MUI palette synchronized with the active CSS color scheme.
+15. Preserved protected return destinations through login and verification notices.
+16. Reused normalized API roots for relative photo URLs, including trailing slashes.
+17. Reported failed saved-stay mutations without waiting for background refetches.
+18. Connected Discover search/itinerary events to the actual analytics API.
+
+Emergency corrections and their verification scope are recorded in
+[source notes](docs/emergency-number-sources.md). The rest of the legacy country
+dataset has not been comprehensively verified.
+
+| Check | October 28 result |
+| --- | --- |
+| Frontend Vitest (Node 22) | 54 files, 227 tests passed |
+| Backend Jest (Node 22) | 35 suites, 189 tests passed |
+| Release scripts | Four tests passed |
+| Production build | Passed; existing large-chunk warning remains |
+| Frontend lint | Zero errors; seven existing hook-dependency warnings |
+| Browser checks | Real components in an isolated local preview at 1280px and 320px; light/dark surfaces and emergency alternatives checked, no card overflow after wrapping |
+| Whitespace | `git diff --check` passed |
+
+Browser checks used synthetic state and made no emergency calls. Paid provider
+requests, real-account sign-in and Firebase emulator integration were not rerun
+for this follow-up. Temporary preview files and the local server were removed.
+Changes remain local; nothing was pushed or deployed.

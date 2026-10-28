@@ -1,3 +1,4 @@
+import { resolveApiAssetUrl } from "../../services/apiConfig";
 import { useState } from "react";
 import {
   Box,
@@ -44,19 +45,7 @@ export default function PhotoCarousel({ photos = [], height }) {
 
     // If photo has a URL, make it absolute if it's relative
     if (photo.url) {
-      // Already absolute URL
-      if (photo.url.startsWith("http://") || photo.url.startsWith("https://")) {
-        return photo.url;
-      }
-      // Relative URL - make it absolute
-      // Backend returns URLs like: /api/stays/photo?name=...&maxWidth=640
-      // Frontend baseURL is like: http://localhost:8000/api
-      // We need: http://localhost:8000/api/stays/photo?name=...&maxWidth=640
-      const baseURL =
-        import.meta.env.VITE_API_URL || "http://localhost:8000/api";
-      // Remove /api from baseURL, then the relative URL already has /api
-      const cleanBase = baseURL.replace(/\/api$/, "");
-      return `${cleanBase}${photo.url}`;
+      return resolveApiAssetUrl(photo.url);
     }
 
     // The API serves only signed photo URLs from search/details responses

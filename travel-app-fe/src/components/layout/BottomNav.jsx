@@ -118,8 +118,8 @@ export default function BottomNav() {
           More
         </Typography>
         <List aria-label="More sections">
-          {MOBILE_MORE.map(({ label, to, icon: Icon }) => {
-            const selected = isNavItemActive({ to }, pathname);
+          {MOBILE_MORE.map(({ label, to, match, icon: Icon }) => {
+            const selected = isNavItemActive({ to, match }, pathname);
             return (
               <ListItemButton
                 key={to}

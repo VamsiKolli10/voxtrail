@@ -1,5 +1,6 @@
 const express = require("express");
 const axios = require("axios");
+const { finished } = require("node:stream/promises");
 const router = express.Router();
 const {
   geocodeCity,
@@ -80,6 +81,15 @@ router.get("/photo", async (req, res) => {
       );
   }
 
+  const controller = new AbortController();
+  let upstream;
+  const cancel = () => {
+    if (!res.writableFinished) {
+      controller.abort();
+      upstream?.data?.destroy();
+    }
+  };
+  res.once("close", cancel);
   try {
     ensureKey();
 
@@ -92,7 +102,9 @@ router.get("/photo", async (req, res) => {
     }
 
     const endpoint = `${PLACES_BASE_URL}/${encodePlacePath(photoName)}/media`;
-    let upstream = await axios.get(endpoint, {
+    upstream = await axios.get(endpoint, {
+      signal: controller.signal,
+      timeout: 20_000,
       headers: {
         "X-Goog-Api-Key": GOOGLE_API_KEY,
         "X-Goog-FieldMask": "*",
@@ -110,7 +122,10 @@ router.get("/photo", async (req, res) => {
 
     // If Google returns an expiring redirect, fetch it server-side so clients do not cache it
     if (upstream.status === 302 && upstream.headers.location) {
+      upstream.data.destroy();
       upstream = await axios.get(upstream.headers.location, {
+        signal: controller.signal,
+        timeout: 20_000,
         responseType: "stream",
         validateStatus: (status) => status >= 200 && status < 400,
       });
@@ -127,9 +142,39 @@ router.get("/photo", async (req, res) => {
       `private, max-age=${Math.max(0, Math.min(3600, secondsLeft))}`
     );
 
-    return upstream.data.pipe(res);
+    // Observe the readable until it closes, including errors emitted after the
+    // browser disconnects and aborts Axios. Removing its listener on res.close
+    // can turn a cancellation into an uncaught stream error.
+    const providerFinished = finished(upstream.data, { cleanup: true });
+    const responseFinished = new Promise((resolve, reject) => {
+      const closed = () => {
+        cleanup();
+        if (res.writableFinished) resolve();
+        else reject(new Error("Photo response closed before completion"));
+      };
+      const cleanup = () => {
+        res.off("error", failed);
+        res.off("finish", completed);
+        res.off("close", closed);
+      };
+      const failed = (error) => { cleanup(); reject(error); };
+      const completed = () => { cleanup(); resolve(); };
+      res.once("error", failed);
+      res.once("finish", completed);
+      res.once("close", closed);
+    });
+    upstream.data.pipe(res);
+    try {
+      await Promise.all([providerFinished, responseFinished]);
+    } finally {
+      upstream.data.unpipe(res);
+    }
   } catch (e) {
+    if (res.destroyed) return;
     logError(e, { endpoint: "/api/stays/photo", query: req.query });
+    if (res.headersSent) { res.destroy(); return; }
+    res.removeHeader("Content-Type");
+    res.removeHeader("Cache-Control");
     return res
       .status(502)
       .json(
@@ -139,6 +184,9 @@ router.get("/photo", async (req, res) => {
           "Failed to fetch photo from provider"
         )
       );
+  } finally {
+    res.off("close", cancel);
+    if (upstream?.data && !upstream.data.readableEnded) upstream.data.destroy();
   }
 });
 

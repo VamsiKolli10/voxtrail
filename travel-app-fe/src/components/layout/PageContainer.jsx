@@ -36,11 +36,12 @@ export default function PageContainer({
             content: '""',
             position: "absolute",
             inset: 0,
-            background: (theme) =>
-              `radial-gradient(circle at 12% 0%, ${alpha(
-                theme.palette.primary.main,
-                theme.palette.mode === "dark" ? 0.12 : 0.09
-              )}, transparent 34%), ${theme.palette.background.default}`,
+            background: (theme) => {
+              const glow = theme.vars
+                ? `rgba(${theme.vars.palette.primary.mainChannel} / 0.09)`
+                : alpha(theme.palette.primary.main, theme.palette.mode === "dark" ? 0.12 : 0.09);
+              return `radial-gradient(circle at 12% 0%, ${glow}, transparent 34%), ${(theme.vars || theme).palette.background.default}`;
+            },
             zIndex: 0,
           },
         }),

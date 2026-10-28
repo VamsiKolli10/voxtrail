@@ -348,6 +348,26 @@ async function generateItinerary(req, res) {
         );
     }
 
+    const hasOpenRouter = Boolean(process.env.OPENROUTER_API_KEY);
+
+    const cacheKey = makeCacheKey({
+      placeId,
+      dest,
+      lat: latQ,
+      lng: lngQ,
+      days,
+      budget,
+      pace,
+      season,
+      interests,
+      lang,
+      provider: hasOpenRouter ? "openrouter" : "offline",
+    });
+    const cached = getCachedItinerary(cacheKey);
+    if (cached) {
+      return res.json({ ...cached, cached: true });
+    }
+
     // Fetch destination core info to ground output
     let destination;
     if (placeId) {
@@ -376,26 +396,6 @@ async function generateItinerary(req, res) {
         name: "Selected area",
         location: { lat: latQ, lng: lngQ },
       };
-    }
-
-    const hasOpenRouter = Boolean(process.env.OPENROUTER_API_KEY);
-
-    const cacheKey = makeCacheKey({
-      placeId,
-      dest,
-      lat: latQ,
-      lng: lngQ,
-      days,
-      budget,
-      pace,
-      season,
-      interests,
-      lang,
-      provider: hasOpenRouter ? "openrouter" : "offline",
-    });
-    const cached = getCachedItinerary(cacheKey);
-    if (cached) {
-      return res.json({ ...cached, cached: true });
     }
 
     if (!hasOpenRouter) {

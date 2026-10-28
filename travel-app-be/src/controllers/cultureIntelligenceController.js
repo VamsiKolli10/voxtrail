@@ -8,20 +8,12 @@ const {
   aiNotConfiguredResponse,
 } = require("../utils/errorHandler");
 const { sanitizeString, sanitizeTextInput } = require("../utils/validation");
+const { createHash } = require("node:crypto");
 
 const BRIEF_CACHE_COLLECTION = "cultureIntelligenceBriefs";
 const BRIEF_CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 const BRIEF_CACHE_VERSION =
   process.env.CULTURE_BRIEF_CACHE_VERSION || "1"; // bump to invalidate stale docs
-
-function normalizeSlug(value) {
-  if (!value || typeof value !== "string") return "";
-  return value
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-}
 
 function normalizeLanguage(language) {
   const { value } = sanitizeString(language || "en", {
@@ -32,10 +24,14 @@ function normalizeLanguage(language) {
 }
 
 function buildBriefCacheKey(destination, culture, language) {
-  const destKey = normalizeSlug(destination) || "unknown";
-  const cultureKey = normalizeSlug(culture || destination) || destKey;
-  const langKey = normalizeLanguage(language);
-  return `v${BRIEF_CACHE_VERSION}-${destKey}-${cultureKey}-${langKey}`;
+  const normalize = (value) => String(value || "").normalize("NFC").trim().toLowerCase();
+  const identity = JSON.stringify([
+    BRIEF_CACHE_VERSION,
+    normalize(destination),
+    normalize(culture || destination),
+    normalize(normalizeLanguage(language)),
+  ]);
+  return createHash("sha256").update(identity).digest("hex");
 }
 
 async function getBriefFromCache(cacheKey, { includeStale = false } = {}) {
@@ -373,7 +369,7 @@ async function getBrief(req, res) {
         );
     }
 
-    saveBriefToCache(cacheKey, normalized);
+    await saveBriefToCache(cacheKey, normalized);
 
     return res.status(200).json(normalized);
   } catch (error) {
@@ -687,7 +683,6 @@ module.exports = {
   getContextualTips,
   // export helpers if legacy controllers need them
   _internal: {
-    normalizeSlug,
     buildBriefCacheKey,
     validateBriefCategories,
     safeParseJsonResponse,

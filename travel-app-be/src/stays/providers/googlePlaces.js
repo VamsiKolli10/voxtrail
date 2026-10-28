@@ -540,7 +540,6 @@ async function geocodeCityWithTextSearch(cityQuery, language = "en") {
       config: {
         url: error.config?.url,
         method: error.config?.method,
-        headers: error.config?.headers,
       },
     });
     throw new Error(

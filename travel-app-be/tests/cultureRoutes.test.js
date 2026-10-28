@@ -37,6 +37,37 @@ describe("Culture intelligence routes", () => {
     );
   });
 
+  test("cache keys preserve Unicode and tuple boundaries", () => {
+    const { buildBriefCacheKey } = require("../src/controllers/cultureIntelligenceController")._internal;
+    const identities = [["東京", "日本"], ["京都", "日本"], ["القاهرة", "مصر"], ["a-b", "c"], ["a", "b-c"]];
+    expect(new Set(identities.map(([dest, culture]) => buildBriefCacheKey(dest, culture, "en"))).size).toBe(identities.length);
+    expect(buildBriefCacheKey(" Paris ", "French", "en")).toBe(buildBriefCacheKey("paris", "french", "en"));
+  });
+
+  test("waits for a cache write before responding, and tolerates a failed write", async () => {
+    const { db } = require("../src/config/firebaseAdmin");
+    const collection = db.collection("cultureIntelligenceBriefs");
+    const original = collection.doc.getMockImplementation();
+    let rejectWrite;
+    const writeStarted = new Promise((resolve) => {
+      collection.doc.mockImplementation((id) => ({ ...original(id), set: () => {
+        resolve();
+        return new Promise((_ok, reject) => { rejectWrite = reject; });
+      } }));
+    });
+    const { getBrief } = require("../src/controllers/cultureIntelligenceController");
+    const res = { status: jest.fn().mockReturnThis(), json: jest.fn() };
+    try {
+      const pending = getBrief({ query: { destination: "CacheWriteCity" } }, res);
+      await writeStarted;
+      expect(res.json).not.toHaveBeenCalled();
+      rejectWrite(new Error("Firestore unavailable"));
+      await pending;
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.json).toHaveBeenCalled();
+    } finally { collection.doc.mockImplementation(original); }
+  });
+
   test("requires destination for culture brief", async () => {
     const res = await request(app)
       .get("/api/culture/brief")

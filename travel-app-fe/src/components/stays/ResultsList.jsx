@@ -18,12 +18,10 @@ import {
   Star as StarIcon,
   LocalOffer as LocalOfferIcon,
   Navigation as NavigationIcon,
-  BookmarkBorder as BookmarkIcon,
-  Bookmark as BookmarkFilledIcon,
   Hotel as HotelIcon,
 } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
-import { useState } from "react";
+import SaveStayButton from "./SaveStayButton";
 import PhotoCarousel from "./PhotoCarousel";
 import { transitionFor } from "../../theme";
 import EmptyState from "../common/EmptyState";
@@ -32,19 +30,6 @@ export default function ResultsList({ items = [], loading }) {
   const nav = useNavigate();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
-  const [bookmarked, setBookmarked] = useState(new Set());
-
-  const toggleBookmark = (id) => {
-    setBookmarked((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
-      } else {
-        next.add(id);
-      }
-      return next;
-    });
-  };
 
   if (loading) {
     return (
@@ -164,28 +149,11 @@ export default function ResultsList({ items = [], loading }) {
                     zIndex: 3,
                   }}
                 >
-                  <Button
-                    size="small"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      toggleBookmark(item.id);
-                    }}
-                    sx={{
-                      minWidth: "auto",
-                      borderRadius: "50%",
-                      width: 36,
-                      height: 36,
-                      backgroundColor: "white",
-                    }}
-                  >
-                    {bookmarked.has(item.id) ? (
-                      <BookmarkFilledIcon
-                        sx={{ color: theme.palette.primary.main, fontSize: 20 }}
-                      />
-                    ) : (
-                      <BookmarkIcon sx={{ fontSize: 20 }} />
-                    )}
-                  </Button>
+                  <SaveStayButton
+                    placeId={item.id}
+                    stayName={item.name}
+                    sx={{ bgcolor: "background.paper", boxShadow: 1 }}
+                  />
                 </Box>
               </Box>
 

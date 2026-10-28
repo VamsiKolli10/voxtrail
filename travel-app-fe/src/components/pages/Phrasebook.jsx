@@ -278,7 +278,7 @@ export default function Phrasebook() {
         await removePhrase(existing.id);
         setSaved((prev) => prev.filter((p) => p.id !== existing.id));
       } catch (e) {
-        const msg = e?.response?.data?.error || e?.message;
+        const msg = e?.response?.data?.error?.message || (typeof e?.response?.data?.error === "string" ? e.response.data.error : e?.message);
         setError(msg || "Failed to remove phrase");
       }
       return;
@@ -320,7 +320,7 @@ export default function Phrasebook() {
       });
     } catch (e) {
       const status = e?.response?.status;
-      const msg = e?.response?.data?.error || e?.message;
+      const msg = e?.response?.data?.error?.message || (typeof e?.response?.data?.error === "string" ? e.response.data.error : e?.message);
       if (status === 401) {
         setError("Please sign in to save phrases.");
       } else {
@@ -334,7 +334,7 @@ export default function Phrasebook() {
       await removePhrase(id);
       setSaved((prev) => prev.filter((p) => p.id !== id));
     } catch (e) {
-      const msg = e?.response?.data?.error || e?.message;
+      const msg = e?.response?.data?.error?.message || (typeof e?.response?.data?.error === "string" ? e.response.data.error : e?.message);
       setError(msg || "Failed to remove saved phrase");
     }
   };

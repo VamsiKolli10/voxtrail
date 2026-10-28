@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useParams, Navigate, useNavigate } from "react-router-dom";
 import {
   Box,
@@ -24,8 +24,6 @@ import {
   Language as WebsiteIcon,
   Star as StarIcon,
   Share as ShareIcon,
-  BookmarkBorder as BookmarkIcon,
-  Bookmark as BookmarkFilledIcon,
   Hotel as HotelIcon,
 } from "@mui/icons-material";
 import { useQuery } from "@tanstack/react-query";
@@ -36,6 +34,7 @@ import StaysMap from "../stays/StaysMap";
 import PhotoCarousel from "../stays/PhotoCarousel";
 import { useAnalytics } from "../../contexts/AnalyticsContext.jsx";
 import PageContainer from "../layout/PageContainer";
+import SaveStayButton from "../stays/SaveStayButton";
 import EmptyState from "../common/EmptyState";
 
 export default function StayDetailsPage() {
@@ -55,7 +54,6 @@ export default function StayDetailsPage() {
   const err = stayQuery.isError
     ? stayQuery.error?.message || "Failed to load stay"
     : "";
-  const [bookmarked, setBookmarked] = useState(false);
   const { trackModuleView, trackEvent } = useAnalytics();
 
   useEffect(() => {
@@ -140,22 +138,7 @@ export default function StayDetailsPage() {
           Back
         </Button>
         <Box sx={{ display: "flex", gap: 1 }}>
-          <IconButton
-            onClick={() => {
-              setBookmarked((prev) => {
-                const next = !prev;
-                trackEvent("stay_bookmark_toggle", {
-                  stayId: id,
-                  value: next,
-                });
-                return next;
-              });
-            }}
-            color={bookmarked ? "primary" : "default"}
-            aria-label={bookmarked ? "Remove bookmark" : "Save stay"}
-          >
-            {bookmarked ? <BookmarkFilledIcon /> : <BookmarkIcon />}
-          </IconButton>
+          <SaveStayButton placeId={id} stayName={data.name} />
           <IconButton
             onClick={() => {
               if (navigator.share) {

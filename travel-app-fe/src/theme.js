@@ -303,12 +303,10 @@ export function createAppTheme(
           // Outlined primary chips sit on tinted/marketing backgrounds where
           // primary.main drops below 4.5:1 in light mode; primary.dark keeps AA.
           outlinedPrimary: ({ theme }) =>
-            theme.palette.mode === "light"
-              ? {
-                  color: theme.palette.primary.dark,
-                  borderColor: alpha(theme.palette.primary.main, 0.5),
-                }
-              : {},
+            theme.applyStyles("light", {
+              color: theme.palette.primary.dark,
+              borderColor: alpha(theme.palette.primary.main, 0.5),
+            }),
         },
       },
       MuiAlert: {

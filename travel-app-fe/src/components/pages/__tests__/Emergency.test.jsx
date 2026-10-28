@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { ThemeProvider } from "@mui/material/styles";
 import { createAppTheme } from "../../../theme";
@@ -42,6 +42,26 @@ describe("Emergency page", () => {
     resetEmergencyAliases();
     resolveLocation.mockReset();
     travelContext = { setDestinationContext: vi.fn() };
+  });
+
+  it("never suggests a universal 911 number before country selection", () => {
+    renderPage();
+    expect(screen.getByText(/contact local emergency services/i)).toBeInTheDocument();
+    expect(screen.queryByText(/call 911 right away/i)).not.toBeInTheDocument();
+  });
+
+  it("dials alternatives individually and preserves leading zeros", async () => {
+    const open = vi.spyOn(window, "open").mockImplementation(() => null);
+    travelContext = { ...travelContext, destinationCountry: "France" };
+    const view = renderPage();
+    const buttons = await screen.findAllByRole("button", { name: "Call 112" });
+    fireEvent.click(buttons[0]);
+    expect(open).toHaveBeenCalledWith("tel:112");
+    view.unmount();
+    travelContext = { ...travelContext, destinationCountry: "Australia" };
+    renderPage();
+    fireEvent.click((await screen.findAllByRole("button", { name: "Call 000" }))[0]);
+    expect(open).toHaveBeenCalledWith("tel:000");
   });
 
   it("shows numbers for the travel context's country without loading place names", async () => {

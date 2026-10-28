@@ -1,12 +1,12 @@
 # VoxTrail API reference
 
-Updated October 2, 2026. Base URL: `/api` on Firebase Hosting or `http://localhost:8000/api` locally. This describes current source behavior; [PROJECT_AUDIT.md](PROJECT_AUDIT.md) records validation and limitations.
+Updated October 7, 2026. Base URL: `/api` on Firebase Hosting or `http://localhost:8000/api` locally. This describes current source behavior; [PROJECT_AUDIT.md](PROJECT_AUDIT.md) records validation and limitations.
 
 ## Authentication, validation and errors
 
 Protected routes require `Authorization: Bearer <Firebase ID token>`. Tokens are verified for expiry on every request and for revocation on writes and admin routes. `/location/resolve` and `/translate` require sign-in and have per-user quotas (429 `RATE_LIMIT_EXCEEDED` when exhausted). Users need the `user` or `admin` role for travel tools; `/profile` accepts any authenticated role and user administration requires `admin`.
 
-Optional header: `X-Firebase-AppCheck` (Firebase App Check token). The API logs requests without a valid token and rejects them only when `APP_CHECK_ENFORCE=true`. Request signatures (`x-request-signature`) are no longer used.
+Optional header: `X-Firebase-AppCheck` (Firebase App Check token). The API logs requests without a valid token and rejects them only when `APP_CHECK_ENFORCE=true`. Health checks and signed photo GET/HEAD requests are exempt from this header requirement; photo signatures are still validated. Request signatures (`x-request-signature`) are no longer used.
 
 JSON bodies use `Content-Type: application/json`. Query validation applies parsed types/defaults and strips unknown fields. Numeric latitude/longitude may be zero; blank or repeated numeric parameters are rejected. Boolean filters accept the strings `true` and `false` (or JSON booleans). Validation failures return 400.
 
@@ -93,6 +93,20 @@ Persistence uses `users/{uid}/saved_phrases`. Browser clients use the API instea
 Returns `items`, pagination metadata and, when destination text is resolved, `resolvedDestination`. Items include ID/name, provider rating/photos, location and provider links. `GET /api/stays/:id` returns provider details; `reviews` is always empty and `description` is empty (both are Atmosphere-tier fields, ADR-004). `GET /api/stays/:id/reviews?lang=en` returns `{ id, reviews }` (up to 5, each with `author_name`, `author_uri`, `rating`, `text`, `relative_time_description`) and shares a per-user quota (`PLACE_REVIEWS_PER_HOUR`, default 30) with the POI version.
 
 Google Places supplies accommodation discovery, not real-time inventory or bookings. Dates/guest count do not establish availability; price level is not a verified nightly price. Radius may be clamped by the provider. Page size is part of the result cache key.
+
+### Saved stays
+
+All routes require sign-in. Ownership comes from the verified Firebase token. Responses use `Cache-Control: private, no-store`.
+
+| Method / path | Contract |
+| --- | --- |
+| `GET /api/saved-stays` | `{ "items": [...] }`, newest saved first, maximum 100. Each item has `placeId`, `nickname`, `notes`, and ISO `createdAt`/`updatedAt` timestamps. |
+| `PUT /api/saved-stays/:placeId` | Create or replace user metadata: required `nickname` (trimmed, 1–100 characters), optional `notes` (trimmed, max 1000, defaults to empty). Returns `{ "placeId": "..." }` with 201 for a new save or 200 for an update. |
+| `DELETE /api/saved-stays/:placeId` | Idempotent removal from the current owner's collection; 200 `{ "ok": true }` even if already removed. |
+
+Place IDs allow only letters, digits, `_` and `-`, with a maximum of 256 characters. Unknown body fields are rejected (400 `VALIDATION_ERROR`), including owner IDs and provider names/photos. A transaction caps each account at 100 stays; additions at the cap return 409 `BAD_REQUEST` with an actionable message. Existing stays can still be edited or removed.
+
+Documents live at `users/{uid}/saved_stays/{placeId}`; `users/{uid}/preferences/saved_stays` holds the transactional count. Only the place reference and user-authored nickname/notes are stored, with timestamps. Opening `/stays/:id` retrieves current provider details through the existing endpoint; listing saved stays makes no Places requests. See [saved-stays behavior](docs/features/saved-stays.md).
 
 ### Points of interest
 

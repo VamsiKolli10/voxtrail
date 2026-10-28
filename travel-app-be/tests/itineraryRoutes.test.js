@@ -91,6 +91,18 @@ describe("Itinerary routes", () => {
     expect(res.body.destination.name).toBe("Paris");
   });
 
+  test.each([
+    ["placeId=cache-destination", "fetchPlaceSummary"],
+    ["dest=CacheCity", "geocodeCenter"],
+  ])("cached itineraries skip paid grounding (%s)", async (query, provider) => {
+    const lookup = require("../src/stays/providers/googlePlaces")[provider];
+    const first = await request(app).get(`/api/itinerary/generate?${query}`).set("Authorization", "Bearer valid-user-token");
+    const second = await request(app).get(`/api/itinerary/generate?${query}`).set("Authorization", "Bearer valid-user-token");
+    expect(first.statusCode).toBe(200);
+    expect(second.body.cached).toBe(true);
+    expect(lookup).toHaveBeenCalledTimes(1);
+  });
+
   test("handles lat/lng coordinates", async () => {
     chatComplete.mockResolvedValueOnce(
       JSON.stringify({

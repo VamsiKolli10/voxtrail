@@ -25,4 +25,8 @@ export const queryKeys = {
     all: ["savedPhrases"],
     list: (uid) => ["savedPhrases", "list", uid || null],
   },
+  savedStays: {
+    all: ["savedStays"],
+    list: (uid) => ["savedStays", "list", uid || null],
+  },
 };

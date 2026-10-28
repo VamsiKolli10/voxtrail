@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { useSearchParams } from "react-router-dom";
+import { Link as RouterLink, useSearchParams } from "react-router-dom";
 import {
   Box,
   Grid,
@@ -461,6 +461,7 @@ function StaysSearchPageBody() {
     <PageContainer
       variant="fullBleed"
       title="Find Accommodations"
+      actions={<Button component={RouterLink} to="/saved-stays" variant="outlined">Saved stays</Button>}
       meta={
         <>
           <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>

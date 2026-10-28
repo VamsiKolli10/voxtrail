@@ -7,6 +7,7 @@ const titles = {
   "/reset-password": "Reset password", "/verify-email": "Verify email",
   "/translation": "Translation", "/phrasebook": "Phrasebook",
   "/discover": "Discover", "/destinations": "Discover", "/stays": "Stays",
+  "/saved-stays": "Saved stays",
   "/emergency": "Emergency", "/cultural-guide": "Culture",
   "/terms": "Terms", "/privacy": "Privacy",
 };

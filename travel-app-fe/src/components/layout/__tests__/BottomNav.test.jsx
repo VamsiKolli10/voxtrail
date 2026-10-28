@@ -27,6 +27,12 @@ describe("BottomNav", () => {
     expect(document.querySelectorAll(".Mui-selected")).toHaveLength(0);
   });
 
+  it("selects Stays in More when viewing saved stays", () => {
+    renderAt("/saved-stays");
+    fireEvent.click(screen.getByRole("button", { name: /more/i }));
+    expect(screen.getByRole("link", { name: /stays/i })).toHaveClass("Mui-selected");
+  });
+
   it("opens the More sheet with Stays, Emergency and Culture", () => {
     renderAt("/home");
     fireEvent.click(screen.getByRole("button", { name: /more/i }));

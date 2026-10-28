@@ -126,6 +126,7 @@ export default function Dashboard() {
   ];
 
   const quickActions = [
+    { label: "Saved stays", icon: "🔖", action: () => navigate("/saved-stays") },
     {
       label: "Quick Translate",
       icon: "⚡",
@@ -236,8 +237,10 @@ export default function Dashboard() {
                 <Stack
                   direction={{ xs: "column", sm: "row" }}
                   spacing={{ xs: 1.5, sm: 1.5 }}
+                  useFlexGap
                   sx={{
                     width: { xs: "100%", md: "auto" },
+                    flexWrap: "wrap",
                     "& > *": { flexGrow: 1 },
                   }}
                 >

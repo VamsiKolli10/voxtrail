@@ -28,6 +28,7 @@ import emergencyNumbersByCountry from "../../data/emergencyNumbersByCountry";
 import { loadEmergencyAliases } from "../../services/emergencyAliases";
 import useTravelContext from "../../hooks/useTravelContext";
 import { resolveLocation } from "../../services/location";
+import { emergencyDialNumbers } from "../../utils/emergencyNumbers";
 
 const emergencyTips = [
   {
@@ -72,7 +73,6 @@ export default function Emergency() {
   const aliasesRef = useRef(null);
   const locationCacheRef = useRef(new Map());
   const inflightResolveRef = useRef(new Set());
-  const fallbackNumber = "911";
   const {
     destination,
     destinationDisplayName,
@@ -101,13 +101,11 @@ export default function Emergency() {
   );
 
   const alertNumber = useMemo(() => {
-    if (!searchedEntry) return fallbackNumber;
-    const candidates = [
-      searchedEntry.police,
-      searchedEntry.ambulance,
-      searchedEntry.fire,
-    ].filter((value) => value && value !== "—");
-    return candidates[0] || fallbackNumber;
+    if (!searchedEntry) return "";
+    const numbers = ["police", "ambulance", "fire"].map((service) =>
+      emergencyDialNumbers(searchedEntry[service])
+    );
+    return numbers[0].find((number) => numbers.every((service) => service.includes(number))) || "";
   }, [searchedEntry]);
 
   const countryLookup = useMemo(() => {
@@ -436,17 +434,18 @@ export default function Emergency() {
       id: service.id,
       name: service.label,
       number: searchedEntry[service.id] || "",
+      dialNumbers: emergencyDialNumbers(searchedEntry[service.id]),
       icon: service.icon,
       description: `${service.label} response in ${searchedEntry.country}`,
       color: theme.palette.accent[service.accent],
     }));
   }, [searchedEntry, theme]);
 
-  const handleCall = (contact) => {
-    if (!contact.number) return;
+  const handleCall = (contact, number) => {
+    if (!contact.dialNumbers.includes(number)) return;
     setActiveCall(contact.id);
     setTimeout(() => setActiveCall(null), 1200);
-    window.open(`tel:${contact.number}`);
+    window.open(`tel:${number}`);
   };
 
   const handleCopy = async (number) => {
@@ -474,8 +473,9 @@ export default function Emergency() {
           }}
         >
           <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-            ⚠️ If you or someone near you is in immediate danger, call{" "}
-            {alertNumber} right away.
+            ⚠️ {alertNumber
+              ? `If you or someone near you is in immediate danger, call ${alertNumber} right away.`
+              : "In immediate danger, contact local emergency services. Select your country below to find service numbers."}
           </Typography>
           <Typography variant="body2" color="text.secondary">
             Share your location and stay on the line until help arrives.
@@ -670,7 +670,7 @@ export default function Emergency() {
             {essentialContacts.length ? (
               <Grid container spacing={2}>
                 {essentialContacts.map((contact) => {
-                  const disabled = !contact.number;
+                  const disabled = !contact.dialNumbers.length;
                   return (
                     <Grid size={{ xs: 12, md: 6 }} key={contact.id}>
                       <Card
@@ -729,12 +729,13 @@ export default function Emergency() {
                             {contact.number || "—"}
                           </Typography>
 
-                          <Stack direction="row" spacing={1}>
-                            <Button
+                          <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+                            {contact.dialNumbers.map((number) => <Button
+                              key={number}
                               variant="contained"
                               size="small"
                               startIcon={<PhoneIcon fontSize="small" />}
-                              onClick={() => handleCall(contact)}
+                              onClick={() => handleCall(contact, number)}
                               disabled={disabled || activeCall === contact.id}
                               sx={{ flexGrow: 1 }}
                             >
@@ -742,8 +743,9 @@ export default function Emergency() {
                                 ? "Unavailable"
                                 : activeCall === contact.id
                                 ? "Calling…"
-                                : "Call"}
-                            </Button>
+                                : `Call ${number}`}
+                            </Button>)}
+                            {disabled && <Button disabled size="small">Unavailable</Button>}
                             <Tooltip title="Copy number">
                               <span>
                                 <IconButton

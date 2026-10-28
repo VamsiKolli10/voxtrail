@@ -67,6 +67,90 @@ describe("signed photo URLs", () => {
     expect(axios.get).not.toHaveBeenCalled();
   });
 
+  test("upstream stream failures finish with 502 instead of an uncaught error", async () => {
+    const { signPhotoUrl } = load("../src/lib/photoUrls");
+    const { createApp } = load("../src/app");
+    axios.get.mockResolvedValueOnce({ status: 200, headers: { "content-type": "image/jpeg" },
+      data: new Readable({ read() { this.destroy(new Error("upstream reset")); } }),
+    });
+    const res = await request(createApp()).get(signPhotoUrl("places/p1/photos/a"));
+    expect(res.statusCode).toBe(502);
+    expect(res.body.error.message).toMatch(/fetch photo/);
+    expect(res.headers["cache-control"]).toBeUndefined();
+  });
+
+  test("an error after photo bytes closes the response without an uncaught error", async () => {
+    const { signPhotoUrl } = load("../src/lib/photoUrls");
+    const { createApp } = load("../src/app");
+    let started = false;
+    const stream = new Readable({ read() {
+      if (started) return;
+      started = true;
+      this.push(Buffer.from("partial-jpeg"));
+      setImmediate(() => this.destroy(new Error("upstream reset")));
+    } });
+    axios.get.mockResolvedValueOnce({ status: 200, headers: { "content-type": "image/jpeg" }, data: stream });
+    await expect(request(createApp()).get(signPhotoUrl("places/p1/photos/a"))).rejects.toThrow(/aborted|reset|hang up/i);
+    expect(stream.destroyed).toBe(true);
+  });
+
+  test("a provider stream closing without an error does not hang the response", async () => {
+    const { signPhotoUrl } = load("../src/lib/photoUrls");
+    const { createApp } = load("../src/app");
+    axios.get.mockResolvedValueOnce({ status: 200, headers: {},
+      data: new Readable({ read() { this.destroy(); } }),
+    });
+    const res = await request(createApp()).get(signPhotoUrl("places/p1/photos/a"));
+    expect(res.statusCode).toBe(502);
+  });
+
+  test("a disconnected browser aborts and closes the provider stream", async () => {
+    const http = require("node:http");
+    const { once } = require("node:events");
+    const { signPhotoUrl } = load("../src/lib/photoUrls");
+    const { createApp } = load("../src/app");
+    let signal;
+    let started = false;
+    const stream = new Readable({ read() {
+      if (started) return;
+      started = true;
+      this.push(Buffer.from("partial-photo"));
+    } });
+    const closed = new Promise((resolve) => stream.once("close", resolve));
+    axios.get.mockImplementationOnce(async (_url, options) => {
+      signal = options.signal;
+      signal.addEventListener("abort", () => stream.destroy(new Error("request canceled")), { once: true });
+      return { status: 200, headers: { "content-type": "image/jpeg" }, data: stream };
+    });
+    const server = createApp().listen(0, "127.0.0.1");
+    await once(server, "listening");
+    try {
+      await new Promise((resolve, reject) => {
+        const client = http.get(`http://127.0.0.1:${server.address().port}${signPhotoUrl("places/p1/photos/a")}`, (res) => {
+          res.once("data", () => { res.destroy(); resolve(); });
+        });
+        client.on("error", reject);
+      });
+      await closed;
+      expect(signal.aborted).toBe(true);
+      expect(stream.destroyed).toBe(true);
+    } finally { await new Promise((resolve) => server.close(resolve)); }
+  });
+
+  test("App Check enforcement permits only signed photos without headers", async () => {
+    process.env.APP_CHECK_ENFORCE = "true";
+    try {
+      const { signPhotoUrl } = load("../src/lib/photoUrls");
+      const { createApp } = load("../src/app");
+      const app = createApp();
+      axios.get.mockResolvedValueOnce(imageResponse());
+      expect((await request(app).get(signPhotoUrl("places/p1/photos/a"))).statusCode).toBe(200);
+      expect((await request(app).get("/api/stays/photo?name=places/p1/photos/a")).statusCode).toBe(403);
+      expect((await request(app).get("/api/stays/search?dest=Paris")).statusCode).toBe(401);
+      expect((await request(app).get("/api/stays/photo/extra")).statusCode).toBe(401);
+    } finally { delete process.env.APP_CHECK_ENFORCE; }
+  });
+
   test("a signed link is proxied with browser-only caching", async () => {
     const { signPhotoUrl } = load("../src/lib/photoUrls");
     const { createApp } = load("../src/app");
@@ -127,6 +211,20 @@ describe("field masks keep Atmosphere fields out of default calls", () => {
 });
 
 describe("geocoding", () => {
+  test("failed Places geocoding never logs API credentials", async () => {
+    process.env.GEOCODER = "places";
+    const { geocodeCity } = load("../src/stays/providers/googlePlaces");
+    const spy = jest.spyOn(console, "error").mockImplementation(() => {});
+    const failure = Object.assign(new Error("provider unavailable"), {
+      config: { url: "https://places.googleapis.com/v1/places:searchText", method: "post", headers: { "X-Goog-Api-Key": "secret-credential" } },
+    });
+    axios.post.mockRejectedValueOnce(failure);
+    try {
+      await expect(geocodeCity("Unique failed city")).rejects.toThrow();
+      expect(JSON.stringify(spy.mock.calls)).not.toContain("secret-credential");
+    } finally { spy.mockRestore(); }
+  });
+
   const geocodeOk = {
     data: {
       status: "OK",

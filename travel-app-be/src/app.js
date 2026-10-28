@@ -9,6 +9,7 @@ const env = require("./config/env");
 const translationRoutes = require("./routes/translationRoutes");
 const phrasebookRoutes = require("./routes/phrasebookRoutes");
 const savedPhraseRoutes = require("./routes/savedPhraseRoutes");
+const savedStayRoutes = require("./routes/savedStayRoutes");
 const staysRoutes = require("./routes/staysRoutes");
 const poiRoutes = require("./routes/poiRoutes");
 const itineraryRoutes = require("./routes/itineraryRoutes");
@@ -158,13 +159,18 @@ function createApp() {
 
   // App Check: monitor by default; APP_CHECK_ENFORCE=true rejects requests
   // without a valid token. Health checks stay open.
-  app.use(
-    "/api",
-    appCheck({
+  const checkApp = appCheck({
       getAppCheck: () => require("firebase-admin/app-check").getAppCheck(),
       enforce: env.APP_CHECK_ENFORCE === true,
-    })
-  );
+    });
+  app.use("/api", (req, res, next) => {
+    // Images cannot attach App Check headers. The photo handler still requires
+    // a valid, unexpired signature before it makes any provider request.
+    if (["GET", "HEAD"].includes(req.method) && /^\/stays\/photo\/?$/i.test(req.path)) {
+      return next();
+    }
+    return checkApp(req, res, next);
+  });
 
   // One API-wide flood guard. Photos get their own, higher bucket because a
   // results page loads several at once (see ADR-004).
@@ -195,7 +201,7 @@ function createApp() {
       }
       res.requestDurationMs = durationMs;
       const routeKey = `${req.method} ${
-        req.route?.path || req.originalUrl.split("?")[0] || req.path
+        req.route ? `${req.baseUrl || ""}${req.route.path}` : "<unmatched>"
       }`;
       recordTiming(routeKey, durationMs);
       return originalEnd.call(this, chunk, encoding, callback);
@@ -270,6 +276,7 @@ function createApp() {
   app.use("/api/translate", translationRoutes);
   app.use("/api/phrasebook", phrasebookRoutes);
   app.use("/api/saved-phrases", requireUser(), savedPhraseRoutes);
+  app.use("/api/saved-stays", requireUser(), savedStayRoutes);
   app.use("/api/stays", staysRoutes);
   app.use("/api/poi", requireUser(), poiRoutes);
   app.use("/api/itinerary", requireUser(), itineraryRoutes);

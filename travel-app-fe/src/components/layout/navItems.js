@@ -19,7 +19,7 @@ export const NAV_ITEMS = [
   { label: "Home", to: "/home", icon: DashboardIcon, mobile: "tab" },
   { label: "Translate", to: "/translation", icon: TranslateIcon, mobile: "tab" },
   { label: "Phrasebook", to: "/phrasebook", icon: BookIcon, mobile: "tab" },
-  { label: "Stays", to: "/stays", icon: HotelIcon, mobile: "more" },
+  { label: "Stays", to: "/stays", icon: HotelIcon, mobile: "more", match: ["/saved-stays"] },
   { label: "Emergency", to: "/emergency", icon: EmergencyIcon, mobile: "more" },
   { label: "Culture", to: "/cultural-guide", icon: CultureIcon, mobile: "more" },
   {

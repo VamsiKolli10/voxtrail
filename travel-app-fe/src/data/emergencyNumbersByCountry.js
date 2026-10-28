@@ -1386,7 +1386,7 @@ const emergencyNumbersByCountry = [
   {
     "region": "Europe",
     "country": "Austria",
-    "police": "059 133",
+    "police": "112",
     "ambulance": "144",
     "fire": "122",
     "notes": "Gas emergency – 128 ; Mountain rescue – 140 ; Doctors – 141 ; Crisis hotline – 142 ; Support for children and teens – 147 ; Non-emergency police – 059 133 ; Deaf fax/SMS – 0800 133 133 ; Poisoning Informations Center – 01 406 43 43 . The emergency telephone number 112 will be answered by the police, but will also handle other emergency services."
@@ -1412,7 +1412,7 @@ const emergencyNumbersByCountry = [
     "country": "Belgium",
     "police": "101 or 112",
     "ambulance": "112",
-    "fire": "1722",
+    "fire": "112",
     "notes": "Non-emergency number for the fire department – 1722 ."
   },
   {
@@ -1450,7 +1450,7 @@ const emergencyNumbersByCountry = [
   {
     "region": "Europe",
     "country": "Czech Republic",
-    "police": "156",
+    "police": "112",
     "ambulance": "112 or 155",
     "fire": "112 or 150",
     "notes": "Municipal police – 156 ."
@@ -1458,7 +1458,7 @@ const emergencyNumbersByCountry = [
   {
     "region": "Europe",
     "country": "Denmark",
-    "police": "114",
+    "police": "112",
     "ambulance": "112",
     "fire": "112",
     "notes": "Non-emergency police – 114 ."
@@ -1506,7 +1506,7 @@ const emergencyNumbersByCountry = [
   {
     "region": "Europe",
     "country": "Germany",
-    "police": "0800 6 888 000",
+    "police": "110",
     "ambulance": "112",
     "fire": "112",
     "notes": "Traditionally 110 for the police and 112 for the fire brigade and rescue service. Due to EU Directive 112 works also for the police; 911 redirects to 112 on telephones used in USAFE bases. Rescue service additionally (outdating) 19222 . Non-emergency medical on-call duty: 116 117 . Debit and credit card locking call 116 116 . Military police: 0800 190 9999 . Federal (incl. railway) police: 0800 6 888 000 ."
@@ -1522,9 +1522,9 @@ const emergencyNumbersByCountry = [
   {
     "region": "Europe",
     "country": "Greece",
-    "police": "171",
+    "police": "112",
     "ambulance": "166",
-    "fire": "1591",
+    "fire": "112",
     "notes": "General emergencies – 112 ; Forest fire – 1591 ; Coast guard – 108 ; Counter-narcotics – 109 ; Tourist police – 171 ; Social aid – 197 ."
   },
   {
@@ -1578,7 +1578,7 @@ const emergencyNumbersByCountry = [
   {
     "region": "Europe",
     "country": "Italy",
-    "police": "117",
+    "police": "112",
     "ambulance": "118",
     "fire": "115",
     "notes": "Older system, still in use in four regions ( Veneto , Molise , Campania and Basilicata ): Police – 113 ; Carabinieri – 112 ; Ambulance – 118 ; Fire – 115 ; Forest service – 1515 ; Customs/Financial police – 117 ; Child Abuse – 114 ; Coast guard – 1530 . 911 redirects to 112 ."
@@ -1610,10 +1610,10 @@ const emergencyNumbersByCountry = [
   {
     "region": "Europe",
     "country": "Lithuania",
-    "police": "022",
-    "ambulance": "033",
-    "fire": "011",
-    "notes": "Police – 022 ; Ambulance – 033 ; Fire – 011 ."
+    "police": "112",
+    "ambulance": "112",
+    "fire": "112",
+    "notes": "Call 112 for emergency services."
   },
   {
     "region": "Europe",
@@ -1666,7 +1666,7 @@ const emergencyNumbersByCountry = [
   {
     "region": "Europe",
     "country": "Netherlands",
-    "police": "0900 88 44 or 0343 578 844",
+    "police": "112",
     "ambulance": "112",
     "fire": "112",
     "notes": "Text phone – 0800 81 12 ; Non-emergency police – 0900 88 44 or 0343 578 844 ; Non-emergency police (text phone) – 0900 18 44 ; Suicide prevention – 0800-0113 ; Animal emergency – 144 ; Child abuse – 0900 123 12 30 ; Anti-bullying hotline – 0800 90 50 ."
@@ -1690,7 +1690,7 @@ const emergencyNumbersByCountry = [
   {
     "region": "Europe",
     "country": "Norway",
-    "police": "02 800",
+    "police": "112",
     "ambulance": "113",
     "fire": "110",
     "notes": "Emergency at sea: 120 ; non-emergency police: 02 800 ; child abuse and family violence: 116 111 ; text phone: 1412 ; nearest health care outside office hours: 116 117 ; 911 redirects to 112 ."
@@ -1708,7 +1708,7 @@ const emergencyNumbersByCountry = [
     "country": "Portugal",
     "police": "112",
     "ambulance": "112",
-    "fire": "117",
+    "fire": "112",
     "notes": "Forest fire – 117 ; Social emergency – 144 . 911 redirects to 112 on telephones located at Lajes Air Station ."
   },
   {
@@ -1746,7 +1746,7 @@ const emergencyNumbersByCountry = [
   {
     "region": "Europe",
     "country": "Slovakia",
-    "police": "159",
+    "police": "112",
     "ambulance": "155",
     "fire": "150",
     "notes": "Municipal police – 159 ."
@@ -1762,15 +1762,15 @@ const emergencyNumbersByCountry = [
   {
     "region": "Europe",
     "country": "Spain",
-    "police": "092",
-    "ambulance": "SAMUR – 061",
-    "fire": "Local Firefighters – 080",
+    "police": "112",
+    "ambulance": "112",
+    "fire": "112",
     "notes": "Police: National Police – 091 ; Civil Guard – 062 ; Autonomic Police – 112 ; Municipal Police – 092 . Fire: Local Firefighters – 080 ; Autonomic Firefighters – 085 . Ambulance: SAMUR – 061 . Others: Civil Protection – 1006 , Maritime Rescue – 902 202 202 ; Red Cross – 901 222 222 ."
   },
   {
     "region": "Europe",
     "country": "Sweden",
-    "police": "114 14",
+    "police": "112",
     "ambulance": "112",
     "fire": "112",
     "notes": "Non-emergency police – 114 14 ; Non-emergency medical advice – 1177 ; Information during accidents and crises – 113 13 ."
@@ -1810,7 +1810,7 @@ const emergencyNumbersByCountry = [
   {
     "region": "Europe",
     "country": "United Kingdom",
-    "police": "101",
+    "police": "999",
     "ambulance": "999 or 112",
     "fire": "999 or 112",
     "notes": "Non-emergency police – 101 ; Power outages – 105 ; Non-emergency health issues – 111 ; COVID-19 testing helpline – 119 ; gas leaks – 0800 111 999 . SMS messages can be sent to 999 after registration by sending a text message with the word 'Register' to 999 . 911 redirects to 999 on mobile phones/public phonebooths and on telephones used in USAFE bases."
@@ -1834,7 +1834,7 @@ const emergencyNumbersByCountry = [
   {
     "region": "Oceania",
     "country": "Australia",
-    "police": "131 444",
+    "police": "000",
     "ambulance": "000",
     "fire": "000",
     "notes": "Mobile phones – 112 or 000 ; State Emergency Service – 132 500 ; National relay service – 106 ; Non-emergency police – 131 444 ( NSW , QLD , VIC , SA , WA , NT , TAS & ACT ); Crime Stoppers – 1800 333 000 ; Threats to national security – 1800 123 400 ; Poison control – 13 11 26 ; Lifeline – 13 11 14 ."

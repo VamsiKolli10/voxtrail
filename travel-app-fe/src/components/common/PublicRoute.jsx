@@ -1,6 +1,7 @@
 import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import FullScreenLoader from "./FullScreenLoader";
+import { authRedirect } from "../../utils/authRedirect";
 
 export default function PublicRoute({ children, redirectTo = "/home" }) {
   const { user, loading } = useAuth();
@@ -21,7 +22,7 @@ export default function PublicRoute({ children, redirectTo = "/home" }) {
 
   // Allow password reset/verification flows even if the user is signed in
   if (user && !isActionFlow && !isLegalPage) {
-    return <Navigate to={redirectTo} replace />;
+    return <Navigate to={path === "/login" ? authRedirect(location.state?.from, redirectTo) : redirectTo} replace />;
   }
 
   return children ?? <Outlet />;

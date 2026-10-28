@@ -1,3 +1,4 @@
+import { resolveApiAssetUrl } from "../../services/apiConfig";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useSearchParams, useNavigate } from "react-router-dom";
@@ -58,7 +59,7 @@ export default function DiscoverPage() {
     isDarkMode ? 0.6 : 0.92
   );
   const softShadow = theme.shadows[isDarkMode ? 6 : 1];
-  const { track } = useAnalytics();
+  const { trackEvent: track } = useAnalytics();
   const {
     destination,
     destinationDisplayName,
@@ -71,15 +72,15 @@ export default function DiscoverPage() {
     [destinationDisplayName, destination]
   );
 
-  const [query, setQuery] = useState({
-    dest: params.get("dest") || contextDestination || "",
-    lat: params.get("lat")
-      ? Number(params.get("lat"))
-      : destinationLat ?? undefined,
-    lng: params.get("lng")
-      ? Number(params.get("lng"))
-      : destinationLng ?? undefined,
-  });
+  const urlDest = (params.get("dest") || "").trim();
+  const urlLat = params.get("lat")?.trim();
+  const urlLng = params.get("lng")?.trim();
+  const hasUrlLocation = Boolean(urlDest || urlLat || urlLng);
+  const [query, setQuery] = useState(() => ({
+    dest: urlDest || (hasUrlLocation ? "" : contextDestination) || "",
+    lat: urlLat ? Number(urlLat) : hasUrlLocation ? undefined : destinationLat ?? undefined,
+    lng: urlLng ? Number(urlLng) : hasUrlLocation ? undefined : destinationLng ?? undefined,
+  }));
 
   const [filters, setFilters] = useState({
     category: (params.get("category") || "").split(",").filter(Boolean),
@@ -123,18 +124,7 @@ export default function DiscoverPage() {
   const [itinerary, setItinerary] = useState(null);
   // Removed inline itinerary generation on Discover page per request
 
-  const toAbsoluteUrl = (maybeRelative) => {
-    if (!maybeRelative) return maybeRelative;
-    if (
-      maybeRelative.startsWith("http://") ||
-      maybeRelative.startsWith("https://")
-    ) {
-      return maybeRelative;
-    }
-    const baseURL = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
-    const cleanBase = baseURL.replace(/\/api$/, "");
-    return `${cleanBase}${maybeRelative}`;
-  };
+  const toAbsoluteUrl = resolveApiAssetUrl;
 
   const normalizeDiscoverQuery = (base = {}) => {
     const dest =
@@ -169,6 +159,7 @@ export default function DiscoverPage() {
   }, [queryParams, setParams]);
 
   useEffect(() => {
+    if (hasUrlLocation) return;
     if (!contextDestination && destinationLat == null && destinationLng == null)
       return;
     setQuery((prev) => {
@@ -199,7 +190,7 @@ export default function DiscoverPage() {
             : prev.lng,
       };
     });
-  }, [contextDestination, destinationLat, destinationLng]);
+  }, [contextDestination, destinationLat, destinationLng, hasUrlLocation]);
 
   // Record a successful search in the travel context and analytics once per
   // search (not again for cache hits or background refetches of the same one).

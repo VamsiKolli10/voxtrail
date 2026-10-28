@@ -10,6 +10,7 @@ VoxTrail brings the tools travelers usually spread across several apps into one 
 - **AI phrasebooks** — Generate useful phrases for airports, dining, directions, emergencies, and more.
 - **Saved phrases** — Keep a personal, Firestore-backed collection of favorites.
 - **Stays search** — Find accommodations with ratings, amenities, photos, filters, and map context.
+- **Saved stays** — Bookmark a place with your own nickname and notes, then revisit it from any signed-in device. [Behavior and storage](docs/features/saved-stays.md).
 - **Discover** — Explore destinations and points of interest with rich detail pages and maps.
 - **Itinerary planner** — Build context-aware itineraries from destinations, interests, pace, and budget.
 - **Cultural guidance** — Learn local etiquette and get destination-aware travel tips.

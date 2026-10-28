@@ -22,7 +22,7 @@ The previously documented `VITE_API_TIMEOUT`, generic offline/analytics/error-re
 | --- | --- |
 | `APP_PORT` | 8000 for standalone development |
 | `NODE_ENV` | Set `development` locally; production/staging enable durable quotas and culture authentication. Only `test` and `development` bypass those production-specific gates. |
-| `APP_CHECK_ENFORCE` | `false` (monitor mode: log missing/invalid App Check tokens). `true` rejects API requests without a valid `X-Firebase-AppCheck` token. See ADR-002 |
+| `APP_CHECK_ENFORCE` | `false` (monitor mode: log missing/invalid App Check tokens). `true` rejects API requests without a valid `X-Firebase-AppCheck` token. Health checks and signed photo GET/HEAD requests are exempt; photos still require an unexpired signature. See ADR-002 |
 | `CORS_ALLOWED_ORIGINS` | Comma-separated exact origins; set explicitly for deployed environments |
 | `REQUEST_BODY_LIMIT` | `256kb` |
 | `READINESS_TIMEOUT_MS` | 3000, maximum 10000 |

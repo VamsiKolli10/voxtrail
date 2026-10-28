@@ -9,24 +9,46 @@ vi.mock("../../../services/poi", () => ({
   searchPOIs: vi.fn(),
 }));
 
+const trackEvent = vi.hoisted(() => vi.fn());
 vi.mock("../../../contexts/AnalyticsContext.jsx", () => ({
-  useAnalytics: () => ({ track: vi.fn() }),
+  useAnalytics: () => ({ trackEvent }),
 }));
 
+let travelContext;
 vi.mock("../../../hooks/useTravelContext", () => ({
-  __esModule: true,
-  default: () => ({
-    destination: "",
-    destinationDisplayName: "",
-    destinationLat: null,
-    destinationLng: null,
-    setDestinationContext: vi.fn(),
-  }),
+  default: () => travelContext,
 }));
 
 describe("DiscoverPage (POI search)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    travelContext = { destination: "", destinationLat: null, destinationLng: null, setDestinationContext: vi.fn() };
+  });
+
+  it("does not turn blank coordinate parameters into a search at 0,0", () => {
+    render(<MemoryRouter initialEntries={["/discover?lat=&lng="]}><DiscoverPage /></MemoryRouter>);
+    expect(searchPOIs).not.toHaveBeenCalled();
+    expect(screen.getByLabelText(/search city, country, or attraction/i)).toHaveValue("");
+  });
+
+  it("does not combine an incomplete URL coordinate with the old destination", () => {
+    travelContext = { ...travelContext, destination: "Rome", destinationLat: 41.9, destinationLng: 12.5 };
+    render(<MemoryRouter initialEntries={["/discover?lat=48.8"]}><DiscoverPage /></MemoryRouter>);
+    expect(searchPOIs).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["/discover?dest=Paris", "Paris", undefined, undefined],
+    ["/discover?lat=48.8&lng=2.3", "", 48.8, 2.3],
+    ["/discover?lat=0&lng=0", "", 0, 0],
+  ])("URL location overrides old travel context: %s", async (url, dest, lat, lng) => {
+    travelContext = { ...travelContext, destination: "Rome", destinationLat: 41.9, destinationLng: 12.5 };
+    searchPOIs.mockResolvedValue({ items: [] });
+    render(<MemoryRouter initialEntries={[url]}><DiscoverPage /></MemoryRouter>);
+    fireEvent.keyDown(screen.getByLabelText(/search city, country, or attraction/i), { key: "Enter" });
+    await waitFor(() => expect(searchPOIs).toHaveBeenCalled());
+    expect(searchPOIs.mock.calls[0][0]).toMatchObject({ dest, lat, lng });
+    await waitFor(() => expect(trackEvent).toHaveBeenCalledWith("discover_search", expect.objectContaining({ dest, lat, lng })));
   });
 
   it("renders search results", async () => {

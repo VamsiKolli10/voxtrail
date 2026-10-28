@@ -1,3 +1,4 @@
+import { authRedirect } from "../../utils/authRedirect";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
@@ -58,10 +59,7 @@ export default function Login() {
   const { user } = useAuth();
   const redirectPath = useMemo(
     () => {
-      const from = location.state?.from;
-      return from?.pathname
-        ? `${from.pathname}${from.search || ""}${from.hash || ""}`
-        : "/home";
+      return authRedirect(location.state?.from);
     },
     [location.state]
   );
@@ -123,7 +121,7 @@ export default function Login() {
   };
 
   useEffect(() => {
-    if (!location.state) return;
+    if (!location.state?.email && !location.state?.verificationSent) return;
     const { email: incomingEmail, verificationSent } = location.state;
     if (incomingEmail) {
       setFormData((prev) => ({ ...prev, email: incomingEmail }));
@@ -137,8 +135,9 @@ export default function Login() {
       );
     }
 
-    // Clear the state to prevent showing the message again
-    navigate(location.pathname, { replace: true });
+    // Consume the verification notice while retaining the protected destination.
+    const { email: _email, verificationSent: _sent, ...state } = location.state;
+    navigate(`${location.pathname}${location.search}${location.hash}`, { replace: true, state });
   }, [location, navigate]);
 
   useEffect(() => {

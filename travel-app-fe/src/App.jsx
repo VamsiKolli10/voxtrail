@@ -28,6 +28,7 @@ const Phrasebook = lazy(() => import("./components/pages/Phrasebook"));
 const Emergency = lazy(() => import("./components/pages/Emergency"));
 const CulturalGuide = lazy(() => import("./components/pages/CulturalGuide"));
 const StaysSearchPage = lazy(() => import("./components/pages/StaysSearchPage"));
+const SavedStaysPage = lazy(() => import("./components/pages/SavedStaysPage"));
 const StayDetailsPage = lazy(() => import("./components/pages/StayDetailsPage"));
 const DiscoverPage = lazy(() => import("./components/pages/DiscoverPage"));
 const DestinationDetailsPage = lazy(() =>
@@ -135,6 +136,14 @@ export default function App() {
                           element={
                             <FeatureGate flag="staysModule">
                               <StaysSearchPage />
+                            </FeatureGate>
+                          }
+                        />
+                        <Route
+                          path="/saved-stays"
+                          element={
+                            <FeatureGate flag="staysModule">
+                              <SavedStaysPage />
                             </FeatureGate>
                           }
                         />

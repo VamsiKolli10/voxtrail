@@ -15,6 +15,7 @@ import { createAppTheme } from "../theme";
  */
 export const APPEARANCE_STORAGE_KEY = "stc:appearance";
 
+// Keep palette reads (including alpha() and mode checks) in sync with CSS variables.
 const theme = createAppTheme("light");
 
 export function AppearanceProvider({ children }) {
@@ -25,6 +26,7 @@ export function AppearanceProvider({ children }) {
       modeStorageKey={APPEARANCE_STORAGE_KEY}
       colorSchemeStorageKey="stc:color-scheme"
       noSsr
+      forceThemeRerender
     >
       <CssBaseline />
       {children}
